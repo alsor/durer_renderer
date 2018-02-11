@@ -1,0 +1,7 @@
+[package]
+name = "durer"
+version = "0.1.0"
+authors = ["Alexey Sorokin <alsor.net@gmail.com>"]
+
+[dependencies]
+image = "0.13.0"
