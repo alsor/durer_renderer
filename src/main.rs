@@ -17,7 +17,7 @@ struct Frame { x_min: f64, x_max: f64, y_min: f64, y_max: f64 }
 struct Pixel { x: usize, y: usize }
 
 fn project(point3d: Point3D) -> Point2D {
-    Point2D { x: point3d.x / point3d.z, y: point3d.y / point3d.z }
+    Point2D { x: -point3d.x / point3d.z, y: -point3d.y / point3d.z }
 }
 
 fn normalize(point2d: Point2D, frame: Frame) -> Point2D {
@@ -99,7 +99,7 @@ fn rasterize_line(start: Pixel, end: Pixel, buffer: &mut [u8], size: usize) {
 }
 
 fn render(pixel: Pixel, buffer: &mut [u8], size: usize) {
-    buffer[pixel.x * size + pixel.y] = 255;
+    buffer[pixel.y * size + pixel.x] = 255;
 }
 
 fn write_image(buffer: &[u8], size: usize) -> Result<(), std::io::Error> {
@@ -113,14 +113,14 @@ fn write_image(buffer: &[u8], size: usize) -> Result<(), std::io::Error> {
 
 fn main() {
     let vertices = [
-        Point3D { x: -1.5, y: -0.5, z: 1.5 },
-        Point3D { x: -1.5, y: 0.5, z: 1.5 },
-        Point3D { x: -0.5, y: 0.5, z: 1.5 },
+        Point3D { x: -0.5, y: -1.5, z: 1.5 },
         Point3D { x: -0.5, y: -0.5, z: 1.5 },
-        Point3D { x: -1.5, y: -0.5, z: 2.5 },
-        Point3D { x: -1.5, y: 0.5, z: 2.5 },
-        Point3D { x: -0.5, y: 0.5, z: 2.5 },
+        Point3D { x: 0.5, y: -0.5, z: 1.5 },
+        Point3D { x: 0.5, y: -1.5, z: 1.5 },
+        Point3D { x: -0.5, y: -1.5, z: 2.5 },
         Point3D { x: -0.5, y: -0.5, z: 2.5 },
+        Point3D { x: 0.5, y: -0.5, z: 2.5 },
+        Point3D { x: 0.5, y: -1.5, z: 2.5 },
     ];
 
     let edges = [
