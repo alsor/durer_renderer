@@ -4,4 +4,4 @@ Unreal Engine Next Gen
 
 Face visibility detection
 
-![Faces](https://imgur.com/3qH2ABl)
+![Faces](https://i.imgur.com/3qH2ABl.png)
