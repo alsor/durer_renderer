@@ -3,6 +3,7 @@ extern crate image;
 use image::ColorType;
 use image::png::PNGEncoder;
 use std::fs::File;
+use std::f64;
 
 #[derive(Copy, Clone)]
 struct Point3D { x: f64, y: f64, z: f64 }
@@ -169,6 +170,70 @@ fn draw_face(face: &(i32, i32, i32, i32),
     rasterize_line(vertex_pixels[face.3 as usize], vertex_pixels[face.0 as usize], buffer, size);
 }
 
+fn transform(vertices: [Point3D; 8], vector: Point3D) -> [Point3D; 8] {
+    let mut result = [Point3D { x: 0.0, y: 0.0, z: 0.0 }; 8];
+    for i in 0..vertices.len() {
+        result[i].x = vertices[i].x + vector.x;
+        result[i].y = vertices[i].y + vector.y;
+        result[i].z = vertices[i].z + vector.z;
+    }
+    result
+}
+
+fn create_rotated_cube(t: f64) -> [Point3D; 8] {
+    let radius = (2.0 as f64).sqrt() / 2.0;
+    [
+        // 0
+        Point3D {
+            x: (5.0 * f64::consts::PI / 4.0 + t).cos() * radius,
+            y: -0.5,
+            z: (5.0 * f64::consts::PI / 4.0 + t).sin() * radius
+        },
+        // 1
+        Point3D {
+            x: (5.0 * f64::consts::PI / 4.0 + t).cos() * radius,
+            y: 0.5,
+            z: (5.0 * f64::consts::PI / 4.0 + t).sin() * radius
+        },
+        // 2
+        Point3D {
+            x: (7.0 * f64::consts::PI / 4.0 + t).cos() * radius,
+            y: 0.5,
+            z: (7.0 * f64::consts::PI / 4.0 + t).sin() * radius
+        },
+        // 3
+        Point3D {
+            x: (7.0 * f64::consts::PI / 4.0 + t).cos() * radius,
+            y: -0.5,
+            z: (7.0 * f64::consts::PI / 4.0 + t).sin() * radius
+        },
+        // 4
+        Point3D {
+            x: (3.0 * f64::consts::PI / 4.0 + t).cos() * radius,
+            y: -0.5,
+            z: (3.0 * f64::consts::PI / 4.0 + t).sin() * radius
+        },
+        // 5
+        Point3D {
+            x: (3.0 * f64::consts::PI / 4.0 + t).cos() * radius,
+            y: 0.5,
+            z: (3.0 * f64::consts::PI / 4.0 + t).sin() * radius
+        },
+        // 6
+        Point3D {
+            x: (f64::consts::PI / 4.0 + t).cos() * radius,
+            y: 0.5,
+            z: (f64::consts::PI / 4.0 + t).sin() * radius
+        },
+        // 7
+        Point3D {
+            x: (f64::consts::PI / 4.0 + t).cos() * radius,
+            y: -0.5,
+            z: (f64::consts::PI / 4.0 + t).sin() * radius
+        },
+    ]
+}
+
 fn main() {
     //
     // y
@@ -179,24 +244,27 @@ fn main() {
     //
     // z - deeper into the screen
     //
-    let vertices = [
-        // 0
-        Point3D { x: -0.5, y: -1.5, z: 1.5 },
-        // 1
-        Point3D { x: -0.5, y: -0.5, z: 1.5 },
-        // 2
-        Point3D { x: 0.5, y: -0.5, z: 1.5 },
-        // 3
-        Point3D { x: 0.5, y: -1.5, z: 1.5 },
-        // 4
-        Point3D { x: -0.5, y: -1.5, z: 2.5 },
-        // 5
-        Point3D { x: -0.5, y: -0.5, z: 2.5 },
-        // 6
-        Point3D { x: 0.5, y: -0.5, z: 2.5 },
-        // 7
-        Point3D { x: 0.5, y: -1.5, z: 2.5 },
-    ];
+//    let cube_vertices = [
+//        // 0
+//        Point3D { x: -0.5, y: -0.5, z: -0.5 },
+//        // 1
+//        Point3D { x: -0.5, y: 0.5, z: -0.5 },
+//        // 2
+//        Point3D { x: 0.5, y: 0.5, z: -0.5 },
+//        // 3
+//        Point3D { x: 0.5, y: -0.5, z: -0.5 },
+//        // 4
+//        Point3D { x: -0.5, y: -0.5, z: 0.5 },
+//        // 5
+//        Point3D { x: -0.5, y: 0.5, z: 0.5 },
+//        // 6
+//        Point3D { x: 0.5, y: 0.5, z: 0.5 },
+//        // 7
+//        Point3D { x: 0.5, y: -0.5, z: 0.5 },
+//    ];
+    let cube_vertices = create_rotated_cube(0.6);
+
+    let vertices = transform(cube_vertices, Point3D { x: 0.0, y: -1.0, z: 2.0 });
 
     let edges = [
         (0, 1),
