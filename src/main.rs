@@ -113,7 +113,7 @@ fn simple_line(start: Pixel, end: Pixel, buffer: &mut [u8], size: usize) {
 }
 
 fn render(pixel: Pixel, buffer: &mut [u8], size: usize) {
-    buffer[pixel.y * size + pixel.x] = 0;
+    buffer[pixel.y * size + pixel.x] = 255;
 }
 
 fn write_image(buffer: &[u8], size: usize) -> Result<(), std::io::Error> {
@@ -224,7 +224,7 @@ fn main() {
 
     let frame = Frame { x_min: -1.2, x_max: 1.2, y_min: -1.2, y_max: 1.2 };
     let size = 500;
-    let mut buffer = vec![255u8; size * size];
+    let mut buffer = vec![0u8; size * size];
 
     let mut vertex_pixels = Vec::new();
 
