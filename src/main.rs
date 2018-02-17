@@ -181,21 +181,21 @@ fn main() {
     //
     let vertices = [
         // 0
-        Point3D { x: -0.5, y: -1.2, z: 1.5 },
+        Point3D { x: -0.5, y: -1.5, z: 1.5 },
         // 1
-        Point3D { x: -0.5, y: -0.2, z: 1.5 },
+        Point3D { x: -0.5, y: -0.5, z: 1.5 },
         // 2
-        Point3D { x: 0.5, y: -0.2, z: 1.5 },
+        Point3D { x: 0.5, y: -0.5, z: 1.5 },
         // 3
-        Point3D { x: 0.5, y: -1.2, z: 1.5 },
+        Point3D { x: 0.5, y: -1.5, z: 1.5 },
         // 4
-        Point3D { x: -0.5, y: -1.2, z: 2.5 },
+        Point3D { x: -0.5, y: -1.5, z: 2.5 },
         // 5
-        Point3D { x: -0.5, y: -0.2, z: 2.5 },
+        Point3D { x: -0.5, y: -0.5, z: 2.5 },
         // 6
-        Point3D { x: 0.5, y: -0.2, z: 2.5 },
+        Point3D { x: 0.5, y: -0.5, z: 2.5 },
         // 7
-        Point3D { x: 0.5, y: -1.2, z: 2.5 },
+        Point3D { x: 0.5, y: -1.5, z: 2.5 },
     ];
 
     let edges = [
