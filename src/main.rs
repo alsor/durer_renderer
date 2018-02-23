@@ -443,7 +443,7 @@ fn main() {
 
     let z_transform = find_z_transform(&vertices);
     println!("calculated z transform: {:.2}", z_transform);
-    let z_transform = 15.0;
+    let z_transform = 40.0;
 
     let vertices = transform(&vertices, Point3D { x: 0.0, y: -0.0, z: z_transform });
 
@@ -460,10 +460,11 @@ fn main() {
     let frame = enclosing_frame(&vertices);
     println!("calculated frame: {:.2} {:.2} {:.2} {:.2}",
              frame.x_min, frame.x_max, frame.y_min, frame.y_max);
-//    let frame = Frame { x_min: -2.0, x_max: 2.0, y_min: -2.0, y_max: 2.0 };
+    let half = 0.45;
+    let frame = Frame { x_min: -half, x_max: half, y_min: -half, y_max: half };
 
 
-    let size = 5000;
+    let size = 800;
     let mut buffer = vec![0u8; size * size];
 
     let mut vertex_pixels = Vec::new();
