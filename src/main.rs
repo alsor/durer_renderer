@@ -4,6 +4,8 @@ use image::ColorType;
 use image::png::PNGEncoder;
 use std::fs::File;
 use std::f64;
+use std::io::prelude::*;
+use std::str::FromStr;
 
 #[derive(Copy, Clone)]
 struct Point3D { x: f64, y: f64, z: f64 }
@@ -146,10 +148,10 @@ fn vector_difference(v1: Point3D, v2: Point3D) -> Point3D {
     }
 }
 
-fn face_visible(face: &(i32, i32, i32, i32), vertices: &[Point3D]) -> bool {
-    let vector1 = vector_difference(vertices[face.2 as usize], vertices[face.1 as usize]);
+fn face_visible(face: &Vec<i32>, vertices: &[Point3D]) -> bool {
+    let vector1 = vector_difference(vertices[face[2] as usize], vertices[face[1] as usize]);
 //    println!("vector1: {:.2} {:.2} {:.2}", vector1.x, vector1.y, vector1.z);
-    let vector2 = vector_difference(vertices[face.1 as usize], vertices[face.0 as usize]);
+    let vector2 = vector_difference(vertices[face[1] as usize], vertices[face[0] as usize]);
 //    println!("vector2: {:.2} {:.2} {:.2}", vector2.x, vector2.y, vector2.z);
     let face_vector = cross_product(
         vector1,
@@ -157,25 +159,55 @@ fn face_visible(face: &(i32, i32, i32, i32), vertices: &[Point3D]) -> bool {
     );
 //    println!("face vector: {:.2} {:.2} {:.2}", face_vector.x, face_vector.y, face_vector.z);
 
-    dot_product(vertices[face.0 as usize], face_vector) < 0.0
+    dot_product(vertices[face[0] as usize], face_vector) < 0.0
 }
 
-fn draw_face(face: &(i32, i32, i32, i32),
+fn face_visible2(face: &Vec<i32>, vertices: &[Point3D]) -> bool {
+    let vector1 = vector_difference(vertices[face[2] as usize], vertices[face[1] as usize]);
+//    println!("vector1: {:.2} {:.2} {:.2}", vector1.x, vector1.y, vector1.z);
+    let vector2 = vector_difference(vertices[face[1] as usize], vertices[face[0] as usize]);
+//    println!("vector2: {:.2} {:.2} {:.2}", vector2.x, vector2.y, vector2.z);
+    let face_vector = cross_product(
+        vector2,
+        vector1
+    );
+//    println!("face vector: {:.2} {:.2} {:.2}", face_vector.x, face_vector.y, face_vector.z);
+
+    dot_product(vertices[face[0] as usize], face_vector) < 0.0
+}
+
+fn draw_face(face: &Vec<i32>,
              vertex_pixels: &Vec<Pixel>,
              buffer: &mut [u8],
              size: usize) {
-    rasterize_line(vertex_pixels[face.0 as usize], vertex_pixels[face.1 as usize], buffer, size);
-    rasterize_line(vertex_pixels[face.1 as usize], vertex_pixels[face.2 as usize], buffer, size);
-    rasterize_line(vertex_pixels[face.2 as usize], vertex_pixels[face.3 as usize], buffer, size);
-    rasterize_line(vertex_pixels[face.3 as usize], vertex_pixels[face.0 as usize], buffer, size);
+    for vertex_index in 0..face.len() {
+        let start_vertex;
+        let end_vertex;
+        if vertex_index + 1 < face.len() {
+            start_vertex = vertex_index;
+            end_vertex = vertex_index + 1;
+        } else {
+            start_vertex = vertex_index;
+            end_vertex = 0;
+        }
+        rasterize_line(
+            vertex_pixels[face[start_vertex] as usize],
+            vertex_pixels[face[end_vertex] as usize],
+            buffer, size
+        );
+    }
 }
 
-fn transform(vertices: [Point3D; 8], vector: Point3D) -> [Point3D; 8] {
-    let mut result = [Point3D { x: 0.0, y: 0.0, z: 0.0 }; 8];
+fn transform(vertices: &Vec<Point3D>, vector: Point3D) -> Vec<Point3D> {
+    let mut result = Vec::new();
     for i in 0..vertices.len() {
-        result[i].x = vertices[i].x + vector.x;
-        result[i].y = vertices[i].y + vector.y;
-        result[i].z = vertices[i].z + vector.z;
+        result.push(
+            Point3D {
+                x: vertices[i].x + vector.x,
+                y: vertices[i].y + vector.y,
+                z: vertices[i].z + vector.z
+            }
+        );
     }
     result
 }
@@ -234,7 +266,187 @@ fn create_rotated_cube(t: f64) -> [Point3D; 8] {
     ]
 }
 
+fn read_ply2(filename: &str) -> (Vec<Point3D>, Vec<Vec<i32>>) {
+    let mut f = File::open(filename).expect("file not found");
+    let mut contents = String::new();
+    f.read_to_string(&mut contents).expect("error reading file");
+
+    #[derive(Copy,Clone)]
+    enum Ply2Parts { NumVertices, NumFaces, Vertices, Faces }
+    let ply2_structure = [
+        Ply2Parts::NumVertices,
+        Ply2Parts::NumFaces,
+        Ply2Parts::Vertices,
+        Ply2Parts::Faces,
+    ];
+    let mut current_section = 0;
+
+    let mut num_vertices = 0;
+    let mut num_faces = 0;
+    let mut current_vertex = 0;
+    let mut current_face = 0;
+    let mut vertices = Vec::new();
+    let mut faces = Vec::new();
+
+    for line in contents.split("\n") {
+        //        let parsed = match i32::from_str(line.trim()) {
+        //            Ok(num) => num,
+        //            Err(e) => {
+        //                println!("error: {}", e);
+        //                0
+        //            }
+        //        };
+        //        println!("parsed: {:?}", parsed);
+        if current_section == 4 {
+            break;
+        }
+
+        match ply2_structure[current_section] {
+            Ply2Parts::NumVertices => {
+                num_vertices = i32::from_str(line.trim()).unwrap();
+                current_section += 1;
+            }
+            Ply2Parts::NumFaces => {
+                num_faces = i32::from_str(line.trim()).unwrap();
+                current_section += 1;
+            }
+            Ply2Parts::Vertices => {
+                let mut coords = Vec::new();
+                for float in line.trim().split(" ") {
+                    coords.push(f64::from_str(float).unwrap());
+                }
+                vertices.push(Point3D { x: coords[0], y: coords[1], z: coords[2] });
+                current_vertex += 1;
+                if current_vertex == num_vertices {
+                    current_section += 1;
+                }
+            }
+            Ply2Parts::Faces => {
+                let mut faces_list = Vec::new();
+                let mut face = Vec::new();
+                for str in line.trim().split(" ") {
+                    faces_list.push(i32::from_str(str.trim()).unwrap());
+                }
+                let vertices_in_face = faces_list[0];
+                for i in 1..(vertices_in_face + 1) {
+                    face.push(faces_list[i as usize]);
+                }
+                faces.push(face);
+
+                current_face += 1;
+                if current_face == num_faces {
+                    current_section += 1;
+                }
+            }
+            _ => ()
+        }
+    }
+
+    println!("vertices read: {}", vertices.len());
+    println!("faces read: {}", faces.len());
+
+    (vertices, faces)
+}
+
+fn cube() -> (Vec<Point3D>, Vec<Vec<i32>>) {
+    let cube_vertices = create_rotated_cube(0.6).to_vec();
+
+    let vertices = transform(&cube_vertices, Point3D { x: 0.0, y: 0.0, z: 5.0 });
+
+    let faces = vec![
+        vec![0, 3, 2, 1],
+        vec![3, 7, 6, 2],
+        vec![7, 4, 5, 6],
+        vec![4, 0, 1, 5],
+        vec![0, 4, 7, 3],
+        vec![1, 2, 6, 5],
+    ];
+
+    (vertices, faces)
+}
+
+fn enclosing_frame(vertices: &Vec<Point3D>) -> Frame {
+    let mut x_min = 0.0;
+    let mut x_max = 0.0;
+    let mut y_min = 0.0;
+    let mut y_max = 0.0;
+    for v in vertices {
+        if v.x < x_min {
+            x_min = v.x;
+        }
+        if v.x > x_max {
+            x_max = v.x;
+        }
+        if v.y < y_min {
+            y_min = v.y;
+        }
+        if v.y > y_max {
+            y_max = v.y;
+        }
+    }
+
+    let size_x = (x_max - x_min).abs();
+    let size_y = (y_max - y_min).abs();
+    let size = if size_x > size_y {
+        size_x
+    } else {
+        size_y
+    };
+
+
+    println!("calculated size {:.2}", size);
+
+    let margin = size * 0.0;
+    println!("calculated margin {:.2}", margin);
+
+    let half = size / 3.0 + margin;
+//    let margin = 0.0;
+
+//    Frame {
+//        x_min: x_min - margin,
+//        x_max: x_max + margin,
+//        y_min: y_min - margin,
+//        y_max: y_max + margin
+//    }
+    Frame {
+        x_min: -half,
+        x_max: half,
+        y_min: -half,
+        y_max: half
+    }
+}
+
+fn find_z_transform(vertices: &Vec<Point3D>) -> f64 {
+    let mut z_min = 0.0;
+    let mut z_max = 0.0;
+
+    for v in vertices {
+        if v.z < z_min {
+            z_min = v.z;
+        }
+        if v.z > z_max {
+            z_max = v.z;
+        }
+    }
+
+    let size = (z_max - z_min).abs();
+
+    1.0 - z_min
+}
+
 fn main() {
+//    let (vertices, faces) = read_ply2("resources/statue.ply2");
+//    let (vertices, faces) = read_ply2("resources/torus.ply2");
+//    let (vertices, faces) = read_ply2("resources/cube.ply2");
+    let (vertices, faces) = read_ply2("resources/twirl.ply2");
+//    let (vertices, faces) = cube();
+
+    let z_transform = find_z_transform(&vertices);
+    println!("calculated z transform: {:.2}", z_transform);
+    let z_transform = 15.0;
+
+    let vertices = transform(&vertices, Point3D { x: 0.0, y: -0.0, z: z_transform });
+
     //
     // y
     // ^
@@ -244,54 +456,14 @@ fn main() {
     //
     // z - deeper into the screen
     //
-//    let cube_vertices = [
-//        // 0
-//        Point3D { x: -0.5, y: -0.5, z: -0.5 },
-//        // 1
-//        Point3D { x: -0.5, y: 0.5, z: -0.5 },
-//        // 2
-//        Point3D { x: 0.5, y: 0.5, z: -0.5 },
-//        // 3
-//        Point3D { x: 0.5, y: -0.5, z: -0.5 },
-//        // 4
-//        Point3D { x: -0.5, y: -0.5, z: 0.5 },
-//        // 5
-//        Point3D { x: -0.5, y: 0.5, z: 0.5 },
-//        // 6
-//        Point3D { x: 0.5, y: 0.5, z: 0.5 },
-//        // 7
-//        Point3D { x: 0.5, y: -0.5, z: 0.5 },
-//    ];
-    let cube_vertices = create_rotated_cube(0.6);
 
-    let vertices = transform(cube_vertices, Point3D { x: 0.0, y: -1.0, z: 2.0 });
+    let frame = enclosing_frame(&vertices);
+    println!("calculated frame: {:.2} {:.2} {:.2} {:.2}",
+             frame.x_min, frame.x_max, frame.y_min, frame.y_max);
+//    let frame = Frame { x_min: -2.0, x_max: 2.0, y_min: -2.0, y_max: 2.0 };
 
-    let edges = [
-        (0, 1),
-        (1, 2),
-        (2, 3),
-        (3, 0),
-        (0, 4),
-        (1, 5),
-        (2, 6),
-        (3, 7),
-        (4, 5),
-        (5, 6),
-        (6, 7),
-        (7, 4),
-    ];
 
-    let faces = [
-        (0, 3, 2, 1),
-        (3, 7, 6, 2),
-        (7, 4, 5, 6),
-        (4, 0, 1, 5),
-        (0, 4, 7, 3),
-        (1, 2, 6, 5),
-    ];
-
-    let frame = Frame { x_min: -1.2, x_max: 1.2, y_min: -1.2, y_max: 1.2 };
-    let size = 500;
+    let size = 5000;
     let mut buffer = vec![0u8; size * size];
 
     let mut vertex_pixels = Vec::new();
@@ -303,7 +475,7 @@ fn main() {
         let pixel = rasterize(norm_point, size);
         //        println!("Pixel: {:?} {:?}", pixel.x, pixel.y);
         vertex_pixels.push(pixel);
-    }
+    };
 
     // line from eye to vertex
 //    rasterize_line(
@@ -313,13 +485,9 @@ fn main() {
 //        size
 //    );
 
-    //    for edge in &edges {
-    //        rasterize_line(vertex_pixels[edge.0], vertex_pixels[edge.1], &mut buffer, size);
-    //    }
-
     // draw faces
     for face in &faces {
-        if face_visible(face, &vertices) {
+        if face_visible2(face, &vertices) {
             draw_face(face, &vertex_pixels, &mut buffer, size);
         };
     };

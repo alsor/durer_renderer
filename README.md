@@ -9,3 +9,7 @@ Face visibility detection
 Rotated cube (parametrized model)
 
 ![Faces](https://i.imgur.com/pUH6ykZ.png)
+
+Read models from PLY2 format
+
+![Twirl](https://i.imgur.com/OeBxCYm.png)
