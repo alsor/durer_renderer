@@ -13,3 +13,7 @@ Rotated cube (parametrized model)
 Read models from PLY2 format
 
 ![Twirl](https://i.imgur.com/edMp9HJ.png)
+
+Octo-flawor
+
+![Twirl](https://i.imgur.com/Tn7ecpQ.png)

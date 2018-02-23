@@ -438,14 +438,15 @@ fn main() {
 //    let (vertices, faces) = read_ply2("resources/statue.ply2");
 //    let (vertices, faces) = read_ply2("resources/torus.ply2");
 //    let (vertices, faces) = read_ply2("resources/cube.ply2");
-    let (vertices, faces) = read_ply2("resources/twirl.ply2");
+//    let (vertices, faces) = read_ply2("resources/twirl.ply2");
+    let (vertices, faces) = read_ply2("resources/octa-flower.ply2");
 //    let (vertices, faces) = cube();
 
     let z_transform = find_z_transform(&vertices);
     println!("calculated z transform: {:.2}", z_transform);
-    let z_transform = 40.0;
+    let z_transform = 45.0;
 
-    let vertices = transform(&vertices, Point3D { x: 0.0, y: -0.0, z: z_transform });
+    let vertices = transform(&vertices, Point3D { x: 0.0, y: 0.0, z: z_transform });
 
     //
     // y
@@ -460,7 +461,7 @@ fn main() {
     let frame = enclosing_frame(&vertices);
     println!("calculated frame: {:.2} {:.2} {:.2} {:.2}",
              frame.x_min, frame.x_max, frame.y_min, frame.y_max);
-    let half = 0.45;
+    let half = 0.5;
     let frame = Frame { x_min: -half, x_max: half, y_min: -half, y_max: half };
 
 
