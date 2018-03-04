@@ -438,8 +438,8 @@ fn main() {
 //    let (vertices, faces) = read_ply2("resources/statue.ply2");
 //    let (vertices, faces) = read_ply2("resources/torus.ply2");
 //    let (vertices, faces) = read_ply2("resources/cube.ply2");
-//    let (vertices, faces) = read_ply2("resources/twirl.ply2");
-    let (vertices, faces) = read_ply2("resources/octa-flower.ply2");
+    let (vertices, faces) = read_ply2("resources/twirl.ply2");
+//    let (vertices, faces) = read_ply2("resources/octa-flower.ply2");
 //    let (vertices, faces) = cube();
 
     let z_transform = find_z_transform(&vertices);
@@ -465,7 +465,7 @@ fn main() {
     let frame = Frame { x_min: -half, x_max: half, y_min: -half, y_max: half };
 
 
-    let size = 800;
+    let size = 1000;
     let mut buffer = vec![0u8; size * size];
 
     let mut vertex_pixels = Vec::new();
