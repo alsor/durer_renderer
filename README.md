@@ -1,4 +1,4 @@
-Unreal Engine Next Gen
+Software Renderer written in Rust
 
 ![Cube](https://i.imgur.com/SM7Ofnk.png)
 

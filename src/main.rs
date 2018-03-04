@@ -1,4 +1,5 @@
 extern crate image;
+extern crate sdl2;
 
 use image::ColorType;
 use image::png::PNGEncoder;
@@ -116,14 +117,17 @@ fn simple_line(start: Pixel, end: Pixel, buffer: &mut [u8], size: usize) {
 }
 
 fn render(pixel: Pixel, buffer: &mut [u8], size: usize) {
-    buffer[pixel.y * size + pixel.x] = 255;
+    let offset = pixel.y * size * 3 + pixel.x * 3;
+    buffer[offset] = 255;
+    buffer[offset + 1] = 255;
+    buffer[offset + 2] = 255;
 }
 
 fn write_image(buffer: &[u8], size: usize) -> Result<(), std::io::Error> {
     let output = File::create("target/result.png")?;
 
     let encoder = PNGEncoder::new(output);
-    encoder.encode(&buffer, size as u32, size as u32, ColorType::Gray(8))?;
+    encoder.encode(&buffer, size as u32, size as u32, ColorType::RGB(8))?;
 
     Ok(())
 }
@@ -212,7 +216,7 @@ fn transform(vertices: &Vec<Point3D>, vector: Point3D) -> Vec<Point3D> {
     result
 }
 
-fn create_rotated_cube(t: f64) -> [Point3D; 8] {
+fn rotated_cube_vertices(t: f64) -> [Point3D; 8] {
     let radius = (2.0 as f64).sqrt() / 2.0;
     [
         // 0
@@ -348,8 +352,8 @@ fn read_ply2(filename: &str) -> (Vec<Point3D>, Vec<Vec<i32>>) {
     (vertices, faces)
 }
 
-fn cube() -> (Vec<Point3D>, Vec<Vec<i32>>) {
-    let cube_vertices = create_rotated_cube(0.6).to_vec();
+fn rotated_cube(t: f64) -> (Vec<Point3D>, Vec<Vec<i32>>) {
+    let cube_vertices = rotated_cube_vertices(t).to_vec();
 
     let vertices = transform(&cube_vertices, Point3D { x: 0.0, y: 0.0, z: 5.0 });
 
@@ -434,19 +438,12 @@ fn find_z_transform(vertices: &Vec<Point3D>) -> f64 {
     1.0 - z_min
 }
 
-fn main() {
-//    let (vertices, faces) = read_ply2("resources/statue.ply2");
-//    let (vertices, faces) = read_ply2("resources/torus.ply2");
-//    let (vertices, faces) = read_ply2("resources/cube.ply2");
-    let (vertices, faces) = read_ply2("resources/twirl.ply2");
-//    let (vertices, faces) = read_ply2("resources/octa-flower.ply2");
-//    let (vertices, faces) = cube();
-
-    let z_transform = find_z_transform(&vertices);
-    println!("calculated z transform: {:.2}", z_transform);
-    let z_transform = 45.0;
-
-    let vertices = transform(&vertices, Point3D { x: 0.0, y: 0.0, z: z_transform });
+fn render_model_to_buffer(
+    buffer: &mut [u8],
+    size: usize,
+    vertices: Vec<Point3D>,
+    faces: Vec<Vec<i32>>,
+    frame: Frame) {
 
     //
     // y
@@ -457,16 +454,6 @@ fn main() {
     //
     // z - deeper into the screen
     //
-
-    let frame = enclosing_frame(&vertices);
-    println!("calculated frame: {:.2} {:.2} {:.2} {:.2}",
-             frame.x_min, frame.x_max, frame.y_min, frame.y_max);
-    let half = 0.5;
-    let frame = Frame { x_min: -half, x_max: half, y_min: -half, y_max: half };
-
-
-    let size = 1000;
-    let mut buffer = vec![0u8; size * size];
 
     let mut vertex_pixels = Vec::new();
 
@@ -489,15 +476,198 @@ fn main() {
 
     // draw faces
     for face in &faces {
-        if face_visible2(face, &vertices) {
-            draw_face(face, &vertex_pixels, &mut buffer, size);
-        };
+//        if face_visible2(face, &vertices) {
+            draw_face(face, &vertex_pixels, buffer, size);
+//        };
     };
 
     //        simple_line(Pixel { x: 60, y: 40 }, Pixel { x: 120, y: 50 }, &mut buffer, size);
     //    simple_line(Pixel { x: 120, y: 50 }, Pixel { x: 60, y: 40 }, &mut buffer, size);
     //    rasterize_line(Pixel { x: 60, y: 50 }, Pixel { x: 120, y: 60 }, &mut buffer, size);
-
-    write_image(&buffer, size).expect("Error writing image to file");
 }
 
+use sdl2::pixels::PixelFormatEnum;
+use sdl2::rect::Rect;
+use sdl2::event::Event;
+use sdl2::keyboard::Keycode;
+
+fn show_buffer_in_window(buffer: &mut [u8], size: usize) {
+    let sdl_context = sdl2::init().unwrap();
+    let video_subsystem = sdl_context.video().unwrap();
+
+    let window = video_subsystem.window("Durer", size as u32, size as u32)
+        .position_centered()
+        .build()
+        .unwrap();
+
+    let mut canvas = window.into_canvas().build().unwrap();
+    let texture_creator = canvas.texture_creator();
+
+    //    let mut texture = texture_creator.create_texture_streaming(
+    //        PixelFormatEnum::RGB24, 256, 256
+    //    ).unwrap();
+
+    //    texture.with_lock(None, |buffer: &mut [u8], pitch: usize| {
+    //        for y in 0..256 {
+    //            for x in 0..256 {
+    //                let offset = y * pitch + x * 3;
+    //                buffer[offset] = x as u8;
+    //                buffer[offset + 1] = y as u8;
+    //                buffer[offset + 2] = 0;
+    //            }
+    //        }
+    //    }).unwrap();
+
+    let mut texture = texture_creator.create_texture_static(
+        PixelFormatEnum::RGB24,
+        size as u32,
+        size as u32
+    ).unwrap();
+
+    texture.update(None, &buffer, size * 3).unwrap();
+
+    canvas.clear();
+    canvas.copy(&texture, None, None).unwrap();
+    //    canvas.copy_ex(&texture, None, Some(Rect::new(450, 100, 256, 256)), 30.0, None, false, false).unwrap();
+    canvas.present();
+
+    let mut event_pump = sdl_context.event_pump().unwrap();
+    'running: loop {
+        for event in event_pump.wait_iter() {
+            match event {
+                Event::Quit {..} |
+                Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
+                    break 'running
+                },
+                _ => {}
+            }
+        }
+    }
+}
+
+fn main() {
+    let size = 600;
+    let mut buffer = vec![0u8; size as usize * size as usize * 3];
+
+    //    read_ply2("resources/statue.ply2");
+    //    read_ply2("resources/torus.ply2");
+    //    read_ply2("resources/cube.ply2");
+    //    read_ply2("resources/twirl.ply2");
+    //    read_ply2("resources/octa-flower.ply2");
+    //    rotated_cube(0.6);
+
+
+    let mut t = 0.8;
+    let (vertices, faces) = rotated_cube(t);
+
+    // Z-transform
+    let z_transform = find_z_transform(&vertices);
+    println!("calculated z transform: {:.2}", z_transform);
+    let z_transform = 2.0;
+    let mut transform_vector = Point3D { x: 0.0, y: -1.0, z: z_transform };
+
+    let vertices = transform(&vertices, transform_vector);
+
+    // Frame
+    let frame = enclosing_frame(&vertices);
+    println!("calculated frame: {:.2} {:.2} {:.2} {:.2}",
+             frame.x_min, frame.x_max, frame.y_min, frame.y_max);
+    let half = 0.3;
+    let frame = Frame { x_min: -half, x_max: half, y_min: -half, y_max: half };
+
+
+    render_model_to_buffer(&mut buffer, size, vertices, faces, frame);
+
+//    write_image(&buffer, size).expect("Error writing image to file");
+//    show_buffer_in_window(&mut buffer, size);
+
+
+    let sdl_context = sdl2::init().unwrap();
+    let video_subsystem = sdl_context.video().unwrap();
+
+    let window = video_subsystem.window("Durer", size as u32, size as u32)
+        .position_centered()
+        .build()
+        .unwrap();
+
+    let mut canvas = window.into_canvas().build().unwrap();
+    let texture_creator = canvas.texture_creator();
+
+    //    let mut texture = texture_creator.create_texture_streaming(
+    //        PixelFormatEnum::RGB24, 256, 256
+    //    ).unwrap();
+
+    //    texture.with_lock(None, |buffer: &mut [u8], pitch: usize| {
+    //        for y in 0..256 {
+    //            for x in 0..256 {
+    //                let offset = y * pitch + x * 3;
+    //                buffer[offset] = x as u8;
+    //                buffer[offset + 1] = y as u8;
+    //                buffer[offset + 2] = 0;
+    //            }
+    //        }
+    //    }).unwrap();
+
+    let mut texture = texture_creator.create_texture_static(
+        PixelFormatEnum::RGB24,
+        size as u32,
+        size as u32
+    ).unwrap();
+
+    texture.update(None, &buffer, size * 3).unwrap();
+
+    canvas.clear();
+    canvas.copy(&texture, None, None).unwrap();
+    //    canvas.copy_ex(&texture, None, Some(Rect::new(450, 100, 256, 256)), 30.0, None, false, false).unwrap();
+    canvas.present();
+
+    let mut event_pump = sdl_context.event_pump().unwrap();
+    'running: loop {
+        for event in event_pump.wait_iter() {
+            match event {
+                Event::Quit {..} |
+                Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
+                    break 'running
+                },
+                Event::KeyDown { keycode: Some(Keycode::E), .. } => {
+                    t += 0.1;
+                },
+                Event::KeyDown { keycode: Some(Keycode::Q), .. } => {
+                    t -= 0.1;
+                },
+                Event::KeyDown { keycode: Some(Keycode::D), .. } => {
+                    transform_vector.x += 0.1;
+                },
+                Event::KeyDown { keycode: Some(Keycode::A), .. } => {
+                    transform_vector.x -= 0.1;
+                },
+                Event::KeyDown { keycode: Some(Keycode::W), .. } => {
+                    transform_vector.y += 0.1;
+                },
+                Event::KeyDown { keycode: Some(Keycode::S), .. } => {
+                    transform_vector.y -= 0.1;
+                },
+                Event::KeyDown { keycode: Some(Keycode::Comma), .. } => {
+                    transform_vector.z += 0.1;
+                },
+                Event::KeyDown { keycode: Some(Keycode::Period), .. } => {
+                    transform_vector.z -= 0.1;
+                },
+                _ => {}
+            }
+
+            let mut buffer = vec![0u8; size as usize * size as usize * 3];
+            let (vertices, faces) = rotated_cube(t);
+            let vertices = transform(&vertices, transform_vector);
+
+            render_model_to_buffer(&mut buffer, size, vertices, faces, frame);
+
+            texture.update(None, &buffer, size * 3).unwrap();
+            canvas.clear();
+            canvas.copy(&texture, None, None).unwrap();
+            canvas.present();
+        }
+    }
+
+
+}
