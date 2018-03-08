@@ -1,19 +1,24 @@
 Software Renderer written in Rust
 
-![Cube](https://i.imgur.com/SM7Ofnk.png)
+What's new:
 
-Face visibility detection
+Basic ray tracing (no shading)
 
-![Faces](https://i.imgur.com/OHw3Hxr.png)
+![Spheres](https://i.imgur.com/FudprAe.png)
+
+Read models from PLY2 format
+
+![Twirl](https://i.imgur.com/edMp9HJ.png)
+![Twirl](https://i.imgur.com/Tn7ecpQ.png)
 
 Rotated cube (parametrized model)
 
 ![Faces](https://i.imgur.com/pUH6ykZ.png)
 
-Read models from PLY2 format
+Face visibility detection
 
-![Twirl](https://i.imgur.com/edMp9HJ.png)
+![Faces](https://i.imgur.com/OHw3Hxr.png)
 
-Octo-flawor
+Wirefame cube
 
-![Twirl](https://i.imgur.com/Tn7ecpQ.png)
+![Cube](https://i.imgur.com/SM7Ofnk.png)

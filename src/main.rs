@@ -1,6 +1,8 @@
 extern crate image;
 extern crate sdl2;
 
+mod ray_tracing;
+
 use image::ColorType;
 use image::png::PNGEncoder;
 use std::fs::File;
@@ -18,7 +20,12 @@ struct Point2D { x: f64, y: f64 }
 struct Frame { x_min: f64, x_max: f64, y_min: f64, y_max: f64 }
 
 #[derive(Copy, Clone)]
-struct Pixel { x: usize, y: usize }
+struct Color {
+    r: u8, g: u8, b: u8
+}
+
+#[derive(Copy, Clone)]
+struct Pixel { x: usize, y: usize, color: Color }
 
 fn project(point3d: Point3D) -> Point2D {
     Point2D { x: -point3d.x / point3d.z, y: -point3d.y / point3d.z }
@@ -34,7 +41,7 @@ fn normalize(point2d: Point2D, frame: Frame) -> Point2D {
 fn rasterize(point: Point2D, size: usize) -> Pixel {
     let x = (size as f64 * point.x) as usize;
     let y = (size as f64 * point.y) as usize;
-    Pixel { x, y }
+    Pixel { x, y, color: Color { r: 255, g: 255, b: 255 } }
 }
 
 fn rasterize_line(start: Pixel, end: Pixel, buffer: &mut [u8], size: usize) {
@@ -61,7 +68,7 @@ fn rasterize_line(start: Pixel, end: Pixel, buffer: &mut [u8], size: usize) {
         let d1 = dy << 1;
         let d2 = (dy - dx) << 1;
 
-        render(start, buffer, size);
+        put_pixel(start, buffer, size);
 
         let mut x = x1 + sx;
         let mut y = y1;
@@ -73,7 +80,11 @@ fn rasterize_line(start: Pixel, end: Pixel, buffer: &mut [u8], size: usize) {
                 d = d + d1;
             }
 
-            render(Pixel { x: x as usize, y: y as usize }, buffer, size);
+            put_pixel(
+                Pixel { x: x as usize, y: y as usize, color: Color { r: 255, g: 255, b: 255 } },
+                buffer,
+                size
+            );
 
             x = x + sx;
         }
@@ -82,7 +93,7 @@ fn rasterize_line(start: Pixel, end: Pixel, buffer: &mut [u8], size: usize) {
         let d1 = dx << 1;
         let d2 = (dx - dy) << 1;
 
-        render(start, buffer, size);
+        put_pixel(start, buffer, size);
 
         let mut x = x1;
         let mut y = y1 + sy;
@@ -94,7 +105,11 @@ fn rasterize_line(start: Pixel, end: Pixel, buffer: &mut [u8], size: usize) {
                 d = d + d1;
             }
 
-            render(Pixel { x: x as usize, y: y as usize }, buffer, size);
+            put_pixel(
+                Pixel { x: x as usize, y: y as usize, color: Color { r: 255, g: 255, b: 255 }},
+                buffer,
+                size
+            );
 
             y = y + sy;
         }
@@ -112,15 +127,19 @@ fn simple_line(start: Pixel, end: Pixel, buffer: &mut [u8], size: usize) {
 
     for x in xa..xb {
         let y = (k * x as f64 + b) as i32;
-        render(Pixel { x: x as usize, y: y as usize }, buffer, size);
+        put_pixel(
+            Pixel { x: x as usize, y: y as usize, color: Color { r: 255, g: 255, b: 255 } },
+            buffer,
+            size
+        );
     }
 }
 
-fn render(pixel: Pixel, buffer: &mut [u8], size: usize) {
+fn put_pixel(pixel: Pixel, buffer: &mut [u8], size: usize) {
     let offset = pixel.y * size * 3 + pixel.x * 3;
-    buffer[offset] = 255;
-    buffer[offset + 1] = 255;
-    buffer[offset + 2] = 255;
+    buffer[offset] = pixel.color.r;
+    buffer[offset + 1] = pixel.color.g;
+    buffer[offset + 2] = pixel.color.b;
 }
 
 fn write_image(buffer: &[u8], size: usize) -> Result<(), std::io::Error> {
@@ -476,9 +495,9 @@ fn render_model_to_buffer(
 
     // draw faces
     for face in &faces {
-//        if face_visible2(face, &vertices) {
+        if face_visible(face, &vertices) {
             draw_face(face, &vertex_pixels, buffer, size);
-//        };
+        };
     };
 
     //        simple_line(Pixel { x: 60, y: 40 }, Pixel { x: 120, y: 50 }, &mut buffer, size);
@@ -545,18 +564,7 @@ fn show_buffer_in_window(buffer: &mut [u8], size: usize) {
     }
 }
 
-fn main() {
-    let size = 600;
-    let mut buffer = vec![0u8; size as usize * size as usize * 3];
-
-    //    read_ply2("resources/statue.ply2");
-    //    read_ply2("resources/torus.ply2");
-    //    read_ply2("resources/cube.ply2");
-    //    read_ply2("resources/twirl.ply2");
-    //    read_ply2("resources/octa-flower.ply2");
-    //    rotated_cube(0.6);
-
-
+fn rotating_cube_window(buffer: &mut [u8], size: usize) {
     let mut t = 0.8;
     let (vertices, faces) = rotated_cube(t);
 
@@ -576,11 +584,7 @@ fn main() {
     let frame = Frame { x_min: -half, x_max: half, y_min: -half, y_max: half };
 
 
-    render_model_to_buffer(&mut buffer, size, vertices, faces, frame);
-
-//    write_image(&buffer, size).expect("Error writing image to file");
-//    show_buffer_in_window(&mut buffer, size);
-
+    render_model_to_buffer(buffer, size, vertices, faces, frame);
 
     let sdl_context = sdl2::init().unwrap();
     let video_subsystem = sdl_context.video().unwrap();
@@ -614,7 +618,7 @@ fn main() {
         size as u32
     ).unwrap();
 
-    texture.update(None, &buffer, size * 3).unwrap();
+    texture.update(None, buffer, size * 3).unwrap();
 
     canvas.clear();
     canvas.copy(&texture, None, None).unwrap();
@@ -668,6 +672,30 @@ fn main() {
             canvas.present();
         }
     }
+}
 
+fn main() {
+    let size = 600;
+    let mut buffer = vec![0u8; size as usize * size as usize * 3];
 
+//    let half = 0.8;
+//    let frame = Frame { x_min: -half, x_max: half, y_min: -half, y_max: half };
+//    let (vertices, faces) = read_ply2("resources/twirl.ply2");
+//    let vertices = transform(&vertices, Point3D { x: 0.0, y: 0.0, z: 45.0 });
+//    render_model_to_buffer(&mut buffer, size, vertices, faces, frame);
+
+    ray_tracing::render_scene_to_buffer(&mut buffer, size);
+    write_image(&buffer, size).expect("Error writing image to file");
+//    show_buffer_in_window(&mut buffer, size);
+
+//    rotating_cube_window(&mut buffer, size);
+
+    //    read_ply2("resources/statue.ply2");
+    //    read_ply2("resources/torus.ply2");
+    //    read_ply2("resources/cube.ply2");
+    //    read_ply2("resources/twirl.ply2");
+    //    read_ply2("resources/octa-flower.ply2");
+
+//    write_image(&buffer, size).expect("Error writing image to file");
+//    show_buffer_in_window(&mut buffer, size);
 }
