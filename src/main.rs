@@ -2,6 +2,7 @@ extern crate image;
 extern crate sdl2;
 
 mod ray_tracing;
+mod vectors;
 
 use image::ColorType;
 use image::png::PNGEncoder;
@@ -11,7 +12,7 @@ use std::io::prelude::*;
 use std::str::FromStr;
 
 #[derive(Copy, Clone)]
-struct Point3D { x: f64, y: f64, z: f64 }
+pub struct Point3D { x: f64, y: f64, z: f64 }
 
 #[derive(Copy, Clone)]
 struct Point2D { x: f64, y: f64 }
@@ -151,52 +152,32 @@ fn write_image(buffer: &[u8], size: usize) -> Result<(), std::io::Error> {
     Ok(())
 }
 
-fn cross_product(v: Point3D, w: Point3D) -> Point3D {
-    Point3D {
-        x: v.y * w.z - v.z * w.y,
-        y: v.z * w.x - v.x * w.z,
-        z: v.x * w.y - v.y * w.x
-    }
-}
-
-fn dot_product(v: Point3D, w: Point3D) -> f64 {
-    v.x * w.x + v.y * w.y + v.z * w.z
-}
-
-fn vector_difference(v1: Point3D, v2: Point3D) -> Point3D {
-    Point3D {
-        x: v1.x - v2.x,
-        y: v1.y - v2.y,
-        z: v1.z - v2.z
-    }
-}
-
 fn face_visible(face: &Vec<i32>, vertices: &[Point3D]) -> bool {
-    let vector1 = vector_difference(vertices[face[2] as usize], vertices[face[1] as usize]);
+    let vector1 = vectors::difference(vertices[face[2] as usize], vertices[face[1] as usize]);
 //    println!("vector1: {:.2} {:.2} {:.2}", vector1.x, vector1.y, vector1.z);
-    let vector2 = vector_difference(vertices[face[1] as usize], vertices[face[0] as usize]);
+    let vector2 = vectors::difference(vertices[face[1] as usize], vertices[face[0] as usize]);
 //    println!("vector2: {:.2} {:.2} {:.2}", vector2.x, vector2.y, vector2.z);
-    let face_vector = cross_product(
+    let face_vector = vectors::cross_product(
         vector1,
         vector2
     );
 //    println!("face vector: {:.2} {:.2} {:.2}", face_vector.x, face_vector.y, face_vector.z);
 
-    dot_product(vertices[face[0] as usize], face_vector) < 0.0
+    vectors::dot_product(vertices[face[0] as usize], face_vector) < 0.0
 }
 
 fn face_visible2(face: &Vec<i32>, vertices: &[Point3D]) -> bool {
-    let vector1 = vector_difference(vertices[face[2] as usize], vertices[face[1] as usize]);
+    let vector1 = vectors::difference(vertices[face[2] as usize], vertices[face[1] as usize]);
 //    println!("vector1: {:.2} {:.2} {:.2}", vector1.x, vector1.y, vector1.z);
-    let vector2 = vector_difference(vertices[face[1] as usize], vertices[face[0] as usize]);
+    let vector2 = vectors::difference(vertices[face[1] as usize], vertices[face[0] as usize]);
 //    println!("vector2: {:.2} {:.2} {:.2}", vector2.x, vector2.y, vector2.z);
-    let face_vector = cross_product(
+    let face_vector = vectors::cross_product(
         vector2,
         vector1
     );
 //    println!("face vector: {:.2} {:.2} {:.2}", face_vector.x, face_vector.y, face_vector.z);
 
-    dot_product(vertices[face[0] as usize], face_vector) < 0.0
+    vectors::dot_product(vertices[face[0] as usize], face_vector) < 0.0
 }
 
 fn draw_face(face: &Vec<i32>,
@@ -698,4 +679,12 @@ fn main() {
 
 //    write_image(&buffer, size).expect("Error writing image to file");
 //    show_buffer_in_window(&mut buffer, size);
+}
+
+
+#[cfg(test)]
+mod tests {
+    pub fn roughly_equals(a: f64, b: f64) -> bool {
+        (a - b).abs() < 1e-6
+    }
 }

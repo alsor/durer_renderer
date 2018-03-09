@@ -2,6 +2,10 @@ Software Renderer written in Rust
 
 What's new:
 
+Shading with ambient + diffuse
+
+![Spheres](https://i.imgur.com/iNcXBbA.png)
+
 Basic ray tracing (no shading)
 
 ![Spheres](https://i.imgur.com/FudprAe.png)

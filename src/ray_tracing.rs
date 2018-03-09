@@ -2,16 +2,25 @@ use super::Pixel;
 use super::Color;
 use super::Point3D;
 use super::put_pixel;
-use super::vector_difference;
-use super::dot_product;
 use std;
 use std::f64;
+use vectors;
 
 #[derive(Copy, Clone)]
 struct Sphere {
     center: Point3D,
     radius: f64,
     color: Color
+}
+
+#[derive(Copy, Clone)]
+enum LightType { Ambient, Point, Directional }
+
+#[derive(Copy, Clone)]
+struct Light {
+    kind: LightType,
+    intensity: f64,
+    vector: Option<Point3D> // position for point light, direction for directional light
 }
 
 pub fn render_scene_to_buffer(buffer: &mut [u8], size: usize) {
@@ -33,6 +42,29 @@ pub fn render_scene_to_buffer(buffer: &mut [u8], size: usize) {
         },
     ];
 
+    let lights = vec![
+        Light {
+            kind: LightType::Ambient,
+            intensity: 0.15,
+            vector: None
+        },
+//        Light {
+//            kind: LightType::Point,
+//            intensity: 0.6,
+//            vector: Some(Point3D { x: 2.0, y: 1.0, z: 0.0 })
+//        },
+//        Light {
+//            kind: LightType::Point,
+//            intensity: 0.7,
+//            vector: Some(Point3D { x: 1.0, y: 3.0, z: -0.5 })
+//        },
+        Light {
+            kind: LightType::Directional,
+            intensity: 0.7,
+            vector: Some(Point3D { x: 1.0, y: 3.0, z: -0.5 })
+        }
+    ];
+
     let origin = Point3D { x: 0.0, y: 0.0, z: 0.0 };
 
     let canvas_width = size as i32;
@@ -41,7 +73,14 @@ pub fn render_scene_to_buffer(buffer: &mut [u8], size: usize) {
     for x in -canvas_width/2..canvas_width/2 {
         for y in -canvas_height/2..canvas_height/2 {
             let direction = canvas_to_viewport(x, y, canvas_width, canvas_height);
-            let color = trace_ray(&spheres, origin, direction, 1.0, std::f64::INFINITY);
+            let color = trace_ray(
+                &spheres,
+                &lights,
+                origin,
+                direction,
+                1.0,
+                std::f64::INFINITY
+            );
 
             let screen_x = screen_x(x, canvas_width);
             let screen_y = screen_y(y, canvas_height);
@@ -77,8 +116,35 @@ fn canvas_to_viewport(x: i32, y: i32, canvas_width: i32, canvas_height: i32) -> 
     }
 }
 
-fn trace_ray(spheres: &Vec<Sphere>, origin: Point3D, direction: Point3D, min_t: f64, max_t: f64)
--> Color {
+fn compute_lighting(point: Point3D, normal: Point3D, lights: &Vec<Light>) -> f64 {
+    let mut result = 0.0;
+    for light in lights {
+        match light.kind {
+            LightType::Ambient => result += light.intensity,
+            LightType::Point | LightType::Directional => {
+                let light_direction = match light.kind {
+                    LightType::Point => ::vectors::difference(light.vector.unwrap(), point),
+                    LightType::Directional => light.vector.unwrap(),
+                    _ => panic!()
+                };
+                let dot = vectors::dot_product(normal, light_direction);
+                if dot > 0.0 {
+                    result += light.intensity * dot / vectors::length(light_direction);
+                }
+            }
+        }
+    }
+    result
+}
+
+fn trace_ray(
+    spheres: &Vec<Sphere>,
+    lights: &Vec<Light>,
+    origin: Point3D,
+    direction: Point3D,
+    min_t: f64,
+    max_t: f64
+) -> Color {
     let mut closest_t = std::f64::INFINITY;
     let mut closest_sphere: Option<Sphere> = None;
 
@@ -94,8 +160,34 @@ fn trace_ray(spheres: &Vec<Sphere>, origin: Point3D, direction: Point3D, min_t: 
         }
     }
     match closest_sphere {
-        Some(sphere) => sphere.color,
+        Some(sphere) => {
+            let point = vectors::sum(origin, vectors::scale(closest_t, direction));
+            let normal = vectors::normalize(
+                vectors::difference(point, sphere.center)
+            );
+            let intensity = compute_lighting(point, normal, lights);
+            multiply_color(intensity, sphere.color)
+        }
         None => Color { r: 0, g: 0, b: 0 }
+    }
+}
+
+fn multiply_color(k: f64, color: Color) -> Color {
+    Color {
+        r: multiply_channel(k, color.r),
+        g: multiply_channel(k, color.g),
+        b: multiply_channel(k, color.b)
+    }
+}
+
+fn multiply_channel(k: f64, channel: u8) -> u8 {
+    let scaled = channel as f64 * k;
+    if scaled > 255.0 {
+        255
+    } else if scaled < 0.0 {
+        0
+    } else {
+        scaled as u8
     }
 }
 
@@ -105,10 +197,10 @@ fn contains(range: (f64, f64), n: f64) -> bool {
 
 
 fn intersect_ray_with_sphere(origin: Point3D, direction: Point3D, sphere: Sphere) -> (f64, f64) {
-    let oc = vector_difference(origin, sphere.center);
-    let k1 = dot_product(direction, direction);
-    let k2 = 2.0 * dot_product(oc, direction);
-    let k3 = dot_product(oc, oc) - sphere.radius * sphere.radius;
+    let oc = vectors::difference(origin, sphere.center);
+    let k1 = vectors::dot_product(direction, direction);
+    let k2 = 2.0 * vectors::dot_product(oc, direction);
+    let k3 = vectors::dot_product(oc, oc) - sphere.radius * sphere.radius;
 
     let discriminant = k2 * k2 - 4.0 * k1 * k3;
     if discriminant < 0.0 {
@@ -120,19 +212,10 @@ fn intersect_ray_with_sphere(origin: Point3D, direction: Point3D, sphere: Sphere
     (t1, t2)
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn roughly_equals(a: f64, b: f64) -> bool {
-        (a - b).abs() < 1e-6
-    }
-
-    #[test]
-    fn test_canvas_to_viewport() {
-        let point = canvas_to_viewport(500, 500, 1000, 1000);
-        assert!(roughly_equals(point.x, 0.5));
-        assert!(roughly_equals(point.y, 0.5));
-        assert!(roughly_equals(point.z, 1.0));
-    }
+#[test]
+fn test_canvas_to_viewport() {
+    let point = canvas_to_viewport(500, 500, 1000, 1000);
+    assert!(::tests::roughly_equals(point.x, 0.5));
+    assert!(::tests::roughly_equals(point.y, 0.5));
+    assert!(::tests::roughly_equals(point.z, 1.0));
 }
