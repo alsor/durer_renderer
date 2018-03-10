@@ -2,7 +2,11 @@ Software Renderer written in Rust
 
 What's new:
 
-Shading with ambient + diffuse
+Ray tracing: "bumpy" spheres and point light
+
+![Spheres](https://i.imgur.com/kwgm2KI.png)
+
+Ray tracing with shading (ambient + diffuse)
 
 ![Spheres](https://i.imgur.com/iNcXBbA.png)
 

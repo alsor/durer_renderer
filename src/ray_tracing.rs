@@ -1,3 +1,5 @@
+extern crate rand;
+
 use super::Pixel;
 use super::Color;
 use super::Point3D;
@@ -5,6 +7,7 @@ use super::put_pixel;
 use std;
 use std::f64;
 use vectors;
+use self::rand::Rng;
 
 #[derive(Copy, Clone)]
 struct Sphere {
@@ -45,7 +48,7 @@ pub fn render_scene_to_buffer(buffer: &mut [u8], size: usize) {
     let lights = vec![
         Light {
             kind: LightType::Ambient,
-            intensity: 0.15,
+            intensity: 0.12,
             vector: None
         },
 //        Light {
@@ -53,16 +56,16 @@ pub fn render_scene_to_buffer(buffer: &mut [u8], size: usize) {
 //            intensity: 0.6,
 //            vector: Some(Point3D { x: 2.0, y: 1.0, z: 0.0 })
 //        },
+        Light {
+            kind: LightType::Point,
+            intensity: 0.8,
+            vector: Some(Point3D { x: 2.0, y: 0.6, z: 4.0 })
+        },
 //        Light {
-//            kind: LightType::Point,
+//            kind: LightType::Directional,
 //            intensity: 0.7,
 //            vector: Some(Point3D { x: 1.0, y: 3.0, z: -0.5 })
-//        },
-        Light {
-            kind: LightType::Directional,
-            intensity: 0.7,
-            vector: Some(Point3D { x: 1.0, y: 3.0, z: -0.5 })
-        }
+//        }
     ];
 
     let origin = Point3D { x: 0.0, y: 0.0, z: 0.0 };
@@ -147,6 +150,7 @@ fn trace_ray(
 ) -> Color {
     let mut closest_t = std::f64::INFINITY;
     let mut closest_sphere: Option<Sphere> = None;
+    let mut rng = rand::thread_rng();
 
     for sphere in spheres {
         let (t1, t2) = intersect_ray_with_sphere(origin, direction, *sphere);
@@ -162,9 +166,19 @@ fn trace_ray(
     match closest_sphere {
         Some(sphere) => {
             let point = vectors::sum(origin, vectors::scale(closest_t, direction));
+
+            let point_normal = vectors::difference(point, sphere.center);
             let normal = vectors::normalize(
-                vectors::difference(point, sphere.center)
+                Point3D {
+                    x: point_normal.x + rng.gen_range(-0.05, 0.05),
+                    y: point_normal.y + rng.gen_range(-0.05, 0.05),
+                    z: point_normal.z + rng.gen_range(-0.05, 0.05),
+                }
             );
+
+//            let normal = vectors::normalize(
+//                vectors::difference(point, sphere.center)
+//            );
             let intensity = compute_lighting(point, normal, lights);
             multiply_color(intensity, sphere.color)
         }
