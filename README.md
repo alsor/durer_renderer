@@ -2,6 +2,10 @@ Software Renderer written in Rust
 
 What's new:
 
+Ray tracing: add specular component
+
+![Spheres](https://i.imgur.com/1FCHmB7.png)
+
 Ray tracing: "bumpy" spheres and point light
 
 ![Spheres](https://i.imgur.com/kwgm2KI.png)

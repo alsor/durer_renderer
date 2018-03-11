@@ -669,6 +669,7 @@ fn main() {
     write_image(&buffer, size).expect("Error writing image to file");
 //    show_buffer_in_window(&mut buffer, size);
 
+
 //    rotating_cube_window(&mut buffer, size);
 
     //    read_ply2("resources/statue.ply2");

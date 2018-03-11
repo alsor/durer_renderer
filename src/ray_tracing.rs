@@ -13,7 +13,8 @@ use self::rand::Rng;
 struct Sphere {
     center: Point3D,
     radius: f64,
-    color: Color
+    color: Color,
+    specular: i32
 }
 
 #[derive(Copy, Clone)]
@@ -31,24 +32,27 @@ pub fn render_scene_to_buffer(buffer: &mut [u8], size: usize) {
         Sphere {
             center: Point3D { x: 0.0, y: -1.0, z: 3.0 },
             radius: 1.0,
-            color: Color { r: 255, g: 0, b: 0 }
+            color: Color { r: 255, g: 0, b: 0 },
+            specular: 50
         },
         Sphere {
             center: Point3D { x: 2.0, y: 0.0, z: 6.0 },
             radius: 1.0,
-            color: Color { r: 0, g: 0, b: 255 }
+            color: Color { r: 0, g: 0, b: 255 },
+            specular: 10
         },
         Sphere {
             center: Point3D { x: -1.5, y: 0.0, z: 4.0 },
             radius: 1.0,
-            color: Color { r: 0, g: 255, b: 0 }
+            color: Color { r: 0, g: 255, b: 0 },
+            specular: 10
         },
     ];
 
     let lights = vec![
         Light {
             kind: LightType::Ambient,
-            intensity: 0.12,
+            intensity: 0.2,
             vector: None
         },
 //        Light {
@@ -58,14 +62,14 @@ pub fn render_scene_to_buffer(buffer: &mut [u8], size: usize) {
 //        },
         Light {
             kind: LightType::Point,
-            intensity: 0.8,
-            vector: Some(Point3D { x: 2.0, y: 0.6, z: 4.0 })
+            intensity: 0.5,
+            vector: Some(Point3D { x: 2.0, y: 6.0, z: 0.0 })
         },
-//        Light {
-//            kind: LightType::Directional,
-//            intensity: 0.7,
-//            vector: Some(Point3D { x: 1.0, y: 3.0, z: -0.5 })
-//        }
+        Light {
+            kind: LightType::Directional,
+            intensity: 0.3,
+            vector: Some(Point3D { x: 1.0, y: 4.0, z: 4.0 })
+        }
     ];
 
     let origin = Point3D { x: 0.0, y: 0.0, z: 0.0 };
@@ -119,7 +123,13 @@ fn canvas_to_viewport(x: i32, y: i32, canvas_width: i32, canvas_height: i32) -> 
     }
 }
 
-fn compute_lighting(point: Point3D, normal: Point3D, lights: &Vec<Light>) -> f64 {
+fn compute_lighting(
+    point: Point3D,
+    normal: Point3D,
+    view: Point3D,
+    lights: &Vec<Light>,
+    shininess: i32
+) -> f64 {
     let mut result = 0.0;
     for light in lights {
         match light.kind {
@@ -130,9 +140,34 @@ fn compute_lighting(point: Point3D, normal: Point3D, lights: &Vec<Light>) -> f64
                     LightType::Directional => light.vector.unwrap(),
                     _ => panic!()
                 };
+
+                // diffuse
                 let dot = vectors::dot_product(normal, light_direction);
                 if dot > 0.0 {
+                    // assuming that normal is a unit vector (has length 1)
                     result += light.intensity * dot / vectors::length(light_direction);
+                }
+
+                // specular
+                // TODO add color of the light to this component
+                if shininess > 0 {
+                    let dot_normal_and_light = vectors::dot_product(normal, light_direction);
+                    let reflection_direction = vectors::difference(
+                        vectors::scale(2.0 * dot_normal_and_light, normal),
+                        light_direction
+                    );
+                    let reflection_dot_view = vectors::dot_product(
+                        reflection_direction,
+                        view
+                    );
+                    if reflection_dot_view > 0.0 {
+                        result += light.intensity *
+                            0.2 * (
+                                reflection_dot_view /
+                                vectors::length(reflection_direction) *
+                                vectors::length(view)
+                            ).powi(shininess)
+                    }
                 }
             }
         }
@@ -167,19 +202,26 @@ fn trace_ray(
         Some(sphere) => {
             let point = vectors::sum(origin, vectors::scale(closest_t, direction));
 
-            let point_normal = vectors::difference(point, sphere.center);
-            let normal = vectors::normalize(
-                Point3D {
-                    x: point_normal.x + rng.gen_range(-0.05, 0.05),
-                    y: point_normal.y + rng.gen_range(-0.05, 0.05),
-                    z: point_normal.z + rng.gen_range(-0.05, 0.05),
-                }
-            );
-
+            // randomize normal vectors to create "bumpiness"
+//            let point_normal = vectors::difference(point, sphere.center);
 //            let normal = vectors::normalize(
-//                vectors::difference(point, sphere.center)
+//                Point3D {
+//                    x: point_normal.x + rng.gen_range(-0.05, 0.05),
+//                    y: point_normal.y + rng.gen_range(-0.05, 0.05),
+//                    z: point_normal.z + rng.gen_range(-0.05, 0.05),
+//                }
 //            );
-            let intensity = compute_lighting(point, normal, lights);
+
+            let normal = vectors::normalize(
+                vectors::difference(point, sphere.center)
+            );
+            let intensity = compute_lighting(
+                point,
+                normal,
+                vectors::negate(direction),
+                lights,
+                sphere.specular
+            );
             multiply_color(intensity, sphere.color)
         }
         None => Color { r: 0, g: 0, b: 0 }

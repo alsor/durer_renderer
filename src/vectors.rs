@@ -28,6 +28,10 @@ pub fn difference(v1: Point3D, v2: Point3D) -> Point3D {
     }
 }
 
+pub fn negate(vector: Point3D) -> Point3D {
+    Point3D { x: -vector.x, y: -vector.y, z: -vector.z }
+}
+
 pub fn scale(scalar: f64, vector: Point3D) -> Point3D {
     Point3D {
         x: vector.x * scalar,
