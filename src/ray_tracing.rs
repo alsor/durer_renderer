@@ -42,7 +42,7 @@ pub fn render_scene_to_buffer(buffer: &mut [u8], size: usize) {
             specular: 10
         },
         Sphere {
-            center: Point3D { x: -1.5, y: 0.0, z: 5.0 },
+            center: Point3D { x: -1.5, y: 0.15, z: 5.0 },
             radius: 1.0,
             color: Color { r: 0, g: 255, b: 0 },
             specular: 10

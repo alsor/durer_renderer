@@ -4,7 +4,7 @@ What's new:
 
 Ray tracing: shadows
 
-![Spheres](https://i.imgur.com/o8eJtil.png)
+![Spheres](https://i.imgur.com/09iosHR.png)
 
 Ray tracing: add specular component
 
