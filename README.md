@@ -2,6 +2,10 @@ Software Renderer written in Rust
 
 What's new:
 
+Ray tracing: shadows
+
+![Spheres](https://i.imgur.com/o8eJtil.png)
+
 Ray tracing: add specular component
 
 ![Spheres](https://i.imgur.com/1FCHmB7.png)

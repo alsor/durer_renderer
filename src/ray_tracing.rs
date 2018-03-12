@@ -30,22 +30,28 @@ struct Light {
 pub fn render_scene_to_buffer(buffer: &mut [u8], size: usize) {
     let spheres = vec![
         Sphere {
-            center: Point3D { x: 0.0, y: -1.0, z: 3.0 },
+            center: Point3D { x: 0.0, y: -1.0, z: 4.0 },
             radius: 1.0,
             color: Color { r: 255, g: 0, b: 0 },
             specular: 50
         },
         Sphere {
-            center: Point3D { x: 2.0, y: 0.0, z: 6.0 },
-            radius: 1.0,
+            center: Point3D { x: 0.5, y: 1.0, z: 4.0 },
+            radius: 0.8,
             color: Color { r: 0, g: 0, b: 255 },
             specular: 10
         },
         Sphere {
-            center: Point3D { x: -1.5, y: 0.0, z: 4.0 },
+            center: Point3D { x: -1.5, y: 0.0, z: 5.0 },
             radius: 1.0,
             color: Color { r: 0, g: 255, b: 0 },
             specular: 10
+        },
+        Sphere {
+            center: Point3D { x: 0.0, y: -5001.0, z: 0.0 },
+            radius: 5000.0,
+            color: Color { r: 255, g: 255, b: 0 },
+            specular: 1000
         },
     ];
 
@@ -62,13 +68,13 @@ pub fn render_scene_to_buffer(buffer: &mut [u8], size: usize) {
 //        },
         Light {
             kind: LightType::Point,
-            intensity: 0.5,
-            vector: Some(Point3D { x: 2.0, y: 6.0, z: 0.0 })
+            intensity: 0.4,
+            vector: Some(Point3D { x: -2.0, y: 3.0, z: -1.0 })
         },
         Light {
             kind: LightType::Directional,
-            intensity: 0.3,
-            vector: Some(Point3D { x: 1.0, y: 4.0, z: 4.0 })
+            intensity: 0.4,
+            vector: Some(Point3D { x: 6.0, y: 4.0, z: 0.0 })
         }
     ];
 
@@ -128,45 +134,67 @@ fn compute_lighting(
     normal: Point3D,
     view: Point3D,
     lights: &Vec<Light>,
-    shininess: i32
+    shininess: i32,
+    spheres: &Vec<Sphere>
 ) -> f64 {
     let mut result = 0.0;
     for light in lights {
         match light.kind {
             LightType::Ambient => result += light.intensity,
             LightType::Point | LightType::Directional => {
-                let light_direction = match light.kind {
-                    LightType::Point => ::vectors::difference(light.vector.unwrap(), point),
-                    LightType::Directional => light.vector.unwrap(),
+                let light_direction;
+                let max_t;
+                match light.kind {
+                    LightType::Point => {
+                        light_direction = ::vectors::difference(light.vector.unwrap(), point);
+                        max_t = 1.0;
+                    }
+                    LightType::Directional => {
+                        light_direction = light.vector.unwrap();
+                        max_t = std::f64::INFINITY;
+                    }
                     _ => panic!()
                 };
 
-                // diffuse
-                let dot = vectors::dot_product(normal, light_direction);
-                if dot > 0.0 {
-                    // assuming that normal is a unit vector (has length 1)
-                    result += light.intensity * dot / vectors::length(light_direction);
-                }
+                // shadow check
+                let (closest_sphere, _) = closest_intersection(
+                    point,
+                    light_direction,
+                    0.001,
+                    max_t,
+                    spheres
+                );
+                match closest_sphere {
+                    Some(_) => (),
+                    None => {
+                        // diffuse
+                        let dot = vectors::dot_product(normal, light_direction);
+                        if dot > 0.0 {
+                            // assuming that normal is a unit vector (has length 1)
+                            result += light.intensity * dot / vectors::length(light_direction);
+                        }
 
-                // specular
-                // TODO add color of the light to this component
-                if shininess > 0 {
-                    let dot_normal_and_light = vectors::dot_product(normal, light_direction);
-                    let reflection_direction = vectors::difference(
-                        vectors::scale(2.0 * dot_normal_and_light, normal),
-                        light_direction
-                    );
-                    let reflection_dot_view = vectors::dot_product(
-                        reflection_direction,
-                        view
-                    );
-                    if reflection_dot_view > 0.0 {
-                        result += light.intensity *
-                            0.2 * (
-                                reflection_dot_view /
-                                vectors::length(reflection_direction) *
-                                vectors::length(view)
-                            ).powi(shininess)
+                        // specular
+                        // TODO add color of the light to this component
+                        if shininess > 0 {
+                            let dot_normal_and_light = vectors::dot_product(normal, light_direction);
+                            let reflection_direction = vectors::difference(
+                                vectors::scale(2.0 * dot_normal_and_light, normal),
+                                light_direction
+                            );
+                            let reflection_dot_view = vectors::dot_product(
+                                reflection_direction,
+                                view
+                            );
+                            if reflection_dot_view > 0.0 {
+                                result += light.intensity *
+                                    0.2 * (
+                                        reflection_dot_view /
+                                        vectors::length(reflection_direction) *
+                                        vectors::length(view)
+                                    ).powi(shininess)
+                            }
+                        }
                     }
                 }
             }
@@ -175,17 +203,15 @@ fn compute_lighting(
     result
 }
 
-fn trace_ray(
-    spheres: &Vec<Sphere>,
-    lights: &Vec<Light>,
+fn closest_intersection(
     origin: Point3D,
     direction: Point3D,
     min_t: f64,
-    max_t: f64
-) -> Color {
+    max_t: f64,
+    spheres: &Vec<Sphere>
+) -> (Option<Sphere>, f64) {
     let mut closest_t = std::f64::INFINITY;
     let mut closest_sphere: Option<Sphere> = None;
-    let mut rng = rand::thread_rng();
 
     for sphere in spheres {
         let (t1, t2) = intersect_ray_with_sphere(origin, direction, *sphere);
@@ -198,6 +224,27 @@ fn trace_ray(
             closest_sphere = Some(*sphere);
         }
     }
+
+    (closest_sphere, closest_t)
+}
+
+fn trace_ray(
+    spheres: &Vec<Sphere>,
+    lights: &Vec<Light>,
+    origin: Point3D,
+    direction: Point3D,
+    min_t: f64,
+    max_t: f64
+) -> Color {
+    let mut rng = rand::thread_rng();
+
+    let (closest_sphere, closest_t) = closest_intersection(
+        origin,
+        direction,
+        min_t,
+        max_t,
+        spheres
+    );
     match closest_sphere {
         Some(sphere) => {
             let point = vectors::sum(origin, vectors::scale(closest_t, direction));
@@ -220,7 +267,8 @@ fn trace_ray(
                 normal,
                 vectors::negate(direction),
                 lights,
-                sphere.specular
+                sphere.specular,
+                spheres
             );
             multiply_color(intensity, sphere.color)
         }
