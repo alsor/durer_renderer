@@ -10,74 +10,28 @@ use vectors;
 use self::rand::Rng;
 
 #[derive(Copy, Clone)]
-struct Sphere {
-    center: Point3D,
-    radius: f64,
-    color: Color,
-    specular: i32
+pub struct Sphere {
+    pub center: Point3D,
+    pub radius: f64,
+    pub color: Color,
+    pub specular: i32
 }
 
 #[derive(Copy, Clone)]
-enum LightType { Ambient, Point, Directional }
+pub enum LightType { Ambient, Point, Directional }
 
 #[derive(Copy, Clone)]
-struct Light {
-    kind: LightType,
-    intensity: f64,
-    vector: Option<Point3D> // position for point light, direction for directional light
+pub struct Light {
+    pub kind: LightType,
+    pub intensity: f64,
+    pub vector: Option<Point3D> // position for point light, direction for directional light
 }
 
-pub fn render_scene_to_buffer(buffer: &mut [u8], size: usize) {
-    let spheres = vec![
-        Sphere {
-            center: Point3D { x: 0.0, y: -1.0, z: 4.0 },
-            radius: 1.0,
-            color: Color { r: 255, g: 0, b: 0 },
-            specular: 50
-        },
-        Sphere {
-            center: Point3D { x: 0.5, y: 1.0, z: 4.0 },
-            radius: 0.8,
-            color: Color { r: 0, g: 0, b: 255 },
-            specular: 10
-        },
-        Sphere {
-            center: Point3D { x: -1.5, y: 0.15, z: 5.0 },
-            radius: 1.0,
-            color: Color { r: 0, g: 255, b: 0 },
-            specular: 10
-        },
-        Sphere {
-            center: Point3D { x: 0.0, y: -5001.0, z: 0.0 },
-            radius: 5000.0,
-            color: Color { r: 255, g: 255, b: 0 },
-            specular: 1000
-        },
-    ];
-
-    let lights = vec![
-        Light {
-            kind: LightType::Ambient,
-            intensity: 0.2,
-            vector: None
-        },
-//        Light {
-//            kind: LightType::Point,
-//            intensity: 0.6,
-//            vector: Some(Point3D { x: 2.0, y: 1.0, z: 0.0 })
-//        },
-        Light {
-            kind: LightType::Point,
-            intensity: 0.4,
-            vector: Some(Point3D { x: -2.0, y: 3.0, z: -1.0 })
-        },
-        Light {
-            kind: LightType::Directional,
-            intensity: 0.4,
-            vector: Some(Point3D { x: 6.0, y: 4.0, z: 0.0 })
-        }
-    ];
-
+pub fn render_scene_to_buffer(
+    spheres: &Vec<Sphere>,
+    lights: &Vec<Light>,
+    buffer: &mut [u8],
+    size: usize) {
     let origin = Point3D { x: 0.0, y: 0.0, z: 0.0 };
 
     let canvas_width = size as i32;
@@ -87,8 +41,8 @@ pub fn render_scene_to_buffer(buffer: &mut [u8], size: usize) {
         for y in -canvas_height/2..canvas_height/2 {
             let direction = canvas_to_viewport(x, y, canvas_width, canvas_height);
             let color = trace_ray(
-                &spheres,
-                &lights,
+                spheres,
+                lights,
                 origin,
                 direction,
                 1.0,

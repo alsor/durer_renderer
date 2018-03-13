@@ -7,3 +7,4 @@ authors = ["Alexey Sorokin <alsor.net@gmail.com>"]
 image = "0.13.0"
 sdl2 = "0.31.0"
 rand = "0.4"
+mpeg_encoder = { git = "https://github.com/sebcrozet/mpeg_encoder" }
