@@ -660,7 +660,7 @@ fn rotating_cube_window(buffer: &mut [u8], size: usize) {
 }
 
 fn main() {
-    let size = 750;
+    let size = 600;
     let mut buffer = vec![0u8; size as usize * size as usize * 3];
 
 //    let half = 0.8;
@@ -686,28 +686,28 @@ fn main() {
                 center: Point3D { x: 0.0, y: -1.0, z: 3.0 },
                 radius: 1.0,
                 color: Color { r: 255, g: 0, b: 0 },
-                specular: 50,
-                reflective: 0.2
+                specular: 200,
+                reflective: 0.0
             },
             Sphere {
-                center: Point3D { x: blue_sphere_position_x, y: 1.0, z: 6.0 },
-                radius: 0.8,
-                color: Color { r: 0, g: 0, b: 255 },
-                specular: 10,
-                reflective: 0.3
-            },
-            Sphere {
-                center: Point3D { x: -1.5, y: 0.15, z: green_sphere_position_z },
+                center: Point3D { x: -2.0, y: 0.0, z: 4.0 },
                 radius: 1.0,
                 color: Color { r: 0, g: 255, b: 0 },
-                specular: 10,
-                reflective: 0.4
+                specular: 200,
+                reflective: 0.6
+            },
+            Sphere {
+                center: Point3D { x: 2.0, y: 0.0, z: 4.0 },
+                radius: 1.0,
+                color: Color { r: 0, g: 0, b: 255 },
+                specular: 200,
+                reflective: 0.3
             },
             Sphere {
                 center: Point3D { x: 0.0, y: -5001.0, z: 0.0 },
                 radius: 5000.0,
                 color: Color { r: 255, g: 255, b: 0 },
-                specular: 1000,
+                specular: 0,
                 reflective: 0.5
             },
         ];
@@ -718,13 +718,13 @@ fn main() {
 //                intensity: 0.6,
 //                position: Point3D { x: 2.0, y: 1.0, z: 0.0 }
 //            },
-            Light::Point {
-                intensity: 0.4,
-                position: Point3D { x: point_light_position, y: 3.0, z: -1.0 }
-            },
+//            Light::Point {
+//                intensity: 0.4,
+//                position: Point3D { x: point_light_position, y: 3.0, z: -5.0 }
+//            },
             Light::Directional {
-                intensity: 0.4,
-                direction: Point3D { x: 6.0, y: 4.0, z: 0.0 }
+                intensity: 0.8,
+                direction: Point3D { x: 1.0, y: 4.0, z: 4.0 }
             }
         ];
 
@@ -736,8 +736,8 @@ fn main() {
 //        green_sphere_position_z += 0.01;
 //        blue_sphere_position_x += 0.01;
 
-//    write_image(&buffer, size).expect("Error writing image to file");
-    show_buffer_in_window(&mut buffer, size);
+    write_image(&buffer, size).expect("Error writing image to file");
+//    show_buffer_in_window(&mut buffer, size);
 //    }
 
 //    rotating_cube_window(&mut buffer, size);

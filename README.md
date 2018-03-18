@@ -2,6 +2,10 @@ Software Renderer written in Rust
 
 What's new:
 
+Ray tracing: reflections
+
+![Spheres](https://i.imgur.com/ZjsEhWZ.png)
+
 Ray tracing: shadows
 
 ![Spheres](https://i.imgur.com/09iosHR.png)

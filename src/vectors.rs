@@ -1,7 +1,7 @@
 use super::Point3D;
 
-pub fn dot_product(v: Point3D, w: Point3D) -> f64 {
-    v.x * w.x + v.y * w.y + v.z * w.z
+pub fn dot_product(v1: Point3D, v2: Point3D) -> f64 {
+    v1.x * v2.x + v1.y * v2.y + v1.z * v2.z
 }
 
 pub fn cross_product(v: Point3D, w: Point3D) -> Point3D {

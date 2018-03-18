@@ -34,6 +34,7 @@ pub fn render_scene_to_buffer(
 
     let canvas_width = size as i32;
     let canvas_height = size as i32;
+    let recursion_depth = 4;
 
     for x in -canvas_width/2..canvas_width/2 {
         for y in -canvas_height/2..canvas_height/2 {
@@ -44,7 +45,8 @@ pub fn render_scene_to_buffer(
                 origin,
                 direction,
                 1.0,
-                std::f64::INFINITY
+                std::f64::INFINITY,
+                recursion_depth
             );
 
             let screen_x = screen_x(x, canvas_width);
@@ -155,28 +157,30 @@ fn compute_light_from_direction(
             // specular
             // TODO add color of the light to this component
             if shininess > 0 {
-                let dot_normal_and_light = vectors::dot_product(normal, light_direction);
-                let reflection_direction = vectors::difference(
-                    vectors::scale(2.0 * dot_normal_and_light, normal),
-                    light_direction
-                );
+                let reflection_direction = reflect_vector(light_direction, normal);
                 let reflection_dot_view = vectors::dot_product(
                     reflection_direction,
                     view
                 );
                 if reflection_dot_view > 0.0 {
                     result += light_intensity *
-                        0.2 * (
-                        reflection_dot_view /
-                            vectors::length(reflection_direction) *
-                            vectors::length(view)
-                    ).powi(shininess)
+                        (
+                            reflection_dot_view /
+                            (vectors::length(reflection_direction) * vectors::length(view))
+                        ).powi(shininess)
                 }
             }
         }
     }
 
     result
+}
+
+fn reflect_vector(v1: Point3D, v2: Point3D) -> Point3D {
+    vectors::difference(
+        vectors::scale(2.0 * vectors::dot_product(v1, v2), v2),
+        v1
+    )
 }
 
 fn closest_intersection(
@@ -210,7 +214,8 @@ fn trace_ray(
     origin: Point3D,
     direction: Point3D,
     min_t: f64,
-    max_t: f64
+    max_t: f64,
+    recursion_depth: i32
 ) -> Color {
     let mut rng = rand::thread_rng();
 
@@ -235,18 +240,41 @@ fn trace_ray(
 //                }
 //            );
 
+
+
             let normal = vectors::normalize(
                 vectors::difference(point, sphere.center)
             );
+            let view = vectors::negate(direction);
             let intensity = compute_lighting(
                 point,
                 normal,
-                vectors::negate(direction),
+                view,
                 lights,
                 sphere.specular,
                 spheres
             );
-            multiply_color(intensity, sphere.color)
+            let local_color = multiply_color(intensity, sphere.color);
+            let reflective = sphere.reflective;
+
+            if reflective > 0.0 && recursion_depth > 0 {
+                let reflected_color = trace_ray(
+                    spheres,
+                    lights,
+                    point,
+                    reflect_vector(view, normal),
+                    0.0001,
+                    std::f64::INFINITY,
+                    recursion_depth - 1
+                );
+                add_colors(
+                    multiply_color(1.0 - reflective, local_color),
+                    multiply_color(reflective, reflected_color)
+                )
+            } else {
+                local_color
+            }
+
         }
         None => Color { r: 0, g: 0, b: 0 }
     }
@@ -268,6 +296,14 @@ fn multiply_channel(k: f64, channel: u8) -> u8 {
         0
     } else {
         scaled as u8
+    }
+}
+
+fn add_colors(color1: Color, color2: Color) -> Color {
+    Color {
+        r: color1.r + color2.r,
+        g: color1.g + color2.g,
+        b: color1.b + color2.b
     }
 }
 
