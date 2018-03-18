@@ -14,7 +14,6 @@ use std::str::FromStr;
 
 use ray_tracing::Sphere;
 use ray_tracing::Light;
-use ray_tracing::LightType;
 
 #[derive(Copy, Clone)]
 pub struct Point3D { x: f64, y: f64, z: f64 }
@@ -661,7 +660,7 @@ fn rotating_cube_window(buffer: &mut [u8], size: usize) {
 }
 
 fn main() {
-    let size = 600;
+    let size = 750;
     let mut buffer = vec![0u8; size as usize * size as usize * 3];
 
 //    let half = 0.8;
@@ -671,74 +670,75 @@ fn main() {
 //    render_model_to_buffer(&mut buffer, size, vertices, faces, frame);
 
 
-    let mut encoder = mpeg_encoder::Encoder::new("target/shperes.mpeg", size, size);
+//    let mut encoder = mpeg_encoder::Encoder::new("target/shperes.mpeg", size, size);
+
+//    let mut point_light_position = -5.0;
+//    let mut green_sphere_position_z = 3.0;
+//    let mut blue_sphere_position_x = -3.0;
 
     let mut point_light_position = -5.0;
-    let mut green_sphere_position_z = 3.0;
-    let mut blue_sphere_position_x = -3.0;
+    let mut green_sphere_position_z = 5.0;
+    let mut blue_sphere_position_x = 1.0;
 
-    for i in 0..600 {
+//    for i in 0..600 {
         let spheres = vec![
             Sphere {
-                center: Point3D { x: 0.0, y: -1.0, z: 4.0 },
+                center: Point3D { x: 0.0, y: -1.0, z: 3.0 },
                 radius: 1.0,
                 color: Color { r: 255, g: 0, b: 0 },
-                specular: 50
+                specular: 50,
+                reflective: 0.2
             },
             Sphere {
-                center: Point3D { x: blue_sphere_position_x, y: 1.0, z: 4.0 },
+                center: Point3D { x: blue_sphere_position_x, y: 1.0, z: 6.0 },
                 radius: 0.8,
                 color: Color { r: 0, g: 0, b: 255 },
-                specular: 10
+                specular: 10,
+                reflective: 0.3
             },
             Sphere {
                 center: Point3D { x: -1.5, y: 0.15, z: green_sphere_position_z },
                 radius: 1.0,
                 color: Color { r: 0, g: 255, b: 0 },
-                specular: 10
+                specular: 10,
+                reflective: 0.4
             },
             Sphere {
                 center: Point3D { x: 0.0, y: -5001.0, z: 0.0 },
                 radius: 5000.0,
                 color: Color { r: 255, g: 255, b: 0 },
-                specular: 1000
+                specular: 1000,
+                reflective: 0.5
             },
         ];
 
         let lights = vec![
-            Light {
-                kind: LightType::Ambient,
-                intensity: 0.2,
-                vector: None
-            },
-//        Light {
-//            kind: LightType::Point,
-//            intensity: 0.6,
-//            vector: Some(Point3D { x: 2.0, y: 1.0, z: 0.0 })
-//        },
-            Light {
-                kind: LightType::Point,
+            Light::Ambient { intensity: 0.2 },
+//            Light::Point {
+//                intensity: 0.6,
+//                position: Point3D { x: 2.0, y: 1.0, z: 0.0 }
+//            },
+            Light::Point {
                 intensity: 0.4,
-                vector: Some(Point3D { x: point_light_position, y: 3.0, z: -1.0 })
+                position: Point3D { x: point_light_position, y: 3.0, z: -1.0 }
             },
-            Light {
-                kind: LightType::Directional,
+            Light::Directional {
                 intensity: 0.4,
-                vector: Some(Point3D { x: 6.0, y: 4.0, z: 0.0 })
+                direction: Point3D { x: 6.0, y: 4.0, z: 0.0 }
             }
         ];
 
 
         ray_tracing::render_scene_to_buffer(&spheres, &lights, &mut buffer, size);
-        encoder.encode_rgb(size, size, &buffer, false);
+//        encoder.encode_rgb(size, size, &buffer, false);
 
-        point_light_position += 0.01;
-        green_sphere_position_z += 0.01;
-        blue_sphere_position_x += 0.01;
+//        point_light_position += 0.01;
+//        green_sphere_position_z += 0.01;
+//        blue_sphere_position_x += 0.01;
 
 //    write_image(&buffer, size).expect("Error writing image to file");
-//    show_buffer_in_window(&mut buffer, size);
-    }
+    show_buffer_in_window(&mut buffer, size);
+//    }
 
 //    rotating_cube_window(&mut buffer, size);
 
