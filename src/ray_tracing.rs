@@ -29,16 +29,23 @@ pub fn render_scene_to_buffer(
     spheres: &Vec<Sphere>,
     lights: &Vec<Light>,
     buffer: &mut [u8],
-    size: usize) {
-    let origin = Point3D { x: 0.0, y: 0.0, z: 0.0 };
-
+    size: usize,
+    origin: Point3D,
+    rotation: [[f64; 3]; 3]
+) {
     let canvas_width = size as i32;
     let canvas_height = size as i32;
     let recursion_depth = 4;
 
     for x in -canvas_width/2..canvas_width/2 {
         for y in -canvas_height/2..canvas_height/2 {
-            let direction = canvas_to_viewport(x, y, canvas_width, canvas_height);
+//            let direction = canvas_to_viewport(x, y, canvas_width, canvas_height);
+            let direction = Point3D::from_vec(
+                vectors::multiply_vec_and_mat(
+                    canvas_to_viewport(x, y, canvas_width, canvas_height).to_vec(),
+                    rotation
+                )
+            );
             let color = trace_ray(
                 spheres,
                 lights,

@@ -18,6 +18,16 @@ use ray_tracing::Light;
 #[derive(Copy, Clone)]
 pub struct Point3D { x: f64, y: f64, z: f64 }
 
+impl Point3D {
+    pub fn from_vec(vec: [f64; 3]) -> Self {
+        Point3D { x: vec[0], y: vec[1], z: vec[2] }
+    }
+
+    pub fn to_vec(&self) -> [f64; 3] {
+        [self.x, self.y, self.z]
+    }
+}
+
 #[derive(Copy, Clone)]
 struct Point2D { x: f64, y: f64 }
 
@@ -659,9 +669,158 @@ fn rotating_cube_window(buffer: &mut [u8], size: usize) {
     }
 }
 
+fn three_spheres_window(buffer: &mut [u8], size: usize) {
+    let mut x_position = 0.0;
+    let mut z_position = 0.0;
+
+    let mut angle = 0.0;
+
+    let origin = Point3D { x: x_position, y: 0.0, z: z_position };
+    let rotation = vectors::rotation_around_y(angle);
+
+    let spheres = vec![
+        Sphere {
+            center: Point3D { x: 0.0, y: -1.0, z: 3.0 },
+            radius: 1.0,
+            color: Color { r: 255, g: 0, b: 0 },
+            specular: 200,
+            reflective: 0.0
+        },
+        Sphere {
+            center: Point3D { x: -2.0, y: 0.0, z: 4.0 },
+            radius: 1.0,
+            color: Color { r: 0, g: 255, b: 0 },
+            specular: 200,
+            reflective: 0.6
+        },
+        Sphere {
+            center: Point3D { x: 2.0, y: 0.0, z: 4.0 },
+            radius: 1.0,
+            color: Color { r: 0, g: 0, b: 255 },
+            specular: 200,
+            reflective: 0.3
+        },
+        Sphere {
+            center: Point3D { x: 0.0, y: -5001.0, z: 0.0 },
+            radius: 5000.0,
+            color: Color { r: 255, g: 255, b: 0 },
+            specular: 0,
+            reflective: 0.5
+        },
+    ];
+
+    let lights = vec![
+        Light::Ambient { intensity: 0.2 },
+        Light::Directional {
+            intensity: 0.8,
+            direction: Point3D { x: 1.0, y: 4.0, z: 4.0 }
+        }
+    ];
+
+    ray_tracing::render_scene_to_buffer(
+        &spheres,
+        &lights,
+        buffer,
+        size,
+        origin,
+        rotation
+    );
+
+    let sdl_context = sdl2::init().unwrap();
+    let video_subsystem = sdl_context.video().unwrap();
+
+    let window = video_subsystem.window("Durer", size as u32, size as u32)
+        .position_centered()
+        .build()
+        .unwrap();
+
+    let mut canvas = window.into_canvas().build().unwrap();
+    let texture_creator = canvas.texture_creator();
+
+    //    let mut texture = texture_creator.create_texture_streaming(
+    //        PixelFormatEnum::RGB24, 256, 256
+    //    ).unwrap();
+
+    //    texture.with_lock(None, |buffer: &mut [u8], pitch: usize| {
+    //        for y in 0..256 {
+    //            for x in 0..256 {
+    //                let offset = y * pitch + x * 3;
+    //                buffer[offset] = x as u8;
+    //                buffer[offset + 1] = y as u8;
+    //                buffer[offset + 2] = 0;
+    //            }
+    //        }
+    //    }).unwrap();
+
+    let mut texture = texture_creator.create_texture_static(
+        PixelFormatEnum::RGB24,
+        size as u32,
+        size as u32
+    ).unwrap();
+
+    texture.update(None, buffer, size * 3).unwrap();
+
+    canvas.clear();
+    canvas.copy(&texture, None, None).unwrap();
+    //    canvas.copy_ex(&texture, None, Some(Rect::new(450, 100, 256, 256)), 30.0, None, false, false).unwrap();
+    canvas.present();
+
+    let mut event_pump = sdl_context.event_pump().unwrap();
+    'running: loop {
+        for event in event_pump.wait_iter() {
+            match event {
+                Event::Quit {..} |
+                Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
+                    break 'running
+                },
+                Event::KeyDown { keycode: Some(Keycode::E), .. } => {
+                    angle += 10.0;
+                },
+                Event::KeyDown { keycode: Some(Keycode::Q), .. } => {
+                    angle -= 10.5;
+                },
+                Event::KeyDown { keycode: Some(Keycode::D), .. } => {
+                    x_position += 0.5;
+                },
+                Event::KeyDown { keycode: Some(Keycode::A), .. } => {
+                    x_position -= 0.5;
+                },
+                Event::KeyDown { keycode: Some(Keycode::W), .. } => {
+                    z_position += 0.5;
+                },
+                Event::KeyDown { keycode: Some(Keycode::S), .. } => {
+                    z_position -= 0.5;
+                },
+                _ => {}
+            }
+
+            let mut buffer = vec![0u8; size as usize * size as usize * 3];
+            let origin = Point3D { x: x_position, y: 0.0, z: z_position };
+            let rotation = vectors::rotation_around_y(angle);
+
+            ray_tracing::render_scene_to_buffer(
+                &spheres,
+                &lights,
+                &mut buffer,
+                size,
+                origin,
+                rotation
+            );
+
+            texture.update(None, &buffer, size * 3).unwrap();
+            canvas.clear();
+            canvas.copy(&texture, None, None).unwrap();
+            canvas.present();
+        }
+    }
+}
+
 fn main() {
-    let size = 600;
+    let size = 750;
     let mut buffer = vec![0u8; size as usize * size as usize * 3];
+
+    three_spheres_window(&mut buffer, size);
+    return;
 
 //    let half = 0.8;
 //    let frame = Frame { x_min: -half, x_max: half, y_min: -half, y_max: half };
@@ -679,6 +838,17 @@ fn main() {
     let mut point_light_position = -5.0;
     let mut green_sphere_position_z = 5.0;
     let mut blue_sphere_position_x = 1.0;
+
+    let mut x_position = 0.0;
+    let mut z_position = 0.0;
+
+    let mut angle = 0.0;
+
+    let origin = Point3D { x: x_position, y: 0.0, z: z_position };
+//    let origin = Point3D { x: 0.0, y: 0.0, z: 0.0 };
+
+    let rotation = vectors::rotation_around_y(angle);
+
 
 //    for i in 0..600 {
         let spheres = vec![
@@ -729,15 +899,22 @@ fn main() {
         ];
 
 
-        ray_tracing::render_scene_to_buffer(&spheres, &lights, &mut buffer, size);
+        ray_tracing::render_scene_to_buffer(
+            &spheres,
+            &lights,
+            &mut buffer,
+            size,
+            origin,
+            rotation
+        );
 //        encoder.encode_rgb(size, size, &buffer, false);
 
 //        point_light_position += 0.01;
 //        green_sphere_position_z += 0.01;
 //        blue_sphere_position_x += 0.01;
 
-    write_image(&buffer, size).expect("Error writing image to file");
-//    show_buffer_in_window(&mut buffer, size);
+//    write_image(&buffer, size).expect("Error writing image to file");
+    show_buffer_in_window(&mut buffer, size);
 //    }
 
 //    rotating_cube_window(&mut buffer, size);

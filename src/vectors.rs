@@ -12,6 +12,18 @@ pub fn cross_product(v: Point3D, w: Point3D) -> Point3D {
     }
 }
 
+pub fn multiply_vec_and_mat(vec: [f64; 3], mat: [[f64; 3]; 3]) -> [f64; 3] {
+    let mut result = [0.0; 3];
+
+    for i in 0..3 {
+        for j in 0..3 {
+            result[i] += vec[j] * mat[i][j];
+        }
+    }
+
+    result
+}
+
 pub fn sum(v1: Point3D, v2: Point3D) -> Point3D {
     Point3D {
         x: v1.x + v2.x,
@@ -49,6 +61,15 @@ pub fn normalize(vector: Point3D) -> Point3D {
     Point3D { x: vector.x / length, y: vector.y / length, z: vector.z / length }
 }
 
+pub fn rotation_around_y(d: f64) -> [[f64; 3]; 3] {
+    let a = d / 57.2958;
+    [
+        [a.cos(), 0.0, a.sin()],
+        [0.0, 1.0, 0.0],
+        [-a.sin(), 0.0, a.cos()]
+    ]
+}
+
 #[test]
 fn test_length() {
     assert!(::tests::roughly_equals(length(Point3D { x: 6.0, y: 2.0, z: 0.0 }), 6.324555));
@@ -60,4 +81,20 @@ fn test_normalize() {
     assert!(::tests::roughly_equals(v.x, 0.948683));
     assert!(::tests::roughly_equals(v.y, 0.316227));
     assert!(::tests::roughly_equals(v.z, 0.0));
+}
+
+#[test]
+pub fn test_multiply_vec_and_mat() {
+    let vec = [1.0, 2.0, 3.0];
+    let mat = [
+        [1.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0],
+        [0.0, 0.0, 1.0],
+    ];
+
+    let result = multiply_vec_and_mat(vec, mat);
+
+    assert!(::tests::roughly_equals(result[0], 1.0));
+    assert!(::tests::roughly_equals(result[1], 2.0));
+    assert!(::tests::roughly_equals(result[2], 3.0));
 }
