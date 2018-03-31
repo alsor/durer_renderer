@@ -3,6 +3,8 @@ extern crate rand;
 use super::Pixel;
 use super::Color;
 use super::Point3D;
+use super::screen_x;
+use super::screen_y;
 use super::put_pixel;
 use std;
 use std::f64;
@@ -68,14 +70,6 @@ pub fn render_scene_to_buffer(
 
         }
     }
-}
-
-fn screen_x(x_canvas: i32, canvas_width: i32) -> usize {
-    (canvas_width / 2 + x_canvas) as usize
-}
-
-fn screen_y(y_canvas: i32, canvas_height: i32) -> usize {
-    (canvas_height / 2 - y_canvas - 1) as usize
 }
 
 fn canvas_to_viewport(x: i32, y: i32, canvas_width: i32, canvas_height: i32) -> Point3D {

@@ -32,6 +32,9 @@ impl Point3D {
 struct Point2D { x: f64, y: f64 }
 
 #[derive(Copy, Clone)]
+struct Point { x: i32, y: i32 }
+
+#[derive(Copy, Clone)]
 struct Frame { x_min: f64, x_max: f64, y_min: f64, y_max: f64 }
 
 #[derive(Copy, Clone)]
@@ -689,9 +692,9 @@ fn three_spheres_window(buffer: &mut [u8], size: usize) {
         Sphere {
             center: Point3D { x: -2.0, y: 0.0, z: 4.0 },
             radius: 1.0,
-            color: Color { r: 0, g: 255, b: 0 },
+            color: Color { r: 150, g: 150, b: 150 },
             specular: 200,
-            reflective: 0.6
+            reflective: 0.5
         },
         Sphere {
             center: Point3D { x: 2.0, y: 0.0, z: 4.0 },
@@ -703,9 +706,9 @@ fn three_spheres_window(buffer: &mut [u8], size: usize) {
         Sphere {
             center: Point3D { x: 0.0, y: -5001.0, z: 0.0 },
             radius: 5000.0,
-            color: Color { r: 255, g: 255, b: 0 },
+            color: Color { r: 100, g: 100, b: 0 },
             specular: 0,
-            reflective: 0.5
+            reflective: 0.0
         },
     ];
 
@@ -815,12 +818,132 @@ fn three_spheres_window(buffer: &mut [u8], size: usize) {
     }
 }
 
+fn render_video() {
+//    let mut encoder = mpeg_encoder::Encoder::new("target/shperes.mpeg", size, size);
+
+
+    // scene goes here
+
+
+
+//        encoder.encode_rgb(size, size, &buffer, false);
+
+}
+
+fn interpolate(i0: i32, d0: i32, i1: i32, d1: i32) -> Vec<i32> {
+    if i0 == i1 {
+        return vec![d0];
+    }
+
+    let mut results = Vec::<i32>::new();
+    let a = (d1 - d0) as f64 / (i1 - i0) as f64;
+    let mut d = d0 as f64;
+    for i in i0..(i1 + 1) {
+        results.push(d.round() as i32);
+        d += a;
+    }
+
+    results
+}
+
+#[test]
+fn test_interpolate() {
+    let results = interpolate(0, 0, 10, 6);
+    for result in results {
+        println!("result: {}", result);
+    }
+}
+
+fn draw_filled_triangle(
+    mut p0: Point,
+    mut p1: Point,
+    mut p2: Point,
+    color: Color,
+    buffer: &mut Vec<u8>,
+    size: usize
+) {
+    // sort points from bottom to top
+    if p1.y < p0.y {
+        let swap = p0;
+        p0 = p1;
+        p1 = swap;
+    }
+    if p2.y < p0.y {
+        let swap = p0;
+        p0 = p2;
+        p2 = swap;
+    }
+    if p2.y < p1.y {
+        let swap = p1;
+        p1 = p2;
+        p2 = swap;
+    }
+
+    // x coordinates of the edges
+    let mut x01 = interpolate(p0.y, p0.x, p1.y, p1.x);
+    let mut x12 = interpolate(p1.y, p1.x, p2.y, p2.x);
+    let mut x02 = interpolate(p0.y, p0.x, p2.y, p2.x);
+
+    x01.pop();
+    let mut x012 = Vec::<i32>::new();
+    x012.append(&mut x01);
+    x012.append(&mut x12);
+
+    let mut x_left;
+    let mut x_right;
+    let m = x02.len() / 2;
+    if x02[m] < x012[m] {
+        x_left = x02;
+        x_right = x012;
+    } else {
+        x_left = x012;
+        x_right = x02;
+    }
+
+    for y in p0.y..(p2.y + 1) {
+        for x in x_left[(y - p0.y) as usize]..(x_right[(y - p0.y) as usize] + 1) {
+            draw_point(Point { x, y }, color, buffer, size);
+        }
+    }
+}
+
+pub fn screen_x(x_canvas: i32, canvas_width: i32) -> usize {
+    (canvas_width / 2 + x_canvas) as usize
+}
+
+pub fn screen_y(y_canvas: i32, canvas_height: i32) -> usize {
+    (canvas_height / 2 - y_canvas - 1) as usize
+}
+
+fn draw_point(point: Point, color: Color, buffer: &mut Vec<u8>, size: usize) {
+    let canvas_width = size as i32;
+    let canvas_height = size as i32;
+    let pixel = Pixel {
+        x: screen_x(point.x, canvas_width),
+        y: screen_y(point.y, canvas_height),
+        color
+    };
+    put_pixel(pixel, buffer, size);
+}
+
 fn main() {
-    let size = 750;
+    let size = 1000;
     let mut buffer = vec![0u8; size as usize * size as usize * 3];
 
-    three_spheres_window(&mut buffer, size);
-    return;
+    let white = Color { r: 255, g: 255, b: 255 };
+
+//    draw_point(Point { x: 100, y: 100 }, white, &mut buffer, size);
+//    draw_point(Point { x: -100, y: 100 }, white, &mut buffer, size);
+//    draw_point(Point { x: -100, y: -100 }, white, &mut buffer, size);
+//    draw_point(Point { x: 100, y: -100 }, white, &mut buffer, size);
+
+    let mut p0 = Point { x: -200, y: -250 };
+    let mut p1 = Point { x: 200, y: 50 };
+    let mut p2 = Point { x: 20, y: 250 };
+
+    draw_filled_triangle(p0, p1, p2, white, &mut buffer, size);
+
+//    three_spheres_window(&mut buffer, size);
 
 //    let half = 0.8;
 //    let frame = Frame { x_min: -half, x_max: half, y_min: -half, y_max: half };
@@ -829,93 +952,12 @@ fn main() {
 //    render_model_to_buffer(&mut buffer, size, vertices, faces, frame);
 
 
-//    let mut encoder = mpeg_encoder::Encoder::new("target/shperes.mpeg", size, size);
-
-//    let mut point_light_position = -5.0;
-//    let mut green_sphere_position_z = 3.0;
-//    let mut blue_sphere_position_x = -3.0;
-
-    let mut point_light_position = -5.0;
-    let mut green_sphere_position_z = 5.0;
-    let mut blue_sphere_position_x = 1.0;
-
-    let mut x_position = 0.0;
-    let mut z_position = 0.0;
-
-    let mut angle = 0.0;
-
-    let origin = Point3D { x: x_position, y: 0.0, z: z_position };
-//    let origin = Point3D { x: 0.0, y: 0.0, z: 0.0 };
-
-    let rotation = vectors::rotation_around_y(angle);
-
-
-//    for i in 0..600 {
-        let spheres = vec![
-            Sphere {
-                center: Point3D { x: 0.0, y: -1.0, z: 3.0 },
-                radius: 1.0,
-                color: Color { r: 255, g: 0, b: 0 },
-                specular: 200,
-                reflective: 0.0
-            },
-            Sphere {
-                center: Point3D { x: -2.0, y: 0.0, z: 4.0 },
-                radius: 1.0,
-                color: Color { r: 0, g: 255, b: 0 },
-                specular: 200,
-                reflective: 0.6
-            },
-            Sphere {
-                center: Point3D { x: 2.0, y: 0.0, z: 4.0 },
-                radius: 1.0,
-                color: Color { r: 0, g: 0, b: 255 },
-                specular: 200,
-                reflective: 0.3
-            },
-            Sphere {
-                center: Point3D { x: 0.0, y: -5001.0, z: 0.0 },
-                radius: 5000.0,
-                color: Color { r: 255, g: 255, b: 0 },
-                specular: 0,
-                reflective: 0.5
-            },
-        ];
-
-        let lights = vec![
-            Light::Ambient { intensity: 0.2 },
-//            Light::Point {
-//                intensity: 0.6,
-//                position: Point3D { x: 2.0, y: 1.0, z: 0.0 }
-//            },
-//            Light::Point {
-//                intensity: 0.4,
-//                position: Point3D { x: point_light_position, y: 3.0, z: -5.0 }
-//            },
-            Light::Directional {
-                intensity: 0.8,
-                direction: Point3D { x: 1.0, y: 4.0, z: 4.0 }
-            }
-        ];
-
-
-        ray_tracing::render_scene_to_buffer(
-            &spheres,
-            &lights,
-            &mut buffer,
-            size,
-            origin,
-            rotation
-        );
-//        encoder.encode_rgb(size, size, &buffer, false);
-
 //        point_light_position += 0.01;
 //        green_sphere_position_z += 0.01;
 //        blue_sphere_position_x += 0.01;
 
 //    write_image(&buffer, size).expect("Error writing image to file");
     show_buffer_in_window(&mut buffer, size);
-//    }
 
 //    rotating_cube_window(&mut buffer, size);
 
