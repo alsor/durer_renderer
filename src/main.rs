@@ -32,7 +32,7 @@ impl Point3D {
 struct Point2D { x: f64, y: f64 }
 
 #[derive(Copy, Clone)]
-struct Point { x: i32, y: i32 }
+struct Point { x: i32, y: i32, h: f64 }
 
 #[derive(Copy, Clone)]
 struct Frame { x_min: f64, x_max: f64, y_min: f64, y_max: f64 }
@@ -99,7 +99,7 @@ fn rasterize_line(start: Pixel, end: Pixel, buffer: &mut [u8], size: usize) {
             }
 
             put_pixel(
-                Pixel { x: x as usize, y: y as usize, color: Color { r: 255, g: 255, b: 255 } },
+                Pixel { x: x as usize, y: y as usize, color: start.color },
                 buffer,
                 size
             );
@@ -124,7 +124,7 @@ fn rasterize_line(start: Pixel, end: Pixel, buffer: &mut [u8], size: usize) {
             }
 
             put_pixel(
-                Pixel { x: x as usize, y: y as usize, color: Color { r: 255, g: 255, b: 255 }},
+                Pixel { x: x as usize, y: y as usize, color: start.color },
                 buffer,
                 size
             );
@@ -830,7 +830,7 @@ fn render_video() {
 
 }
 
-fn interpolate(i0: i32, d0: i32, i1: i32, d1: i32) -> Vec<i32> {
+fn interpolate_int(i0: i32, d0: i32, i1: i32, d1: i32) -> Vec<i32> {
     if i0 == i1 {
         return vec![d0];
     }
@@ -846,11 +846,35 @@ fn interpolate(i0: i32, d0: i32, i1: i32, d1: i32) -> Vec<i32> {
     results
 }
 
+fn interpolate_float(i0: i32, d0: f64, i1: i32, d1: f64) -> Vec<f64> {
+    if i0 == i1 {
+        return vec![d0];
+    }
+
+    let mut results = Vec::<f64>::new();
+    let a = (d1 - d0) / ((i1 - i0) as f64);
+    let mut d = d0;
+    for i in i0..(i1 + 1) {
+        results.push(d);
+        d += a;
+    }
+
+    results
+}
+
 #[test]
-fn test_interpolate() {
-    let results = interpolate(0, 0, 10, 6);
+fn test_interpolate_int() {
+    let results = interpolate_int(0, 0, 10, 6);
     for result in results {
         println!("result: {}", result);
+    }
+}
+
+#[test]
+fn test_interpolate_float() {
+    let results = interpolate_float(0, 0.0, 10, 10.0);
+    for result in results {
+        println!("result float: {:.2}", result);
     }
 }
 
@@ -880,30 +904,71 @@ fn draw_filled_triangle(
     }
 
     // x coordinates of the edges
-    let mut x01 = interpolate(p0.y, p0.x, p1.y, p1.x);
-    let mut x12 = interpolate(p1.y, p1.x, p2.y, p2.x);
-    let mut x02 = interpolate(p0.y, p0.x, p2.y, p2.x);
+    let mut x01 = interpolate_int(p0.y, p0.x, p1.y, p1.x);
+    let mut h01 = interpolate_float(p0.y, p0.h, p1.y, p1.h);
+    let mut x12 = interpolate_int(p1.y, p1.x, p2.y, p2.x);
+    let mut h12 = interpolate_float(p1.y, p1.h, p2.y, p2.h);
+    let mut x02 = interpolate_int(p0.y, p0.x, p2.y, p2.x);
+    let mut h02 = interpolate_float(p0.y, p0.h, p2.y, p2.h);
 
     x01.pop();
     let mut x012 = Vec::<i32>::new();
     x012.append(&mut x01);
     x012.append(&mut x12);
 
+    h01.pop();
+    let mut h012 = Vec::<f64>::new();
+    h012.append(&mut h01);
+    h012.append(&mut h12);
+
     let mut x_left;
     let mut x_right;
+    let mut h_left;
+    let mut h_right;
+
     let m = x02.len() / 2;
     if x02[m] < x012[m] {
         x_left = x02;
         x_right = x012;
+
+        h_left = h02;
+        h_right = h012;
     } else {
         x_left = x012;
         x_right = x02;
-    }
+
+        h_left = h012;
+        h_right = h02;
+    };
 
     for y in p0.y..(p2.y + 1) {
-        for x in x_left[(y - p0.y) as usize]..(x_right[(y - p0.y) as usize] + 1) {
-            draw_point(Point { x, y }, color, buffer, size);
-        }
+        let y_cur = (y - p0.y) as usize;
+        let x_l = x_left[y_cur];
+        let x_r = x_right[y_cur];
+        let h_segment = interpolate_float(x_l, h_left[y_cur], x_r, h_right[y_cur]);
+        for x in x_l..(x_r + 1) {
+            let shaded_color = multiply_color(h_segment[(x - x_l) as usize], color);
+            draw_point(Point { x, y, h: 0.0 }, shaded_color, buffer, size);
+        };
+    }
+}
+
+pub fn multiply_color(k: f64, color: Color) -> Color {
+    Color {
+        r: multiply_channel(k, color.r),
+        g: multiply_channel(k, color.g),
+        b: multiply_channel(k, color.b)
+    }
+}
+
+fn multiply_channel(k: f64, channel: u8) -> u8 {
+    let scaled = channel as f64 * k;
+    if scaled > 255.0 {
+        255
+    } else if scaled < 0.0 {
+        0
+    } else {
+        scaled as u8
     }
 }
 
@@ -915,21 +980,47 @@ pub fn screen_y(y_canvas: i32, canvas_height: i32) -> usize {
     (canvas_height / 2 - y_canvas - 1) as usize
 }
 
-fn draw_point(point: Point, color: Color, buffer: &mut Vec<u8>, size: usize) {
+fn point_to_pixel(point: Point, color: Color, size: usize) -> Pixel {
     let canvas_width = size as i32;
     let canvas_height = size as i32;
-    let pixel = Pixel {
+    Pixel {
         x: screen_x(point.x, canvas_width),
         y: screen_y(point.y, canvas_height),
         color
-    };
-    put_pixel(pixel, buffer, size);
+    }
+}
+
+fn draw_point(point: Point, color: Color, buffer: &mut Vec<u8>, size: usize) {
+    put_pixel(point_to_pixel(point, color, size), buffer, size);
+}
+
+fn draw_line(start: Point, end: Point, color: Color, buffer: &mut [u8], size: usize) {
+    rasterize_line(
+        point_to_pixel(start, color, size),
+        point_to_pixel(end, color, size),
+        buffer,
+        size
+    );
+}
+
+fn draw_wireframe_triangle(
+    p0: Point,
+    p1: Point,
+    p2: Point,
+    color: Color,
+    buffer: &mut [u8],
+    size: usize,
+) {
+    draw_line(p0, p1, color, buffer, size);
+    draw_line(p1, p2, color, buffer, size);
+    draw_line(p2, p0, color, buffer, size);
 }
 
 fn main() {
-    let size = 1000;
+    let size = 750;
     let mut buffer = vec![0u8; size as usize * size as usize * 3];
 
+    let green = Color { r: 0, g: 255, b: 0 };
     let white = Color { r: 255, g: 255, b: 255 };
 
 //    draw_point(Point { x: 100, y: 100 }, white, &mut buffer, size);
@@ -937,11 +1028,12 @@ fn main() {
 //    draw_point(Point { x: -100, y: -100 }, white, &mut buffer, size);
 //    draw_point(Point { x: 100, y: -100 }, white, &mut buffer, size);
 
-    let mut p0 = Point { x: -200, y: -250 };
-    let mut p1 = Point { x: 200, y: 50 };
-    let mut p2 = Point { x: 20, y: 250 };
+    let mut p0 = Point { x: -200, y: -250, h: 0.3 };
+    let mut p1 = Point { x: 200, y: 50, h: 0.1 };
+    let mut p2 = Point { x: 20, y: 250, h: 1.0 };
 
-    draw_filled_triangle(p0, p1, p2, white, &mut buffer, size);
+    draw_filled_triangle(p0, p1, p2, green, &mut buffer, size);
+    draw_wireframe_triangle(p0, p1, p2, white, &mut buffer, size);
 
 //    three_spheres_window(&mut buffer, size);
 

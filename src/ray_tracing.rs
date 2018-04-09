@@ -6,6 +6,7 @@ use super::Point3D;
 use super::screen_x;
 use super::screen_y;
 use super::put_pixel;
+use super::multiply_color;
 use std;
 use std::f64;
 use vectors;
@@ -278,25 +279,6 @@ fn trace_ray(
 
         }
         None => Color { r: 0, g: 0, b: 0 }
-    }
-}
-
-fn multiply_color(k: f64, color: Color) -> Color {
-    Color {
-        r: multiply_channel(k, color.r),
-        g: multiply_channel(k, color.g),
-        b: multiply_channel(k, color.b)
-    }
-}
-
-fn multiply_channel(k: f64, channel: u8) -> u8 {
-    let scaled = channel as f64 * k;
-    if scaled > 255.0 {
-        255
-    } else if scaled < 0.0 {
-        0
-    } else {
-        scaled as u8
     }
 }
 
