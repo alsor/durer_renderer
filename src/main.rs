@@ -4,6 +4,8 @@ extern crate mpeg_encoder;
 
 mod ray_tracing;
 mod vectors;
+mod projective_camera;
+mod buffer_canvas;
 
 use image::ColorType;
 use image::png::PNGEncoder;
@@ -14,6 +16,8 @@ use std::str::FromStr;
 
 use ray_tracing::Sphere;
 use ray_tracing::Light;
+use buffer_canvas::BufferCanvas;
+use projective_camera::ProjectiveCamera;
 
 #[derive(Copy, Clone)]
 pub struct Point3D { x: f64, y: f64, z: f64 }
@@ -43,7 +47,7 @@ pub struct Color {
 }
 
 #[derive(Copy, Clone)]
-struct Pixel { x: usize, y: usize, color: Color }
+pub struct Pixel { pub x: usize, pub y: usize, pub color: Color }
 
 fn project(point3d: Point3D) -> Point2D {
     Point2D { x: -point3d.x / point3d.z, y: -point3d.y / point3d.z }
@@ -62,7 +66,7 @@ fn rasterize(point: Point2D, size: usize) -> Pixel {
     Pixel { x, y, color: Color { r: 255, g: 255, b: 255 } }
 }
 
-fn rasterize_line(start: Pixel, end: Pixel, buffer: &mut [u8], size: usize) {
+pub fn rasterize_line(start: Pixel, end: Pixel, buffer: &mut [u8], size: usize) {
     let x1 = start.x as i32;
     let y1 = start.y as i32;
     let x2 = end.x as i32;
@@ -878,13 +882,24 @@ fn test_interpolate_float() {
     }
 }
 
+fn draw_wireframe_triangle(
+    p0: Point,
+    p1: Point,
+    p2: Point,
+    color: Color,
+    canvas: &mut BufferCanvas
+) {
+    canvas.draw_line(p0, p1, color);
+    canvas.draw_line(p1, p2, color);
+    canvas.draw_line(p2, p0, color);
+}
+
 fn draw_filled_triangle(
     mut p0: Point,
     mut p1: Point,
     mut p2: Point,
     color: Color,
-    buffer: &mut Vec<u8>,
-    size: usize
+    canvas: &mut BufferCanvas
 ) {
     // sort points from bottom to top
     if p1.y < p0.y {
@@ -948,7 +963,7 @@ fn draw_filled_triangle(
         let h_segment = interpolate_float(x_l, h_left[y_cur], x_r, h_right[y_cur]);
         for x in x_l..(x_r + 1) {
             let shaded_color = multiply_color(h_segment[(x - x_l) as usize], color);
-            draw_point(Point { x, y, h: 0.0 }, shaded_color, buffer, size);
+            canvas.draw_point(Point { x, y, h: 0.0 }, shaded_color);
         };
     }
 }
@@ -980,60 +995,85 @@ pub fn screen_y(y_canvas: i32, canvas_height: i32) -> usize {
     (canvas_height / 2 - y_canvas - 1) as usize
 }
 
-fn point_to_pixel(point: Point, color: Color, size: usize) -> Pixel {
-    let canvas_width = size as i32;
-    let canvas_height = size as i32;
-    Pixel {
-        x: screen_x(point.x, canvas_width),
-        y: screen_y(point.y, canvas_height),
-        color
-    }
-}
+//fn point_to_pixel(point: Point, color: Color, size: usize) -> Pixel {
+//    let canvas_width = size as i32;
+//    let canvas_height = size as i32;
+//    Pixel {
+//        x: screen_x(point.x, canvas_width),
+//        y: screen_y(point.y, canvas_height),
+//        color
+//    }
+//}
+//
+//fn draw_point(point: Point, color: Color, buffer: &mut Vec<u8>, size: usize) {
+//    put_pixel(point_to_pixel(point, color, size), buffer, size);
+//}
 
-fn draw_point(point: Point, color: Color, buffer: &mut Vec<u8>, size: usize) {
-    put_pixel(point_to_pixel(point, color, size), buffer, size);
-}
+//fn draw_line(start: Point, end: Point, color: Color, buffer: &mut [u8], size: usize) {
+//    rasterize_line(
+//        point_to_pixel(start, color, size),
+//        point_to_pixel(end, color, size),
+//        buffer,
+//        size
+//    );
+//}
 
-fn draw_line(start: Point, end: Point, color: Color, buffer: &mut [u8], size: usize) {
-    rasterize_line(
-        point_to_pixel(start, color, size),
-        point_to_pixel(end, color, size),
-        buffer,
-        size
-    );
-}
-
-fn draw_wireframe_triangle(
-    p0: Point,
-    p1: Point,
-    p2: Point,
-    color: Color,
-    buffer: &mut [u8],
-    size: usize,
-) {
-    draw_line(p0, p1, color, buffer, size);
-    draw_line(p1, p2, color, buffer, size);
-    draw_line(p2, p0, color, buffer, size);
-}
+//fn draw_wireframe_triangle(
+//    p0: Point,
+//    p1: Point,
+//    p2: Point,
+//    color: Color,
+//    buffer: &mut [u8],
+//    size: usize,
+//) {
+//    draw_line(p0, p1, color, buffer, size);
+//    draw_line(p1, p2, color, buffer, size);
+//    draw_line(p2, p0, color, buffer, size);
+//}
 
 fn main() {
-    let size = 750;
-    let mut buffer = vec![0u8; size as usize * size as usize * 3];
+//    let size = 750;
+//    let mut buffer = vec![0u8; size as usize * size as usize * 3];
 
+    let mut canvas = BufferCanvas::new(750);
+    let camera = ProjectiveCamera { viewport_size: 1.0, projection_plane_z: 1.0 };
+
+    let red = Color { r: 255, g: 0, b: 0 };
     let green = Color { r: 0, g: 255, b: 0 };
+    let blue = Color { r: 0, g: 0, b: 255 };
     let white = Color { r: 255, g: 255, b: 255 };
 
-//    draw_point(Point { x: 100, y: 100 }, white, &mut buffer, size);
-//    draw_point(Point { x: -100, y: 100 }, white, &mut buffer, size);
-//    draw_point(Point { x: -100, y: -100 }, white, &mut buffer, size);
-//    draw_point(Point { x: 100, y: -100 }, white, &mut buffer, size);
+    let vA = canvas.viewport_to_canvas(camera.project(Point3D { x: -2.0, y: -0.5, z: 5.0 }), &camera);
+    let vB = canvas.viewport_to_canvas(camera.project(Point3D { x: -2.0, y: 0.5, z: 5.0 }), &camera);
+    let vC = canvas.viewport_to_canvas(camera.project(Point3D { x: -1.0, y: 0.5, z: 5.0 }), &camera);
+    let vD = canvas.viewport_to_canvas(camera.project(Point3D { x: -1.0, y: -0.5, z: 5.0 }), &camera);
 
-    let mut p0 = Point { x: -200, y: -250, h: 0.3 };
-    let mut p1 = Point { x: 200, y: 50, h: 0.1 };
-    let mut p2 = Point { x: 20, y: 250, h: 1.0 };
+    let vAb = canvas.viewport_to_canvas(camera.project(Point3D { x: -2.0, y: -0.5, z: 6.0 }), &camera);
+    let vBb = canvas.viewport_to_canvas(camera.project(Point3D { x: -2.0, y: 0.5, z: 6.0 }), &camera);
+    let vCb = canvas.viewport_to_canvas(camera.project(Point3D { x: -1.0, y: 0.5, z: 6.0 }), &camera);
+    let vDb = canvas.viewport_to_canvas(camera.project(Point3D { x: -1.0, y: -0.5, z: 6.0 }), &camera);
 
-    draw_filled_triangle(p0, p1, p2, green, &mut buffer, size);
-    draw_wireframe_triangle(p0, p1, p2, white, &mut buffer, size);
+    canvas.draw_line(vA, vB, blue);
+    canvas.draw_line(vB, vC, blue);
+    canvas.draw_line(vC, vD, blue);
+    canvas.draw_line(vD, vA, blue);
+
+    canvas.draw_line(vAb, vBb, red);
+    canvas.draw_line(vBb, vCb, red);
+    canvas.draw_line(vCb, vDb, red);
+    canvas.draw_line(vDb, vAb, red);
+
+    canvas.draw_line(vA, vAb, green);
+    canvas.draw_line(vB, vBb, green);
+    canvas.draw_line(vC, vCb, green);
+    canvas.draw_line(vD, vDb, green);
+
+//    let p0 = Point { x: -200, y: -250, h: 0.3 };
+//    let p1 = Point { x: 200, y: 50, h: 0.1 };
+//    let p2 = Point { x: 20, y: 250, h: 1.0 };
+//
+//    draw_filled_triangle(p0, p1, p2, green, &mut canvas);
+//    draw_wireframe_triangle(p0, p1, p2, white, &mut canvas);
 
 //    three_spheres_window(&mut buffer, size);
 
@@ -1049,7 +1089,8 @@ fn main() {
 //        blue_sphere_position_x += 0.01;
 
 //    write_image(&buffer, size).expect("Error writing image to file");
-    show_buffer_in_window(&mut buffer, size);
+//    show_buffer_in_window(&mut buffer, size);
+    show_buffer_in_window(&mut canvas.buffer, canvas.size);
 
 //    rotating_cube_window(&mut buffer, size);
 
