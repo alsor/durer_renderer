@@ -2,6 +2,10 @@ Software Renderer written in Rust
 
 What's new:
 
+Rasterization: model, instances and transforms
+
+![Spheres](https://i.imgur.com/IKh85c9.png)
+
 Ray tracing: reflections
 
 ![Spheres](https://i.imgur.com/ZjsEhWZ.png)

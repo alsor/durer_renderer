@@ -6,6 +6,11 @@ mod ray_tracing;
 mod vectors;
 mod projective_camera;
 mod buffer_canvas;
+mod model;
+mod instance;
+mod ply2;
+mod matrix44f;
+mod vector4f;
 
 use image::ColorType;
 use image::png::PNGEncoder;
@@ -18,6 +23,8 @@ use ray_tracing::Sphere;
 use ray_tracing::Light;
 use buffer_canvas::BufferCanvas;
 use projective_camera::ProjectiveCamera;
+use model::Model;
+use vector4f::Vector4f;
 
 #[derive(Copy, Clone)]
 pub struct Point3D { x: f64, y: f64, z: f64 }
@@ -29,6 +36,14 @@ impl Point3D {
 
     pub fn to_vec(&self) -> [f64; 3] {
         [self.x, self.y, self.z]
+    }
+
+    pub fn from_vector4f(vector: Vector4f) -> Self {
+        Point3D { x: vector.x, y: vector.y, z: vector.z }
+    }
+
+    pub fn to_vector4f(&self) -> Vector4f {
+        Vector4f { x: self.x, y: self.y, z: self.z, w: 1.0 }
     }
 }
 
@@ -291,88 +306,6 @@ fn rotated_cube_vertices(t: f64) -> [Point3D; 8] {
     ]
 }
 
-fn read_ply2(filename: &str) -> (Vec<Point3D>, Vec<Vec<i32>>) {
-    let mut f = File::open(filename).expect("file not found");
-    let mut contents = String::new();
-    f.read_to_string(&mut contents).expect("error reading file");
-
-    #[derive(Copy,Clone)]
-    enum Ply2Parts { NumVertices, NumFaces, Vertices, Faces }
-    let ply2_structure = [
-        Ply2Parts::NumVertices,
-        Ply2Parts::NumFaces,
-        Ply2Parts::Vertices,
-        Ply2Parts::Faces,
-    ];
-    let mut current_section = 0;
-
-    let mut num_vertices = 0;
-    let mut num_faces = 0;
-    let mut current_vertex = 0;
-    let mut current_face = 0;
-    let mut vertices = Vec::new();
-    let mut faces = Vec::new();
-
-    for line in contents.split("\n") {
-        //        let parsed = match i32::from_str(line.trim()) {
-        //            Ok(num) => num,
-        //            Err(e) => {
-        //                println!("error: {}", e);
-        //                0
-        //            }
-        //        };
-        //        println!("parsed: {:?}", parsed);
-        if current_section == 4 {
-            break;
-        }
-
-        match ply2_structure[current_section] {
-            Ply2Parts::NumVertices => {
-                num_vertices = i32::from_str(line.trim()).unwrap();
-                current_section += 1;
-            }
-            Ply2Parts::NumFaces => {
-                num_faces = i32::from_str(line.trim()).unwrap();
-                current_section += 1;
-            }
-            Ply2Parts::Vertices => {
-                let mut coords = Vec::new();
-                for float in line.trim().split(" ") {
-                    coords.push(f64::from_str(float).unwrap());
-                }
-                vertices.push(Point3D { x: coords[0], y: coords[1], z: coords[2] });
-                current_vertex += 1;
-                if current_vertex == num_vertices {
-                    current_section += 1;
-                }
-            }
-            Ply2Parts::Faces => {
-                let mut faces_list = Vec::new();
-                let mut face = Vec::new();
-                for str in line.trim().split(" ") {
-                    faces_list.push(i32::from_str(str.trim()).unwrap());
-                }
-                let vertices_in_face = faces_list[0];
-                for i in 1..(vertices_in_face + 1) {
-                    face.push(faces_list[i as usize]);
-                }
-                faces.push(face);
-
-                current_face += 1;
-                if current_face == num_faces {
-                    current_section += 1;
-                }
-            }
-            _ => ()
-        }
-    }
-
-    println!("vertices read: {}", vertices.len());
-    println!("faces read: {}", faces.len());
-
-    (vertices, faces)
-}
-
 fn rotated_cube(t: f64) -> (Vec<Point3D>, Vec<Vec<i32>>) {
     let cube_vertices = rotated_cube_vertices(t).to_vec();
 
@@ -388,6 +321,36 @@ fn rotated_cube(t: f64) -> (Vec<Point3D>, Vec<Vec<i32>>) {
     ];
 
     (vertices, faces)
+}
+
+fn two_unit_cube() -> Model {
+    let vertices = vec![
+        Point3D { x: 1.0, y: 1.0, z: 1.0 },
+        Point3D { x: -1.0, y: 1.0, z: 1.0 },
+        Point3D { x: -1.0, y: -1.0, z: 1.0 },
+        Point3D { x: 1.0, y: -1.0, z: 1.0 },
+        Point3D { x: 1.0, y: 1.0, z: -1.0 },
+        Point3D { x: -1.0, y: 1.0, z: -1.0 },
+        Point3D { x: -1.0, y: -1.0, z: -1.0 },
+        Point3D { x: 1.0, y: -1.0, z: -1.0 },
+    ];
+
+    let faces = vec![
+        vec![0, 1, 2],
+        vec![0, 2, 3],
+        vec![4, 0, 3],
+        vec![4, 3, 7],
+        vec![5, 4, 7],
+        vec![5, 7, 6],
+        vec![1, 5, 6],
+        vec![1, 6, 2],
+        vec![4, 5, 1],
+        vec![4, 1, 0],
+        vec![2, 6, 7],
+        vec![2, 7, 3],
+    ];
+
+    Model { vertices, faces }
 }
 
 fn enclosing_frame(vertices: &Vec<Point3D>) -> Frame {
@@ -1031,11 +994,15 @@ pub fn screen_y(y_canvas: i32, canvas_height: i32) -> usize {
 //    draw_line(p2, p0, color, buffer, size);
 //}
 
+use instance::Instance;
+use matrix44f::Matrix44f;
+mod rendering;
+
 fn main() {
 //    let size = 750;
 //    let mut buffer = vec![0u8; size as usize * size as usize * 3];
 
-    let mut canvas = BufferCanvas::new(750);
+    let mut canvas = BufferCanvas::new(600);
     let camera = ProjectiveCamera { viewport_size: 1.0, projection_plane_z: 1.0 };
 
     let red = Color { r: 255, g: 0, b: 0 };
@@ -1043,33 +1010,42 @@ fn main() {
     let blue = Color { r: 0, g: 0, b: 255 };
     let white = Color { r: 255, g: 255, b: 255 };
 
-    let vA = canvas.viewport_to_canvas(camera.project(Point3D { x: -2.0, y: -0.5, z: 5.0 }), &camera);
-    let vB = canvas.viewport_to_canvas(camera.project(Point3D { x: -2.0, y: 0.5, z: 5.0 }), &camera);
-    let vC = canvas.viewport_to_canvas(camera.project(Point3D { x: -1.0, y: 0.5, z: 5.0 }), &camera);
-    let vD = canvas.viewport_to_canvas(camera.project(Point3D { x: -1.0, y: -0.5, z: 5.0 }), &camera);
+    let cube = two_unit_cube();
+//    let twirl = ply2::load_model("resources/twirl.ply2");
+//    let octo_flawer = ply2::load_model("resources/octa-flower.ply2");
+    let torus = ply2::load_model("resources/torus.ply2");
 
-    let vAb = canvas.viewport_to_canvas(camera.project(Point3D { x: -2.0, y: -0.5, z: 6.0 }), &camera);
-    let vBb = canvas.viewport_to_canvas(camera.project(Point3D { x: -2.0, y: 0.5, z: 6.0 }), &camera);
-    let vCb = canvas.viewport_to_canvas(camera.project(Point3D { x: -1.0, y: 0.5, z: 6.0 }), &camera);
-    let vDb = canvas.viewport_to_canvas(camera.project(Point3D { x: -1.0, y: -0.5, z: 6.0 }), &camera);
+    let scene = vec![
+        Instance::new(
+            &cube,
+            Some(Vector4f { x: -1.0, y: -1.5, z: 10.0, w: 0.0 }),
+            Some(1.5),
+            Some(Matrix44f::rotation_z(-20.0).multiply(Matrix44f::rotation_x(-15.0)))
+        ),
+        Instance::new(
+            &cube,
+            Some(Vector4f { x: 1.25, y: 2.5, z: 10.5, w: 0.0 }),
+            None,
+            Some(Matrix44f::rotation_y(30.0).multiply(Matrix44f::rotation_z(10.0)))
+        ),
+        Instance::new(
+            &torus,
+            Some(Vector4f { x: -20.0, y: 10.0, z: 80.0, w: 0.0 }),
+            None,
+            Some(Matrix44f::rotation_y(-30.0).multiply(Matrix44f::rotation_x(-90.0)))
+        ),
+        Instance::new(
+            &torus,
+            Some(Vector4f { x: 20.0, y: 0.0, z: 70.0, w: 0.0 }),
+            None,
+            Some(Matrix44f::rotation_x(90.0).multiply(Matrix44f::rotation_y(50.0)))
+        ),
+    ];
 
-    canvas.draw_line(vA, vB, blue);
-    canvas.draw_line(vB, vC, blue);
-    canvas.draw_line(vC, vD, blue);
-    canvas.draw_line(vD, vA, blue);
+    rendering::render_scene(&scene, &camera, &mut canvas);
 
-    canvas.draw_line(vAb, vBb, red);
-    canvas.draw_line(vBb, vCb, red);
-    canvas.draw_line(vCb, vDb, red);
-    canvas.draw_line(vDb, vAb, red);
-
-    canvas.draw_line(vA, vAb, green);
-    canvas.draw_line(vB, vBb, green);
-    canvas.draw_line(vC, vCb, green);
-    canvas.draw_line(vD, vDb, green);
-
-//    let p0 = Point { x: -200, y: -250, h: 0.3 };
-//    let p1 = Point { x: 200, y: 50, h: 0.1 };
+//    let p0 = Point { x: -200, y: -250, h: 0.1 };
+//    let p1 = Point { x: 200, y: 50, h: 0.0 };
 //    let p2 = Point { x: 20, y: 250, h: 1.0 };
 //
 //    draw_filled_triangle(p0, p1, p2, green, &mut canvas);
@@ -1079,7 +1055,6 @@ fn main() {
 
 //    let half = 0.8;
 //    let frame = Frame { x_min: -half, x_max: half, y_min: -half, y_max: half };
-//    let (vertices, faces) = read_ply2("resources/twirl.ply2");
 //    let vertices = transform(&vertices, Point3D { x: 0.0, y: 0.0, z: 45.0 });
 //    render_model_to_buffer(&mut buffer, size, vertices, faces, frame);
 
@@ -1088,9 +1063,8 @@ fn main() {
 //        green_sphere_position_z += 0.01;
 //        blue_sphere_position_x += 0.01;
 
-//    write_image(&buffer, size).expect("Error writing image to file");
-//    show_buffer_in_window(&mut buffer, size);
-    show_buffer_in_window(&mut canvas.buffer, canvas.size);
+    write_image(&mut canvas.buffer, canvas.size).expect("Error writing image to file");
+//    show_buffer_in_window(&mut canvas.buffer, canvas.size);
 
 //    rotating_cube_window(&mut buffer, size);
 

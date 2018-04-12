@@ -64,9 +64,9 @@ pub fn normalize(vector: Point3D) -> Point3D {
 pub fn rotation_around_y(d: f64) -> [[f64; 3]; 3] {
     let a = d / 57.2958;
     [
-        [a.cos(), 0.0, a.sin()],
-        [0.0, 1.0, 0.0],
-        [-a.sin(), 0.0, a.cos()]
+        [a.cos() , 0.0, a.sin()],
+        [0.0     , 1.0,     0.0],
+        [-a.sin(), 0.0, a.cos()],
     ]
 }
 
