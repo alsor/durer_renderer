@@ -999,11 +999,42 @@ use matrix44f::Matrix44f;
 mod rendering;
 
 fn main() {
-//    let size = 750;
-//    let mut buffer = vec![0u8; size as usize * size as usize * 3];
+    let mut buffer_canvas = BufferCanvas::new(750);
 
-    let mut canvas = BufferCanvas::new(600);
-    let camera = ProjectiveCamera { viewport_size: 1.0, projection_plane_z: 1.0 };
+    let sdl_context = sdl2::init().unwrap();
+    let video_subsystem = sdl_context.video().unwrap();
+
+    let window = video_subsystem.window(
+        "Durer",
+        buffer_canvas.size as u32,
+        buffer_canvas.size as u32,
+    ).position_centered().build().unwrap();
+
+    let mut canvas = window.into_canvas().build().unwrap();
+    let texture_creator = canvas.texture_creator();
+    let mut texture = texture_creator.create_texture_static(
+        PixelFormatEnum::RGB24,
+        buffer_canvas.size as u32,
+        buffer_canvas.size as u32
+    ).unwrap();
+
+    texture.update(None, &buffer_canvas.buffer, buffer_canvas.size * 3).unwrap();
+    canvas.clear();
+    canvas.copy(&texture, None, None).unwrap();
+    canvas.present();
+
+    let mut x_position = 0.0;
+    let mut z_position = 0.0;
+
+    let mut angle = 0.0;
+
+
+    let mut camera = ProjectiveCamera {
+        viewport_size: 1.0,
+        projection_plane_z: 1.0,
+        position: Vector4f { x: x_position, y: 0.0, z: z_position, w: 0.0 },
+        rotation: Matrix44f::rotation_y(angle)
+    };
 
     let red = Color { r: 255, g: 0, b: 0 };
     let green = Color { r: 0, g: 255, b: 0 };
@@ -1042,14 +1073,67 @@ fn main() {
         ),
     ];
 
-    rendering::render_scene(&scene, &camera, &mut canvas);
+    rendering::render_scene(&scene, &camera, &mut buffer_canvas);
+
+    let delta_x = 1.0;
+    let delta_z = 1.0;
+    let delta_angle = 5.0;
+
+    let mut event_pump = sdl_context.event_pump().unwrap();
+    'running: loop {
+        for event in event_pump.wait_iter() {
+            match event {
+                Event::Quit {..} |
+                Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
+                    break 'running
+                },
+                Event::KeyDown { keycode: Some(Keycode::E), .. } => {
+                    angle += delta_angle;
+                },
+                Event::KeyDown { keycode: Some(Keycode::Q), .. } => {
+                    angle -= delta_angle;
+                },
+                Event::KeyDown { keycode: Some(Keycode::D), .. } => {
+                    x_position += delta_x;
+                },
+                Event::KeyDown { keycode: Some(Keycode::A), .. } => {
+                    x_position -= delta_x;
+                },
+                Event::KeyDown { keycode: Some(Keycode::W), .. } => {
+                    z_position += delta_z;
+                },
+                Event::KeyDown { keycode: Some(Keycode::S), .. } => {
+                    z_position -= delta_z;
+                },
+                _ => {}
+            }
+
+//            let origin = Point3D { x: x_position, y: 0.0, z: z_position };
+//            let rotation = vectors::rotation_around_y(angle);
+
+            camera = ProjectiveCamera {
+                viewport_size: 1.0,
+                projection_plane_z: 1.0,
+                position: Vector4f { x: x_position, y: 0.0, z: z_position, w: 0.0 },
+                rotation: Matrix44f::rotation_y(angle)
+            };
+
+            buffer_canvas.clear();
+            rendering::render_scene(&scene, &camera, &mut buffer_canvas);
+
+            texture.update(None, &buffer_canvas.buffer, buffer_canvas.size * 3).unwrap();
+            canvas.clear();
+            canvas.copy(&texture, None, None).unwrap();
+            canvas.present();
+        }
+    }
 
 //    let p0 = Point { x: -200, y: -250, h: 0.1 };
 //    let p1 = Point { x: 200, y: 50, h: 0.0 };
 //    let p2 = Point { x: 20, y: 250, h: 1.0 };
 //
-//    draw_filled_triangle(p0, p1, p2, green, &mut canvas);
-//    draw_wireframe_triangle(p0, p1, p2, white, &mut canvas);
+//    draw_filled_triangle(p0, p1, p2, green, &mut buffer_canvas);
+//    draw_wireframe_triangle(p0, p1, p2, white, &mut buffer_canvas);
 
 //    three_spheres_window(&mut buffer, size);
 
@@ -1063,8 +1147,8 @@ fn main() {
 //        green_sphere_position_z += 0.01;
 //        blue_sphere_position_x += 0.01;
 
-    write_image(&mut canvas.buffer, canvas.size).expect("Error writing image to file");
-//    show_buffer_in_window(&mut canvas.buffer, canvas.size);
+//    write_image(&mut buffer_canvas.buffer, buffer_canvas.size).expect("Error writing image to file");
+//    show_buffer_in_window(&mut buffer_canvas.buffer, buffer_canvas.size);
 
 //    rotating_cube_window(&mut buffer, size);
 

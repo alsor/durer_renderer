@@ -13,8 +13,12 @@ impl BufferCanvas {
     pub fn new(size: usize) -> Self {
         Self {
             size,
-            buffer: vec![0u8; size as usize * size as usize * 3]
+            buffer: vec![0u8; size * size * 3]
         }
+    }
+
+    pub fn clear(&mut self) {
+        self.buffer = vec![0u8; self.size * self.size * 3];
     }
 
     pub fn viewport_to_canvas(&self, point: Point2D, camera: &ProjectiveCamera) -> Point {

@@ -17,7 +17,7 @@ fn render_instance(instance: &Instance, canvas: &mut BufferCanvas, camera: &Proj
         Vec::<Point>::with_capacity(instance.vertices.len());
 
     for vertex in &instance.vertices {
-        let point2d = camera.project_vertex(*vertex);
+        let point2d = camera.project_vertex(vertex.transform(&camera.camera_transform()));
         canvas_points.push(canvas.viewport_to_canvas(point2d, camera));
     }
 

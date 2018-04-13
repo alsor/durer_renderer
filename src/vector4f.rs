@@ -29,6 +29,10 @@ impl Vector4f {
                 self.w * matrix.elements[3][3]
         }
     }
+
+    pub fn negate(&self) -> Self {
+        Self { x: -self.x, y: -self.y, z: -self.z, w: -self.w }
+    }
 }
 
 #[test]

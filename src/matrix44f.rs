@@ -1,5 +1,6 @@
 use vector4f::Vector4f;
 
+#[derive(Copy, Clone)]
 pub struct Matrix44f {
     pub elements: [[f64; 4]; 4]
 }
@@ -86,6 +87,40 @@ impl Matrix44f {
         }
 
         Matrix44f { elements }
+    }
+
+    pub fn transpose(&self) -> Self {
+        let mut elements = [[0.0; 4]; 4];
+
+        for i in 0..4 {
+            for j in 0..4 {
+                elements[i][j] = self.elements[j][i];
+            }
+        }
+
+        Matrix44f { elements }
+    }
+}
+
+#[test]
+fn test_transpose() {
+    let matrix = Matrix44f {
+        elements: [
+            [ 1.0,  2.0,  3.0,  4.0],
+            [ 5.0,  6.0,  7.0,  8.0],
+            [ 9.0, 10.0, 11.0, 12.0],
+            [13.0, 14.0, 15.0, 16.0],
+        ]
+    };
+    let result = matrix.transpose();
+    for i in 0..4 {
+        println!(
+            "{:.2} {:.2} {:.2} {:.2}",
+            result.elements[i][0],
+            result.elements[i][1],
+            result.elements[i][2],
+            result.elements[i][3]
+        );
     }
 }
 
