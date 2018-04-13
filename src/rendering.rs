@@ -5,19 +5,31 @@ use super::Point2D;
 use super::Point3D;
 use super::Point;
 use super::Color;
+use matrix44f::Matrix44f;
 
 pub fn render_scene(scene: &Vec<Instance>, camera: &ProjectiveCamera, canvas: &mut BufferCanvas) {
+    let camera_transform = camera.camera_transform();
     for instance in scene {
-        render_instance(instance, canvas, camera);
+        render_instance(instance, canvas, camera, camera_transform);
     }
 }
 
-fn render_instance(instance: &Instance, canvas: &mut BufferCanvas, camera: &ProjectiveCamera) {
+fn render_instance(
+    instance: &Instance,
+    canvas: &mut BufferCanvas,
+    camera: &ProjectiveCamera,
+    camera_transform: Matrix44f
+) {
+    let transform = match instance.transform {
+        None => { camera_transform },
+        Some(instance_transform) => { instance_transform.multiply(camera_transform) },
+    };
     let mut canvas_points =
-        Vec::<Point>::with_capacity(instance.vertices.len());
+        Vec::<Point>::with_capacity(instance.model.vertices.len());
 
-    for vertex in &instance.vertices {
-        let point2d = camera.project_vertex(vertex.transform(&camera.camera_transform()));
+    for point3d in &instance.model.vertices {
+        let vertex = point3d.to_vector4f();
+        let point2d = camera.project_vertex(vertex.transform(transform));
         canvas_points.push(canvas.viewport_to_canvas(point2d, camera));
     }
 

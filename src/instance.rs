@@ -4,7 +4,7 @@ use vector4f::Vector4f;
 
 pub struct Instance<'a> {
     pub model: &'a Model,
-    pub vertices: Vec<Vector4f>
+    pub transform: Option<Matrix44f>
 }
 
 impl<'a> Instance<'a> {
@@ -42,27 +42,7 @@ impl<'a> Instance<'a> {
             },
         };
 
-        match transform {
-            None => {
-                let mut vertices = Vec::<Vector4f>::with_capacity(model.vertices.len());
-                for point in &model.vertices {
-                    vertices.push(point.to_vector4f());
-                }
-                Instance { model, vertices }
-            },
-            Some(transform_matrix) => { Self::transform_model(model, transform_matrix) }
-        }
-    }
-
-    pub fn transform_model(model: &'a Model, transform: Matrix44f) -> Self {
-        let mut vertices = Vec::<Vector4f>::with_capacity(model.vertices.len());
-
-        for point in &model.vertices {
-            let vertex = point.to_vector4f();
-            vertices.push(vertex.transform(&transform))
-        }
-
-        Self { model, vertices }
+        Self { model, transform }
     }
 }
 

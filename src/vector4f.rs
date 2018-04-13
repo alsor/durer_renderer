@@ -9,7 +9,7 @@ pub struct Vector4f {
 }
 
 impl Vector4f {
-    pub fn transform(&self, matrix: &Matrix44f) -> Self {
+    pub fn transform(&self, matrix: Matrix44f) -> Self {
         Self {
             x: self.x * matrix.elements[0][0] +
                 self.y * matrix.elements[1][0] +

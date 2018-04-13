@@ -997,6 +997,7 @@ pub fn screen_y(y_canvas: i32, canvas_height: i32) -> usize {
 use instance::Instance;
 use matrix44f::Matrix44f;
 mod rendering;
+use std::{thread, time};
 
 fn main() {
     let mut buffer_canvas = BufferCanvas::new(750);
@@ -1024,10 +1025,8 @@ fn main() {
     canvas.present();
 
     let mut x_position = 0.0;
-    let mut z_position = 0.0;
-
+    let mut z_position = -20.0;
     let mut angle = 0.0;
-
 
     let mut camera = ProjectiveCamera {
         viewport_size: 1.0,
@@ -1042,90 +1041,122 @@ fn main() {
     let white = Color { r: 255, g: 255, b: 255 };
 
     let cube = two_unit_cube();
-//    let twirl = ply2::load_model("resources/twirl.ply2");
-//    let octo_flawer = ply2::load_model("resources/octa-flower.ply2");
     let torus = ply2::load_model("resources/torus.ply2");
+//    let twirl = ply2::load_model("resources/twirl.ply2");
+//    let octo_flower = ply2::load_model("resources/octa-flower.ply2");
+//    let statue = ply2::load_model("resources/statue.ply2");
 
     let scene = vec![
         Instance::new(
             &cube,
-            Some(Vector4f { x: -1.0, y: -1.5, z: 10.0, w: 0.0 }),
+            Some(Vector4f { x: -2.0, y: 1.0, z: 0.0, w: 0.0 }),
             Some(1.5),
-            Some(Matrix44f::rotation_z(-20.0).multiply(Matrix44f::rotation_x(-15.0)))
+            Some(Matrix44f::rotation_z(30.0).multiply(Matrix44f::rotation_x(10.0)))
         ),
         Instance::new(
             &cube,
-            Some(Vector4f { x: 1.25, y: 2.5, z: 10.5, w: 0.0 }),
+            Some(Vector4f { x: 2.0, y: -1.0, z: 0.0, w: 0.0 }),
             None,
-            Some(Matrix44f::rotation_y(30.0).multiply(Matrix44f::rotation_z(10.0)))
+            Some(Matrix44f::rotation_y(-30.0).multiply(Matrix44f::rotation_z(-30.0)))
         ),
         Instance::new(
             &torus,
-            Some(Vector4f { x: -20.0, y: 10.0, z: 80.0, w: 0.0 }),
-            None,
-            Some(Matrix44f::rotation_y(-30.0).multiply(Matrix44f::rotation_x(-90.0)))
+            Some(Vector4f { x: 0.0, y: 3.0, z: 0.0, w: 0.0 }),
+            Some(0.2),
+            Some(Matrix44f::rotation_y(0.0).multiply(Matrix44f::rotation_x(90.0)))
         ),
         Instance::new(
             &torus,
-            Some(Vector4f { x: 20.0, y: 0.0, z: 70.0, w: 0.0 }),
-            None,
-            Some(Matrix44f::rotation_x(90.0).multiply(Matrix44f::rotation_y(50.0)))
+            Some(Vector4f { x: 0.0, y: 0.0, z: 0.0, w: 0.0 }),
+            Some(0.1),
+            Some(Matrix44f::rotation_x(0.0).multiply(Matrix44f::rotation_y(0.0)))
         ),
+//        Instance::new(
+//            &octo_flower,
+//            Some(Vector4f { x: 0.0, y: 0.0, z: 70.0, w: 0.0 }),
+//            None,
+//            Some(Matrix44f::rotation_x(0.0).multiply(Matrix44f::rotation_y(0.0)))
+//        ),
+//        Instance::new(
+//            &twirl,
+//            Some(Vector4f { x: 0.0, y: 0.0, z: 70.0, w: 0.0 }),
+//            None,
+//            Some(Matrix44f::rotation_x(0.0).multiply(Matrix44f::rotation_y(0.0)))
+//        ),
+//        Instance::new(
+//            &statue,
+//            Some(Vector4f { x: 0.0, y: 0.0, z: 70.0, w: 0.0 }),
+//            None,
+//            Some(Matrix44f::rotation_x(0.0).multiply(Matrix44f::rotation_y(0.0)))
+//        ),
     ];
 
     rendering::render_scene(&scene, &camera, &mut buffer_canvas);
 
-    let delta_x = 1.0;
-    let delta_z = 1.0;
-    let delta_angle = 5.0;
+//    let delta_x = 1.0;
+//    let delta_z = 1.0;
+//    let delta_angle = 5.0;
+    let mut delta_x = 0.0;
+    let mut delta_z = 0.0;
+    let mut delta_angle = 0.0;
 
     let mut event_pump = sdl_context.event_pump().unwrap();
     'running: loop {
-        for event in event_pump.wait_iter() {
+        for event in event_pump.poll_iter() {
             match event {
                 Event::Quit {..} |
                 Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
                     break 'running
                 },
                 Event::KeyDown { keycode: Some(Keycode::E), .. } => {
-                    angle += delta_angle;
+                    delta_angle += 0.01;
+//                    angle += delta_angle;
                 },
                 Event::KeyDown { keycode: Some(Keycode::Q), .. } => {
-                    angle -= delta_angle;
+                    delta_angle -= 0.01;
+//                    angle -= delta_angle;
                 },
                 Event::KeyDown { keycode: Some(Keycode::D), .. } => {
-                    x_position += delta_x;
+                    delta_x += 0.01;
+//                    x_position += delta_x;
                 },
                 Event::KeyDown { keycode: Some(Keycode::A), .. } => {
-                    x_position -= delta_x;
+                    delta_x -= 0.01;
+//                    x_position -= delta_x;
                 },
                 Event::KeyDown { keycode: Some(Keycode::W), .. } => {
-                    z_position += delta_z;
+                    delta_z += 0.01;
+//                    z_position += delta_z;
                 },
                 Event::KeyDown { keycode: Some(Keycode::S), .. } => {
-                    z_position -= delta_z;
+                    delta_z -= 0.01;
+//                    z_position -= delta_z;
                 },
                 _ => {}
             }
 
-//            let origin = Point3D { x: x_position, y: 0.0, z: z_position };
-//            let rotation = vectors::rotation_around_y(angle);
-
-            camera = ProjectiveCamera {
-                viewport_size: 1.0,
-                projection_plane_z: 1.0,
-                position: Vector4f { x: x_position, y: 0.0, z: z_position, w: 0.0 },
-                rotation: Matrix44f::rotation_y(angle)
-            };
-
-            buffer_canvas.clear();
-            rendering::render_scene(&scene, &camera, &mut buffer_canvas);
-
-            texture.update(None, &buffer_canvas.buffer, buffer_canvas.size * 3).unwrap();
-            canvas.clear();
-            canvas.copy(&texture, None, None).unwrap();
-            canvas.present();
         }
+
+        z_position += delta_z;
+        x_position += delta_x;
+        angle += delta_angle;
+
+        camera = ProjectiveCamera {
+            viewport_size: 1.0,
+            projection_plane_z: 1.0,
+            position: Vector4f { x: x_position, y: 0.0, z: z_position, w: 0.0 },
+            rotation: Matrix44f::rotation_y(angle)
+        };
+
+        buffer_canvas.clear();
+        rendering::render_scene(&scene, &camera, &mut buffer_canvas);
+
+        texture.update(None, &buffer_canvas.buffer, buffer_canvas.size * 3).unwrap();
+        canvas.clear();
+        canvas.copy(&texture, None, None).unwrap();
+        canvas.present();
+
+//        thread::sleep(time::Duration::from_millis(10));
     }
 
 //    let p0 = Point { x: -200, y: -250, h: 0.1 };

@@ -27,6 +27,6 @@ impl ProjectiveCamera {
     }
 
     pub fn camera_transform(&self) -> Matrix44f {
-        self.rotation.transpose().multiply(Matrix44f::translation(self.position.negate()))
+        Matrix44f::translation(self.position.negate()).multiply(self.rotation.transpose())
     }
 }
