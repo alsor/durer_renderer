@@ -11,6 +11,7 @@ mod instance;
 mod ply2;
 mod matrix44f;
 mod vector4f;
+mod plane;
 
 use image::ColorType;
 use image::png::PNGEncoder;
@@ -323,16 +324,18 @@ fn rotated_cube(t: f64) -> (Vec<Point3D>, Vec<Vec<i32>>) {
     (vertices, faces)
 }
 
-fn two_unit_cube() -> Model {
+fn cube(size: f64) -> Model {
+    let half_size = size / 2.0;
+
     let vertices = vec![
-        Point3D { x: 1.0, y: 1.0, z: 1.0 },
-        Point3D { x: -1.0, y: 1.0, z: 1.0 },
-        Point3D { x: -1.0, y: -1.0, z: 1.0 },
-        Point3D { x: 1.0, y: -1.0, z: 1.0 },
-        Point3D { x: 1.0, y: 1.0, z: -1.0 },
-        Point3D { x: -1.0, y: 1.0, z: -1.0 },
-        Point3D { x: -1.0, y: -1.0, z: -1.0 },
-        Point3D { x: 1.0, y: -1.0, z: -1.0 },
+        Point3D { x: half_size, y: half_size, z: half_size },
+        Point3D { x: -half_size, y: half_size, z: half_size },
+        Point3D { x: -half_size, y: -half_size, z: half_size },
+        Point3D { x: half_size, y: -half_size, z: half_size },
+        Point3D { x: half_size, y: half_size, z: -half_size },
+        Point3D { x: -half_size, y: half_size, z: -half_size },
+        Point3D { x: -half_size, y: -half_size, z: -half_size },
+        Point3D { x: half_size, y: -half_size, z: -half_size },
     ];
 
     let faces = vec![
@@ -351,6 +354,10 @@ fn two_unit_cube() -> Model {
     ];
 
     Model { vertices, faces }
+}
+
+fn two_unit_cube() -> Model {
+    cube(2.0)
 }
 
 fn enclosing_frame(vertices: &Vec<Point3D>) -> Frame {
@@ -998,8 +1005,14 @@ use instance::Instance;
 use matrix44f::Matrix44f;
 mod rendering;
 use std::{thread, time};
+use plane::Plane;
+
+#[macro_use] extern crate log;
+extern crate env_logger;
 
 fn main() {
+    env_logger::init();
+
     let mut buffer_canvas = BufferCanvas::new(750);
 
     let sdl_context = sdl2::init().unwrap();
@@ -1024,13 +1037,17 @@ fn main() {
     canvas.copy(&texture, None, None).unwrap();
     canvas.present();
 
+    let viewport_size_delta = 0.1;
+    let mut viewport_size = 1.0;
+    let projection_plane_z_delta = 0.1;
+    let mut projection_plane_z = 1.0;
     let mut x_position = 0.0;
-    let mut z_position = -20.0;
+    let mut z_position = 0.0;
     let mut angle = 0.0;
 
     let mut camera = ProjectiveCamera {
-        viewport_size: 1.0,
-        projection_plane_z: 1.0,
+        viewport_size,
+        projection_plane_z,
         position: Vector4f { x: x_position, y: 0.0, z: z_position, w: 0.0 },
         rotation: Matrix44f::rotation_y(angle)
     };
@@ -1040,7 +1057,8 @@ fn main() {
     let blue = Color { r: 0, g: 0, b: 255 };
     let white = Color { r: 255, g: 255, b: 255 };
 
-    let cube = two_unit_cube();
+//    let cube = two_unit_cube();
+    let cube = cube(0.9);
     let torus = ply2::load_model("resources/torus.ply2");
 //    let twirl = ply2::load_model("resources/twirl.ply2");
 //    let octo_flower = ply2::load_model("resources/octa-flower.ply2");
@@ -1049,28 +1067,28 @@ fn main() {
     let scene = vec![
         Instance::new(
             &cube,
-            Some(Vector4f { x: -2.0, y: 1.0, z: 0.0, w: 0.0 }),
-            Some(1.5),
-            Some(Matrix44f::rotation_z(30.0).multiply(Matrix44f::rotation_x(10.0)))
-        ),
-        Instance::new(
-            &cube,
-            Some(Vector4f { x: 2.0, y: -1.0, z: 0.0, w: 0.0 }),
+            Some(Vector4f { x: 0.0, y: 0.0, z: 2.0, w: 0.0 }),
             None,
-            Some(Matrix44f::rotation_y(-30.0).multiply(Matrix44f::rotation_z(-30.0)))
+            None
         ),
-        Instance::new(
-            &torus,
-            Some(Vector4f { x: 0.0, y: 3.0, z: 0.0, w: 0.0 }),
-            Some(0.2),
-            Some(Matrix44f::rotation_y(0.0).multiply(Matrix44f::rotation_x(90.0)))
-        ),
-        Instance::new(
-            &torus,
-            Some(Vector4f { x: 0.0, y: 0.0, z: 0.0, w: 0.0 }),
-            Some(0.1),
-            Some(Matrix44f::rotation_x(0.0).multiply(Matrix44f::rotation_y(0.0)))
-        ),
+//        Instance::new(
+//            &cube,
+//            Some(Vector4f { x: 2.0, y: -1.0, z: 0.0, w: 0.0 }),
+//            None,
+//            Some(Matrix44f::rotation_y(-30.0).multiply(Matrix44f::rotation_z(-30.0)))
+//        ),
+//        Instance::new(
+//            &torus,
+//            Some(Vector4f { x: 0.0, y: 3.0, z: 0.0, w: 0.0 }),
+//            Some(0.2),
+//            Some(Matrix44f::rotation_y(0.0).multiply(Matrix44f::rotation_x(90.0)))
+//        ),
+//        Instance::new(
+//            &torus,
+//            Some(Vector4f { x: 0.0, y: 0.0, z: 0.0, w: 0.0 }),
+//            Some(0.1),
+//            Some(Matrix44f::rotation_x(0.0).multiply(Matrix44f::rotation_y(0.0)))
+//        ),
 //        Instance::new(
 //            &octo_flower,
 //            Some(Vector4f { x: 0.0, y: 0.0, z: 70.0, w: 0.0 }),
@@ -1091,61 +1109,44 @@ fn main() {
 //        ),
     ];
 
-    rendering::render_scene(&scene, &camera, &mut buffer_canvas);
+//    rendering::render_scene(&scene, &camera, &mut buffer_canvas, &clipping_planes);
+//    texture.update(None, &buffer_canvas.buffer, buffer_canvas.size * 3).unwrap();
+//    canvas.clear();
+//    canvas.copy(&texture, None, None).unwrap();
+//    canvas.present();
+//
 
-//    let delta_x = 1.0;
-//    let delta_z = 1.0;
-//    let delta_angle = 5.0;
-    let mut delta_x = 0.0;
-    let mut delta_z = 0.0;
-    let mut delta_angle = 0.0;
+    let mut delta_x;
+    let mut delta_z;
+    let mut delta_angle;
+    if cfg!(feature = "smooth_animation") {
+        println!("configured to smooth animation");
+        delta_x = 0.0;
+        delta_z = 0.0;
+        delta_angle = 0.0;
+    } else {
+        println!("configured to by step animation");
+        delta_x = 1.0;
+        delta_z = 0.05;
+        delta_angle = 5.0;
+    };
 
     let mut event_pump = sdl_context.event_pump().unwrap();
     'running: loop {
-        for event in event_pump.poll_iter() {
-            match event {
-                Event::Quit {..} |
-                Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
-                    break 'running
-                },
-                Event::KeyDown { keycode: Some(Keycode::E), .. } => {
-                    delta_angle += 0.01;
-//                    angle += delta_angle;
-                },
-                Event::KeyDown { keycode: Some(Keycode::Q), .. } => {
-                    delta_angle -= 0.01;
-//                    angle -= delta_angle;
-                },
-                Event::KeyDown { keycode: Some(Keycode::D), .. } => {
-                    delta_x += 0.01;
-//                    x_position += delta_x;
-                },
-                Event::KeyDown { keycode: Some(Keycode::A), .. } => {
-                    delta_x -= 0.01;
-//                    x_position -= delta_x;
-                },
-                Event::KeyDown { keycode: Some(Keycode::W), .. } => {
-                    delta_z += 0.01;
-//                    z_position += delta_z;
-                },
-                Event::KeyDown { keycode: Some(Keycode::S), .. } => {
-                    delta_z -= 0.01;
-//                    z_position -= delta_z;
-                },
-                _ => {}
-            }
 
-        }
+        trace!("z_position: {:.2}", z_position);
 
-        z_position += delta_z;
-        x_position += delta_x;
-        angle += delta_angle;
+        if cfg!(feature = "smooth_animation") {
+            z_position += delta_z;
+            x_position += delta_x;
+            angle += delta_angle;
+        };
 
         camera = ProjectiveCamera {
-            viewport_size: 1.0,
-            projection_plane_z: 1.0,
+            viewport_size,
+            projection_plane_z,
             position: Vector4f { x: x_position, y: 0.0, z: z_position, w: 0.0 },
-            rotation: Matrix44f::rotation_y(angle)
+            rotation: Matrix44f::rotation_y(angle),
         };
 
         buffer_canvas.clear();
@@ -1156,6 +1157,77 @@ fn main() {
         canvas.copy(&texture, None, None).unwrap();
         canvas.present();
 
+        match if cfg!(feature = "smooth_animation") {
+            event_pump.poll_event()
+        } else {
+            Some(event_pump.wait_event())
+        } {
+            Some(event) => {
+                trace!("event happened");
+                match event {
+                    Event::Quit { .. } |
+                    Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
+                        break 'running;
+                    },
+                    Event::KeyDown { keycode: Some(Keycode::E), .. } => {
+                        if cfg!(feature = "smooth_animation") {
+                            delta_angle += 0.01;
+                        } else {
+                            angle += delta_angle;
+                        };
+                    },
+                    Event::KeyDown { keycode: Some(Keycode::Q), .. } => {
+                        if cfg!(feature = "smooth_animation") {
+                            delta_angle -= 0.01;
+                        } else {
+                            angle -= delta_angle;
+                        };
+                    },
+                    Event::KeyDown { keycode: Some(Keycode::D), .. } => {
+                        if cfg!(feature = "smooth_animation") {
+                            delta_x += 0.01;
+                        } else {
+                            x_position += delta_x;
+                        };
+                    },
+                    Event::KeyDown { keycode: Some(Keycode::A), .. } => {
+                        if cfg!(feature = "smooth_animation") {
+                            delta_x -= 0.01;
+                        } else {
+                            x_position -= delta_x;
+                        };
+                    },
+                    Event::KeyDown { keycode: Some(Keycode::W), .. } => {
+                        if cfg!(feature = "smooth_animation") {
+                            delta_z += 0.01;
+                        } else {
+                            z_position += delta_z;
+                        };
+                    },
+                    Event::KeyDown { keycode: Some(Keycode::S), .. } => {
+                        if cfg!(feature = "smooth_animation") {
+                            delta_z -= 0.01;
+                        } else {
+                            z_position -= delta_z;
+                        };
+                    },
+                    Event::KeyDown { keycode: Some(Keycode::X), .. } => {
+                        viewport_size += viewport_size_delta;
+                    },
+                    Event::KeyDown { keycode: Some(Keycode::Z), .. } => {
+                        viewport_size -= viewport_size_delta;
+                    },
+                    Event::KeyDown { keycode: Some(Keycode::R), .. } => {
+                        projection_plane_z += projection_plane_z_delta;
+                    },
+                    Event::KeyDown { keycode: Some(Keycode::F), .. } => {
+                        projection_plane_z -= projection_plane_z_delta;
+                    }
+                    _ => {}
+                };
+            },
+            None => {}
+        };
 //        thread::sleep(time::Duration::from_millis(10));
     }
 

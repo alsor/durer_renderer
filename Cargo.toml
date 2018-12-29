@@ -4,7 +4,12 @@ version = "0.1.0"
 authors = ["Alexey Sorokin <alsor.net@gmail.com>"]
 
 [dependencies]
+log = "0.4"
+env_logger = "0.5.10"
 image = "0.13.0"
 sdl2 = "0.31.0"
 rand = "0.4"
 mpeg_encoder = { git = "https://github.com/sebcrozet/mpeg_encoder" }
+
+[features]
+smooth_animation = []

@@ -26,12 +26,19 @@ impl BufferCanvas {
         Point {
             x: (point.x * canvas_size / camera.viewport_size) as i32,
             y: (point.y * canvas_size / camera.viewport_size) as i32,
-            h: 0.0
+            h: 1.0
         }
     }
 
     pub fn put_pixel(&mut self, pixel: Pixel) {
+        trace!("pixel.y: {}, self.size: {}, pixel.x: {}", pixel.y, self.size, pixel.x);
         let offset = pixel.y * self.size * 3 + pixel.x * 3;
+        if offset >= self.buffer.len() {
+            println!("was going to draw pixel {} {} with buffer offset {}",
+                     pixel.x, pixel.y, offset);
+            return;
+        }
+
         self.buffer[offset] = pixel.color.r;
         self.buffer[offset + 1] = pixel.color.g;
         self.buffer[offset + 2] = pixel.color.b;
@@ -57,8 +64,14 @@ impl BufferCanvas {
     }
 
     pub fn draw_line(&mut self, start: Point, end: Point, color: Color) {
+        trace!("drawing line [{},{}] - [{},{}]", start.x, start.y, end.x, end.y);
         let start_pixel = self.point_to_pixel(start, color);
         let end_pixel = self.point_to_pixel(end, color);
+        trace!(
+            "drawing line pixels [{},{}] - [{},{}]",
+            start_pixel.x, start_pixel.y, end_pixel.x, end_pixel.y
+        );
+
 
         self.rasterize_line(start_pixel, end_pixel);
     }
