@@ -2,6 +2,10 @@ Software Renderer written in Rust
 
 What's new:
 
+Clipping by whole polygon
+
+![Clipping](https://i.imgur.com/HCwInzK.png)
+
 Rasterization: model, instances and transforms
 
 ![Spheres](https://i.imgur.com/IKh85c9.png)
