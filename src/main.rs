@@ -1042,13 +1042,14 @@ fn main() {
     let projection_plane_z_delta = 0.1;
     let mut projection_plane_z = 1.0;
     let mut x_position = 0.0;
+    let mut y_position = 0.0;
     let mut z_position = 0.0;
     let mut angle = 0.0;
 
     let mut camera = ProjectiveCamera {
         viewport_size,
         projection_plane_z,
-        position: Vector4f { x: x_position, y: 0.0, z: z_position, w: 0.0 },
+        position: Vector4f { x: x_position, y: y_position, z: z_position, w: 0.0 },
         rotation: Matrix44f::rotation_y(angle)
     };
 
@@ -1058,19 +1059,19 @@ fn main() {
     let white = Color { r: 255, g: 255, b: 255 };
 
 //    let cube = two_unit_cube();
-    let cube = cube(0.9);
+//    let cube = cube(0.9);
     let torus = ply2::load_model("resources/torus.ply2");
-//    let twirl = ply2::load_model("resources/twirl.ply2");
+    let twirl = ply2::load_model("resources/twirl.ply2");
 //    let octo_flower = ply2::load_model("resources/octa-flower.ply2");
 //    let statue = ply2::load_model("resources/statue.ply2");
 
     let scene = vec![
-        Instance::new(
-            &cube,
-            Some(Vector4f { x: 0.0, y: 0.0, z: 2.0, w: 0.0 }),
-            None,
-            None
-        ),
+//        Instance::new(
+//            &cube,
+//            Some(Vector4f { x: 0.0, y: 0.0, z: 2.0, w: 0.0 }),
+//            None,
+//            None
+//        ),
 //        Instance::new(
 //            &cube,
 //            Some(Vector4f { x: 2.0, y: -1.0, z: 0.0, w: 0.0 }),
@@ -1095,12 +1096,12 @@ fn main() {
 //            None,
 //            Some(Matrix44f::rotation_x(0.0).multiply(Matrix44f::rotation_y(0.0)))
 //        ),
-//        Instance::new(
-//            &twirl,
-//            Some(Vector4f { x: 0.0, y: 0.0, z: 70.0, w: 0.0 }),
-//            None,
-//            Some(Matrix44f::rotation_x(0.0).multiply(Matrix44f::rotation_y(0.0)))
-//        ),
+        Instance::new(
+            &twirl,
+            Some(Vector4f { x: 0.0, y: 0.0, z: 70.0, w: 0.0 }),
+            None,
+            Some(Matrix44f::rotation_x(0.0).multiply(Matrix44f::rotation_y(0.0)))
+        ),
 //        Instance::new(
 //            &statue,
 //            Some(Vector4f { x: 0.0, y: 0.0, z: 70.0, w: 0.0 }),
@@ -1117,18 +1118,21 @@ fn main() {
 //
 
     let mut delta_x;
+    let mut delta_y;
     let mut delta_z;
     let mut delta_angle;
     if cfg!(feature = "smooth_animation") {
         println!("configured to smooth animation");
         delta_x = 0.0;
+        delta_y = 0.0;
         delta_z = 0.0;
         delta_angle = 0.0;
     } else {
         println!("configured to by step animation");
-        delta_x = 1.0;
-        delta_z = 0.05;
-        delta_angle = 5.0;
+        delta_x = 0.1;
+        delta_y = 0.1;
+        delta_z = 0.1;
+        delta_angle = 1.0;
     };
 
     let mut event_pump = sdl_context.event_pump().unwrap();
@@ -1145,7 +1149,7 @@ fn main() {
         camera = ProjectiveCamera {
             viewport_size,
             projection_plane_z,
-            position: Vector4f { x: x_position, y: 0.0, z: z_position, w: 0.0 },
+            position: Vector4f { x: x_position, y: y_position, z: z_position, w: 0.0 },
             rotation: Matrix44f::rotation_y(angle),
         };
 
@@ -1209,6 +1213,20 @@ fn main() {
                             delta_z -= 0.01;
                         } else {
                             z_position -= delta_z;
+                        };
+                    },
+                    Event::KeyDown { keycode: Some(Keycode::T), .. } => {
+                        if cfg!(feature = "smooth_animation") {
+                            delta_y += 0.01;
+                        } else {
+                            y_position += delta_y;
+                        };
+                    },
+                    Event::KeyDown { keycode: Some(Keycode::G), .. } => {
+                        if cfg!(feature = "smooth_animation") {
+                            delta_y -= 0.01;
+                        } else {
+                            y_position -= delta_y;
                         };
                     },
                     Event::KeyDown { keycode: Some(Keycode::X), .. } => {

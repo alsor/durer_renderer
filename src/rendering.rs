@@ -89,9 +89,9 @@ fn render_instance(
                         vertex.x,
                         vertex.y,
                         vertex.z,
-                        clipping_plane.point.x,
-                        clipping_plane.point.y,
-                        clipping_plane.point.z,
+                        clipping_plane.normal.x,
+                        clipping_plane.normal.y,
+                        clipping_plane.normal.z,
                         clipping_plane.plane_type
                     );
                     all_vertices_in = false;

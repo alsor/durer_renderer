@@ -33,11 +33,11 @@ impl BufferCanvas {
     pub fn put_pixel(&mut self, pixel: Pixel) {
         trace!("pixel.y: {}, self.size: {}, pixel.x: {}", pixel.y, self.size, pixel.x);
         let offset = pixel.y * self.size * 3 + pixel.x * 3;
-        if offset >= self.buffer.len() {
-            println!("was going to draw pixel {} {} with buffer offset {}",
-                     pixel.x, pixel.y, offset);
-            return;
-        }
+//        if offset >= self.buffer.len() {
+//            println!("was going to draw pixel {} {} with buffer offset {}",
+//                     pixel.x, pixel.y, offset);
+//            return;
+//        }
 
         self.buffer[offset] = pixel.color.r;
         self.buffer[offset + 1] = pixel.color.g;

@@ -4,6 +4,7 @@ use vector4f::Vector4f;
 use matrix44f::Matrix44f;
 use plane::Plane;
 use plane::PlaneType::*;
+use vectors::cross_product;
 
 #[derive(Copy, Clone)]
 pub struct ProjectiveCamera {
@@ -32,8 +33,9 @@ impl ProjectiveCamera {
         Matrix44f::translation(self.position.negate()).multiply(self.rotation.transpose())
     }
 
+    // we are in left handed coordinate-system
     pub fn clipping_planes(&self) -> Vec<Plane> {
-        let s2 = (2.0 as f64).sqrt();
+        let half_viewport_size = self.viewport_size / 2.0;
 
         vec![
             Plane {
@@ -43,24 +45,84 @@ impl ProjectiveCamera {
             },
             Plane {
                 plane_type: Left,
-                normal: Point3D { x: s2, y: 0.0, z: s2 },
+                normal: self.left_plane_normal(half_viewport_size),
                 point: Point3D { x: 0.0, y: 0.0, z: 0.0 }
             },
             Plane {
                 plane_type: Right,
-                normal: Point3D { x: -s2, y: 0.0, z: s2 },
+                normal: self.right_plane_normal(half_viewport_size),
                 point: Point3D { x: 0.0, y: 0.0, z: 0.0 }
             },
             Plane {
                 plane_type: Top,
-                normal: Point3D { x: 0.0, y: -s2, z: s2 },
+                normal: self.top_plane_normal(half_viewport_size),
                 point: Point3D { x: 0.0, y: 0.0, z: 0.0 }
             },
             Plane {
                 plane_type: Bottom,
-                normal: Point3D { x: 0.0, y: s2, z: s2 },
+                normal: self.bottom_plane_normal(half_viewport_size),
                 point: Point3D { x: 0.0, y: 0.0, z: 0.0 }
             }
         ]
+    }
+
+    fn right_plane_normal(&self, half_viewport_size: f64) -> Point3D {
+        let v1 = Point3D {
+            x: half_viewport_size,
+            y: -half_viewport_size,
+            z: self.projection_plane_z,
+        };
+        let v2 = Point3D {
+            x: half_viewport_size,
+            y: half_viewport_size,
+            z: self.projection_plane_z
+        };
+
+        cross_product(v1, v2)
+    }
+
+    fn top_plane_normal(&self, half_viewport_size: f64) -> Point3D {
+        let v1 = Point3D {
+            x: half_viewport_size,
+            y: half_viewport_size,
+            z: self.projection_plane_z,
+        };
+        let v2 = Point3D {
+            x: -half_viewport_size,
+            y: half_viewport_size,
+            z: self.projection_plane_z
+        };
+
+        cross_product(v1, v2)
+    }
+
+    fn left_plane_normal(&self, half_viewport_size: f64) -> Point3D {
+        let v1 = Point3D {
+            x: -half_viewport_size,
+            y: half_viewport_size,
+            z: self.projection_plane_z,
+        };
+        let v2 = Point3D {
+            x: -half_viewport_size,
+            y: -half_viewport_size,
+            z: self.projection_plane_z
+        };
+
+        cross_product(v1, v2)
+    }
+
+    fn bottom_plane_normal(&self, half_viewport_size: f64) -> Point3D {
+        let v1 = Point3D {
+            x: -half_viewport_size,
+            y: -half_viewport_size,
+            z: self.projection_plane_z,
+        };
+        let v2 = Point3D {
+            x: half_viewport_size,
+            y: -half_viewport_size,
+            z: self.projection_plane_z
+        };
+
+        cross_product(v1, v2)
     }
 }
