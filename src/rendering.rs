@@ -40,39 +40,16 @@ fn render_instance(
 
     let mut transformed_vertices =
         Vec::<Vector4f>::with_capacity(instance.model.vertices.len());
-    let mut canvas_points =
-        Vec::<Point>::with_capacity(instance.model.vertices.len());
 
     for point3d in &instance.model.vertices {
         let vertex = point3d.to_vector4f();
 
         let transformed_vertex = vertex.transform(transform);
         transformed_vertices.push(transformed_vertex);
-
-        let viewport_point = camera.project_vertex(transformed_vertex);
-        let canvas_point = canvas.viewport_to_canvas(viewport_point, camera);
-        trace!("model {:.2} {:.2} {:.2} =>transformed: {:.2} {:.2} {:.2} =>viewport point: {:.2} {:.2} =>canvas point: {:.2} {:.2}",
-             point3d.x, point3d.y, point3d.z,
-             transformed_vertex.x, transformed_vertex.y, transformed_vertex.z,
-             viewport_point.x, viewport_point.y,
-             canvas_point.x, canvas_point.y
-        );
-
-        canvas_points.push(canvas_point);
     }
 
     for face in &instance.model.faces {
         let mut all_vertices_in = true;
-//        let mut vertices_in = Vec::<Point3D>::with_capacity(face.len());
-//        let mut vertices_out = Vec::<Point3D>::with_capacity(face.len());
-
-
-
-        // face : [index, index, index, index]
-
-//        for vertex_in_face_index in 0..face.len() {
-//            let vertex = transformed_vertices[face[vertex_in_face_index]];
-//        }
 
         'vertex_check: for vertex_index in face {
             let vertex = Point3D::from_vector4f(
@@ -103,22 +80,15 @@ fn render_instance(
         if all_vertices_in {
             debug!("rendering face");
 
-            let face_points = vec![
-                canvas_points[face[0] as usize],
-                canvas_points[face[1] as usize],
-                canvas_points[face[2] as usize],
+            let triangle = vec![
+                transformed_vertices[face[0] as usize],
+                transformed_vertices[face[1] as usize],
+                transformed_vertices[face[2] as usize],
             ];
 
-            render_face_wireframe(&face_points, canvas);
-//        } else {
-//
+            render_triangle_wireframe(&triangle, camera, canvas);
         }
     }
-
-//    for face in &instance.model.faces {
-//        render_face_wireframe(face, &canvas_points, canvas);
-//        render_face_filled(face, &canvas_points, canvas);
-//    }
 }
 
 fn render_face_filled(face_points: &Vec<Point>, canvas: &mut BufferCanvas) {
@@ -131,21 +101,21 @@ fn render_face_filled(face_points: &Vec<Point>, canvas: &mut BufferCanvas) {
     );
 }
 
-fn render_face_wireframe(face_points: &Vec<Point>, canvas: &mut BufferCanvas) {
-    for vertex_index in 0..face_points.len() {
-        let start_vertex;
-        let end_vertex;
-        if vertex_index + 1 < face_points.len() {
-            start_vertex = vertex_index;
-            end_vertex = vertex_index + 1;
-        } else {
-            start_vertex = vertex_index;
-            end_vertex = 0;
-        }
-        canvas.draw_line(
-            face_points[start_vertex],
-            face_points[end_vertex],
-            Color { r: 255, g: 255, b: 255 }
-        );
-    }
+fn render_triangle_wireframe(
+    triangle: &Vec<Vector4f>,
+    camera: &ProjectiveCamera,
+    canvas: &mut BufferCanvas
+) {
+    let a = vertex_to_canvas_point(triangle[0], camera, canvas);
+    let b = vertex_to_canvas_point(triangle[1], camera, canvas);
+    let c = vertex_to_canvas_point(triangle[2], camera, canvas);
+
+    canvas.draw_line(a, b, Color { r: 255, g: 255, b: 255 });
+    canvas.draw_line(b, c, Color { r: 255, g: 255, b: 255 });
+    canvas.draw_line(c, a, Color { r: 255, g: 255, b: 255 });
+}
+
+fn vertex_to_canvas_point(vertex: Vector4f, camera: &ProjectiveCamera, canvas: &BufferCanvas)
+    -> Point {
+    canvas.viewport_to_canvas(camera.project_vertex(vertex), camera)
 }
