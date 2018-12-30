@@ -1053,19 +1053,19 @@ fn main() {
     let white = Color { r: 255, g: 255, b: 255 };
 
 //    let cube = two_unit_cube();
-    let cube = cube(0.9);
+//    let cube = cube(0.9);
 //    let torus = ply2::load_model("resources/torus.ply2");
-//    let twirl = ply2::load_model("resources/twirl.ply2");
+    let twirl = ply2::load_model("resources/twirl.ply2");
 //    let octo_flower = ply2::load_model("resources/octa-flower.ply2");
 //    let statue = ply2::load_model("resources/statue.ply2");
 
     let scene = vec![
-        Instance::new(
-            &cube,
-            Some(Vector4f { x: 0.0, y: 0.0, z: 2.0, w: 0.0 }),
-            None,
-            None
-        ),
+//        Instance::new(
+//            &cube,
+//            Some(Vector4f { x: 0.0, y: 0.0, z: 2.0, w: 0.0 }),
+//            None,
+//            None
+//        ),
 //        Instance::new(
 //            &cube,
 //            Some(Vector4f { x: 2.0, y: -1.0, z: 0.0, w: 0.0 }),
@@ -1090,12 +1090,12 @@ fn main() {
 //            None,
 //            Some(Matrix44f::rotation_x(0.0).multiply(Matrix44f::rotation_y(0.0)))
 //        ),
-//        Instance::new(
-//            &twirl,
-//            Some(Vector4f { x: 0.0, y: 0.0, z: 70.0, w: 0.0 }),
-//            None,
-//            Some(Matrix44f::rotation_x(0.0).multiply(Matrix44f::rotation_y(0.0)))
-//        ),
+        Instance::new(
+            &twirl,
+            Some(Vector4f { x: 0.0, y: 0.0, z: 70.0, w: 0.0 }),
+            None,
+            Some(Matrix44f::rotation_x(0.0).multiply(Matrix44f::rotation_y(0.0)))
+        ),
 //        Instance::new(
 //            &statue,
 //            Some(Vector4f { x: 0.0, y: 0.0, z: 70.0, w: 0.0 }),

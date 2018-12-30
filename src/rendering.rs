@@ -56,7 +56,8 @@ fn render_instance(
         );
 
         for triangle in triangles {
-            render_triangle_wireframe(triangle, camera, canvas);
+            render_wireframe_triangle(triangle, camera, canvas);
+//            render_filled_triangle(triangle, camera, canvas);
         }
     }
 }
@@ -101,17 +102,21 @@ fn convert_face_to_triangles(face: &Vec<i32>, vertices: &Vec<Vector4f>) -> Vec<T
     ]
 }
 
-fn render_face_filled(face_points: &Vec<Point>, canvas: &mut BufferCanvas) {
+fn render_filled_triangle(
+    triangle: Triangle4f,
+    camera: &ProjectiveCamera,
+    canvas: &mut BufferCanvas
+) {
     draw_filled_triangle(
-        face_points[0],
-        face_points[1],
-        face_points[2],
+        vertex_to_canvas_point(triangle.a, camera, canvas),
+        vertex_to_canvas_point(triangle.b, camera, canvas),
+        vertex_to_canvas_point(triangle.c, camera, canvas),
         Color { r: 172, g: 179, b: 191 },
         canvas
     );
 }
 
-fn render_triangle_wireframe(
+fn render_wireframe_triangle(
     triangle: Triangle4f,
     camera: &ProjectiveCamera,
     canvas: &mut BufferCanvas
