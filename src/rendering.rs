@@ -11,6 +11,7 @@ use super::draw_filled_triangle;
 use plane::Plane;
 use vectors::dot_product;
 use vectors::difference;
+use Triangle4f;
 
 pub fn render_scene(
     scene: &Vec<Instance>,
@@ -49,6 +50,23 @@ fn render_instance(
     }
 
     for face in &instance.model.faces {
+        let mut triangles = vec![
+            Triangle4f {
+                a: transformed_vertices[face[0] as usize],
+                b: transformed_vertices[face[1] as usize],
+                c: transformed_vertices[face[2] as usize],
+            }
+        ];
+//
+//        'triangle_check: for clipping_plan in clipping_planes {
+//            for triangle in triangles
+//            if triangle_outside?() {
+//                break 'triangle_check;
+//            }
+//        }
+//
+
+
         let mut all_vertices_in = true;
 
         'vertex_check: for vertex_index in face {
@@ -78,15 +96,9 @@ fn render_instance(
         }
 
         if all_vertices_in {
-            debug!("rendering face");
-
-            let triangle = vec![
-                transformed_vertices[face[0] as usize],
-                transformed_vertices[face[1] as usize],
-                transformed_vertices[face[2] as usize],
-            ];
-
-            render_triangle_wireframe(&triangle, camera, canvas);
+            for triangle in triangles {
+                render_triangle_wireframe(triangle, camera, canvas);
+            }
         }
     }
 }
@@ -102,13 +114,13 @@ fn render_face_filled(face_points: &Vec<Point>, canvas: &mut BufferCanvas) {
 }
 
 fn render_triangle_wireframe(
-    triangle: &Vec<Vector4f>,
+    triangle: Triangle4f,
     camera: &ProjectiveCamera,
     canvas: &mut BufferCanvas
 ) {
-    let a = vertex_to_canvas_point(triangle[0], camera, canvas);
-    let b = vertex_to_canvas_point(triangle[1], camera, canvas);
-    let c = vertex_to_canvas_point(triangle[2], camera, canvas);
+    let a = vertex_to_canvas_point(triangle.a, camera, canvas);
+    let b = vertex_to_canvas_point(triangle.b, camera, canvas);
+    let c = vertex_to_canvas_point(triangle.c, camera, canvas);
 
     canvas.draw_line(a, b, Color { r: 255, g: 255, b: 255 });
     canvas.draw_line(b, c, Color { r: 255, g: 255, b: 255 });

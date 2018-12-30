@@ -65,6 +65,13 @@ pub struct Color {
 #[derive(Copy, Clone)]
 pub struct Pixel { pub x: usize, pub y: usize, pub color: Color }
 
+#[derive(Copy, Clone)]
+pub struct Triangle4f {
+    pub a: Vector4f,
+    pub b: Vector4f,
+    pub c: Vector4f
+}
+
 fn project(point3d: Point3D) -> Point2D {
     Point2D { x: -point3d.x / point3d.z, y: -point3d.y / point3d.z }
 }
@@ -191,28 +198,22 @@ fn write_image(buffer: &[u8], size: usize) -> Result<(), std::io::Error> {
 
 fn face_visible(face: &Vec<i32>, vertices: &[Point3D]) -> bool {
     let vector1 = vectors::difference(vertices[face[2] as usize], vertices[face[1] as usize]);
-//    println!("vector1: {:.2} {:.2} {:.2}", vector1.x, vector1.y, vector1.z);
     let vector2 = vectors::difference(vertices[face[1] as usize], vertices[face[0] as usize]);
-//    println!("vector2: {:.2} {:.2} {:.2}", vector2.x, vector2.y, vector2.z);
     let face_vector = vectors::cross_product(
         vector1,
         vector2
     );
-//    println!("face vector: {:.2} {:.2} {:.2}", face_vector.x, face_vector.y, face_vector.z);
 
     vectors::dot_product(vertices[face[0] as usize], face_vector) < 0.0
 }
 
 fn face_visible2(face: &Vec<i32>, vertices: &[Point3D]) -> bool {
     let vector1 = vectors::difference(vertices[face[2] as usize], vertices[face[1] as usize]);
-//    println!("vector1: {:.2} {:.2} {:.2}", vector1.x, vector1.y, vector1.z);
     let vector2 = vectors::difference(vertices[face[1] as usize], vertices[face[0] as usize]);
-//    println!("vector2: {:.2} {:.2} {:.2}", vector2.x, vector2.y, vector2.z);
     let face_vector = vectors::cross_product(
         vector2,
         vector1
     );
-//    println!("face vector: {:.2} {:.2} {:.2}", face_vector.x, face_vector.y, face_vector.z);
 
     vectors::dot_product(vertices[face[0] as usize], face_vector) < 0.0
 }
@@ -1052,19 +1053,19 @@ fn main() {
     let white = Color { r: 255, g: 255, b: 255 };
 
 //    let cube = two_unit_cube();
-//    let cube = cube(0.9);
-    let torus = ply2::load_model("resources/torus.ply2");
-    let twirl = ply2::load_model("resources/twirl.ply2");
+    let cube = cube(0.9);
+//    let torus = ply2::load_model("resources/torus.ply2");
+//    let twirl = ply2::load_model("resources/twirl.ply2");
 //    let octo_flower = ply2::load_model("resources/octa-flower.ply2");
 //    let statue = ply2::load_model("resources/statue.ply2");
 
     let scene = vec![
-//        Instance::new(
-//            &cube,
-//            Some(Vector4f { x: 0.0, y: 0.0, z: 2.0, w: 0.0 }),
-//            None,
-//            None
-//        ),
+        Instance::new(
+            &cube,
+            Some(Vector4f { x: 0.0, y: 0.0, z: 2.0, w: 0.0 }),
+            None,
+            None
+        ),
 //        Instance::new(
 //            &cube,
 //            Some(Vector4f { x: 2.0, y: -1.0, z: 0.0, w: 0.0 }),
@@ -1089,12 +1090,12 @@ fn main() {
 //            None,
 //            Some(Matrix44f::rotation_x(0.0).multiply(Matrix44f::rotation_y(0.0)))
 //        ),
-        Instance::new(
-            &twirl,
-            Some(Vector4f { x: 0.0, y: 0.0, z: 70.0, w: 0.0 }),
-            None,
-            Some(Matrix44f::rotation_x(0.0).multiply(Matrix44f::rotation_y(0.0)))
-        ),
+//        Instance::new(
+//            &twirl,
+//            Some(Vector4f { x: 0.0, y: 0.0, z: 70.0, w: 0.0 }),
+//            None,
+//            Some(Matrix44f::rotation_x(0.0).multiply(Matrix44f::rotation_y(0.0)))
+//        ),
 //        Instance::new(
 //            &statue,
 //            Some(Vector4f { x: 0.0, y: 0.0, z: 70.0, w: 0.0 }),
@@ -1134,8 +1135,9 @@ fn main() {
         trace!("z_position: {:.2}", z_position);
 
         if cfg!(feature = "smooth_animation") {
-            z_position += delta_z;
             x_position += delta_x;
+            y_position += delta_y;
+            z_position += delta_z;
             angle += delta_angle;
         };
 
