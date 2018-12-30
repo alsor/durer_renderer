@@ -51,12 +51,24 @@ impl BufferCanvas {
 
     fn screen_x(&self, x_canvas: i32) -> usize {
         let canvas_width = self.size as i32;
-        (canvas_width / 2 + x_canvas) as usize
+        let result = (canvas_width / 2 + x_canvas);
+
+        if result == canvas_width {
+            return (canvas_width - 1) as usize;
+        } else {
+            return result as usize;
+        }
     }
 
     fn screen_y(&self, y_canvas: i32) -> usize {
         let canvas_height = self.size as i32;
-        (canvas_height / 2 - y_canvas - 1) as usize
+        let result = (canvas_height / 2 - y_canvas - 1);
+
+        if result == -1 {
+            return 0;
+        } else {
+            return result as usize;
+        }
     }
 
     fn point_to_pixel(&self, point: Point, color: Color) -> Pixel {

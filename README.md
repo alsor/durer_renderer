@@ -2,6 +2,10 @@ Software Renderer written in Rust
 
 What's new:
 
+Split triangles when clipping
+
+![Split triangles](https://i.imgur.com/p5V7rXe.png)
+
 Clipping by whole polygon
 
 ![Clipping](https://i.imgur.com/HCwInzK.png)

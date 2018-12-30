@@ -12,6 +12,8 @@ use plane::Plane;
 use vectors::dot_product;
 use vectors::difference;
 use Triangle4f;
+use vectors::sum;
+use vectors::scale;
 
 pub fn render_scene(
     scene: &Vec<Instance>,
@@ -63,25 +65,134 @@ fn render_instance(
 }
 
 fn clip_triangles(triangles: Vec<Triangle4f>, clipping_planes: &Vec<Plane>) -> Vec<Triangle4f> {
+    let mut clipped_triangles = triangles.clone();
+
+    'clipping: for clipping_plane in clipping_planes {
+        if clipped_triangles.is_empty() {
+            break 'clipping;
+        }
+
+        clipped_triangles = clip_triangles_against_plane(clipped_triangles, clipping_plane);
+    }
+
+    clipped_triangles
+}
+
+fn clip_triangles_against_plane(
+    triangles: Vec<Triangle4f>,
+    clipping_plane: &Plane
+) -> Vec<Triangle4f> {
     let mut result = Vec::<Triangle4f>::new();
 
     for triangle in triangles {
-        let mut is_inside_all_planes = true;
-
-        'clipping: for clipping_plane in clipping_planes {
-            if is_vertex_outside(clipping_plane, triangle.a) ||
-                is_vertex_outside(clipping_plane, triangle.b) ||
-                is_vertex_outside(clipping_plane, triangle.c) {
-                is_inside_all_planes = false;
-                break 'clipping
-            }
-        }
-
-        if is_inside_all_planes {
-            result.push(triangle);
+        for new_triangle in clip_triangle_against_plane(triangle, clipping_plane) {
+            result.push(new_triangle);
         }
     }
 
+    result
+}
+
+fn clip_triangle_against_plane(triangle: Triangle4f, clipping_plane: &Plane) -> Vec<Triangle4f> {
+    let mut result = Vec::<Triangle4f>::new();
+
+    let point_a = Point3D::from_vector4f(triangle.a);
+    let point_b = Point3D::from_vector4f(triangle.b);
+    let point_c = Point3D::from_vector4f(triangle.c);
+
+    let vector_p_a = difference(point_a, clipping_plane.point);
+    let vector_p_b = difference(point_b, clipping_plane.point);
+    let vector_p_c = difference(point_c, clipping_plane.point);
+
+    let dot_product_n_with_p_a = dot_product(clipping_plane.normal, vector_p_a);
+    let dot_product_n_with_p_b = dot_product(clipping_plane.normal, vector_p_b);
+    let dot_product_n_with_p_c = dot_product(clipping_plane.normal, vector_p_c);
+
+    let is_a_inside = dot_product_n_with_p_a > 0.0;
+    let is_b_inside = dot_product_n_with_p_b > 0.0;
+    let is_c_inside = dot_product_n_with_p_c > 0.0;
+
+    // all vertices inside
+    if is_a_inside && is_b_inside && is_c_inside {
+        result.push(triangle);
+    // at least one vertex inside
+    } else if is_a_inside || is_b_inside || is_c_inside {
+        let mut points_inside = Vec::<Vector4f>::new();
+
+        if is_a_inside {
+            points_inside.push(triangle.a);
+        }
+
+        // requires split
+        if is_a_inside != is_b_inside {
+            points_inside.push(
+                find_split_vertex(point_a, dot_product_n_with_p_a, point_b, dot_product_n_with_p_b)
+            );
+        }
+
+        if is_b_inside {
+            points_inside.push(triangle.b);
+        }
+
+        // requires split
+        if is_b_inside != is_c_inside {
+            points_inside.push(
+                find_split_vertex(point_b, dot_product_n_with_p_b, point_c, dot_product_n_with_p_c)
+            );
+        }
+
+        if is_c_inside {
+            points_inside.push(triangle.c)
+        }
+
+        // requires split
+        if is_c_inside != is_a_inside {
+            points_inside.push(
+                find_split_vertex(point_c, dot_product_n_with_p_c, point_a, dot_product_n_with_p_a)
+            );
+        }
+
+        if points_inside.len() == 4 {
+            // split to two triangles
+            result.push(
+                Triangle4f { a: points_inside[0], b: points_inside[1], c: points_inside[2] }
+            );
+            result.push(
+                Triangle4f { a: points_inside[0], b: points_inside[2], c: points_inside[3] }
+            );
+        } else if points_inside.len() == 3 {
+            result.push(
+                Triangle4f { a: points_inside[0], b: points_inside[1], c: points_inside[2] }
+            );
+        } else {
+            panic!("unexpected number of points inside: {}", points_inside.len());
+        }
+    }
+
+    result
+}
+
+fn find_split_vertex(
+    point1: Point3D,
+    dot_product1: f64,
+    point2: Point3D,
+    dot_product2: f64
+) -> Vector4f {
+    let t = dot_product1 / (dot_product1 - dot_product2);
+    let vector = difference(point2, point1);
+    let result = sum(point1, scale(t, vector)).to_vector4f();
+    trace!(
+        "found split point between [{:.2} {:.2} {:.2}] and [{:.2} {:.2} {:.2}] is [{:.2} {:.2} {:.2}]",
+        point1.x,
+        point1.y,
+        point1.z,
+        point2.x,
+        point2.y,
+        point2.z,
+        result.x,
+        result.y,
+        result.z,
+    );
     result
 }
 
@@ -89,6 +200,10 @@ fn is_vertex_outside(plane: &Plane, vertex: Vector4f) -> bool {
     let point3d = Point3D::from_vector4f(vertex);
 
     dot_product(plane.normal, difference(point3d, plane.point)) < 0.0
+}
+
+fn is_vertex_inside(plane: &Plane, vertex: Vector4f) -> bool {
+    !is_vertex_outside(plane, vertex)
 }
 
 // simple implementation - just assume that face IS a triangle
@@ -132,5 +247,15 @@ fn render_wireframe_triangle(
 
 fn vertex_to_canvas_point(vertex: Vector4f, camera: &ProjectiveCamera, canvas: &BufferCanvas)
     -> Point {
-    canvas.viewport_to_canvas(camera.project_vertex(vertex), camera)
+    let result = canvas.viewport_to_canvas(camera.project_vertex(vertex), camera);
+    trace!(
+        "vertex [{:.2} {:.2} {:.2}] converted to canvas point [{} {}]",
+        vertex.x,
+        vertex.y,
+        vertex.z,
+        result.x,
+        result.y,
+    );
+
+    result
 }
