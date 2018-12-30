@@ -1046,13 +1046,6 @@ fn main() {
     let mut z_position = 0.0;
     let mut angle = 0.0;
 
-    let mut camera = ProjectiveCamera {
-        viewport_size,
-        projection_plane_z,
-        position: Vector4f { x: x_position, y: y_position, z: z_position, w: 0.0 },
-        rotation: Matrix44f::rotation_y(angle)
-    };
-
     let red = Color { r: 255, g: 0, b: 0 };
     let green = Color { r: 0, g: 255, b: 0 };
     let blue = Color { r: 0, g: 0, b: 255 };
@@ -1146,7 +1139,7 @@ fn main() {
             angle += delta_angle;
         };
 
-        camera = ProjectiveCamera {
+        let camera = ProjectiveCamera {
             viewport_size,
             projection_plane_z,
             position: Vector4f { x: x_position, y: y_position, z: z_position, w: 0.0 },
