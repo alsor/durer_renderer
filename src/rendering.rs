@@ -102,7 +102,14 @@ fn render_instance(
 
         if all_vertices_in {
             debug!("rendering face");
-            render_face_wireframe(face, &canvas_points, canvas);
+
+            let face_points = vec![
+                canvas_points[face[0] as usize],
+                canvas_points[face[1] as usize],
+                canvas_points[face[2] as usize],
+            ];
+
+            render_face_wireframe(&face_points, canvas);
 //        } else {
 //
         }
@@ -114,21 +121,21 @@ fn render_instance(
 //    }
 }
 
-fn render_face_filled(face: &Vec<i32>, canvas_points: &Vec<Point>, canvas: &mut BufferCanvas) {
+fn render_face_filled(face_points: &Vec<Point>, canvas: &mut BufferCanvas) {
     draw_filled_triangle(
-        canvas_points[face[0] as usize],
-        canvas_points[face[1] as usize],
-        canvas_points[face[2] as usize],
+        face_points[0],
+        face_points[1],
+        face_points[2],
         Color { r: 172, g: 179, b: 191 },
         canvas
     );
 }
 
-fn render_face_wireframe(face: &Vec<i32>, canvas_points: &Vec<Point>, canvas: &mut BufferCanvas) {
-    for vertex_index in 0..face.len() {
+fn render_face_wireframe(face_points: &Vec<Point>, canvas: &mut BufferCanvas) {
+    for vertex_index in 0..face_points.len() {
         let start_vertex;
         let end_vertex;
-        if vertex_index + 1 < face.len() {
+        if vertex_index + 1 < face_points.len() {
             start_vertex = vertex_index;
             end_vertex = vertex_index + 1;
         } else {
@@ -136,8 +143,8 @@ fn render_face_wireframe(face: &Vec<i32>, canvas_points: &Vec<Point>, canvas: &m
             end_vertex = 0;
         }
         canvas.draw_line(
-            canvas_points[face[start_vertex] as usize],
-            canvas_points[face[end_vertex] as usize],
+            face_points[start_vertex],
+            face_points[end_vertex],
             Color { r: 255, g: 255, b: 255 }
         );
     }
