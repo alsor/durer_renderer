@@ -50,57 +50,55 @@ fn render_instance(
     }
 
     for face in &instance.model.faces {
-        let mut triangles = vec![
-            Triangle4f {
-                a: transformed_vertices[face[0] as usize],
-                b: transformed_vertices[face[1] as usize],
-                c: transformed_vertices[face[2] as usize],
-            }
-        ];
-//
-//        'triangle_check: for clipping_plan in clipping_planes {
-//            for triangle in triangles
-//            if triangle_outside?() {
-//                break 'triangle_check;
-//            }
-//        }
-//
+        let triangles = clip_triangles(
+            convert_face_to_triangles(face, &transformed_vertices),
+            clipping_planes
+        );
 
-
-        let mut all_vertices_in = true;
-
-        'vertex_check: for vertex_index in face {
-            let vertex = Point3D::from_vector4f(
-                transformed_vertices[*vertex_index as usize]
-            );
-            for clipping_plane in clipping_planes {
-                let dot_product = dot_product(
-                    clipping_plane.normal,
-                    difference(vertex, clipping_plane.point)
-                );
-                if dot_product < 0.0 {
-                    trace!(
-                        "vertex: [{:.2} {:.2} {:.2}] outside: [{:.2} {:.2} {:.2}] ({:?})",
-                        vertex.x,
-                        vertex.y,
-                        vertex.z,
-                        clipping_plane.normal.x,
-                        clipping_plane.normal.y,
-                        clipping_plane.normal.z,
-                        clipping_plane.plane_type
-                    );
-                    all_vertices_in = false;
-                    break 'vertex_check;
-                }
-            }
-        }
-
-        if all_vertices_in {
-            for triangle in triangles {
-                render_triangle_wireframe(triangle, camera, canvas);
-            }
+        for triangle in triangles {
+            render_triangle_wireframe(triangle, camera, canvas);
         }
     }
+}
+
+fn clip_triangles(triangles: Vec<Triangle4f>, clipping_planes: &Vec<Plane>) -> Vec<Triangle4f> {
+    let mut result = Vec::<Triangle4f>::new();
+
+    for triangle in triangles {
+        let mut is_inside_all_planes = true;
+
+        'clipping: for clipping_plane in clipping_planes {
+            if is_vertex_outside(clipping_plane, triangle.a) ||
+                is_vertex_outside(clipping_plane, triangle.b) ||
+                is_vertex_outside(clipping_plane, triangle.c) {
+                is_inside_all_planes = false;
+                break 'clipping
+            }
+        }
+
+        if is_inside_all_planes {
+            result.push(triangle);
+        }
+    }
+
+    result
+}
+
+fn is_vertex_outside(plane: &Plane, vertex: Vector4f) -> bool {
+    let point3d = Point3D::from_vector4f(vertex);
+
+    dot_product(plane.normal, difference(point3d, plane.point)) < 0.0
+}
+
+// simple implementation - just assume that face IS a triangle
+fn convert_face_to_triangles(face: &Vec<i32>, vertices: &Vec<Vector4f>) -> Vec<Triangle4f> {
+    vec![
+        Triangle4f {
+            a: vertices[face[0] as usize],
+            b: vertices[face[1] as usize],
+            c: vertices[face[2] as usize],
+        }
+    ]
 }
 
 fn render_face_filled(face_points: &Vec<Point>, canvas: &mut BufferCanvas) {
