@@ -58,8 +58,8 @@ fn render_instance(
         );
 
         for triangle in triangles {
-            render_wireframe_triangle(triangle, camera, canvas);
 //            render_filled_triangle(triangle, camera, canvas);
+            render_wireframe_triangle(triangle, camera, canvas);
         }
     }
 }

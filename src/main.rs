@@ -1068,45 +1068,45 @@ fn main() {
     let blue = Color { r: 0, g: 0, b: 255 };
     let white = Color { r: 255, g: 255, b: 255 };
 
-//    let cube = two_unit_cube();
+    let cube = two_unit_cube();
 //    let cube = cube(0.9);
-    let triangle = triangle(0.9);
-//    let torus = ply2::load_model("resources/torus.ply2");
+//    let triangle = triangle(1.3);
+    let torus = ply2::load_model("resources/torus.ply2");
 //    let twirl = ply2::load_model("resources/twirl.ply2");
 //    let octo_flower = ply2::load_model("resources/octa-flower.ply2");
 //    let statue = ply2::load_model("resources/statue.ply2");
 
     let scene = vec![
-        Instance::new(
-            &triangle,
-            Some(Vector4f { x: 0.0, y: 0.0, z: 2.0, w: 0.0 }),
-            None,
-            Some(Matrix44f::rotation_z(-30.0))
-        ),
 //        Instance::new(
-//            &cube,
+//            &triangle,
 //            Some(Vector4f { x: 0.0, y: 0.0, z: 2.0, w: 0.0 }),
 //            None,
-//            None
+//            Some(Matrix44f::rotation_z(-30.0))
 //        ),
-//        Instance::new(
-//            &cube,
-//            Some(Vector4f { x: 2.0, y: -1.0, z: 0.0, w: 0.0 }),
-//            None,
-//            Some(Matrix44f::rotation_y(-30.0).multiply(Matrix44f::rotation_z(-30.0)))
-//        ),
-//        Instance::new(
-//            &torus,
-//            Some(Vector4f { x: 0.0, y: 3.0, z: 0.0, w: 0.0 }),
-//            Some(0.2),
-//            Some(Matrix44f::rotation_y(0.0).multiply(Matrix44f::rotation_x(90.0)))
-//        ),
-//        Instance::new(
-//            &torus,
-//            Some(Vector4f { x: 0.0, y: 0.0, z: 0.0, w: 0.0 }),
-//            Some(0.1),
-//            Some(Matrix44f::rotation_x(0.0).multiply(Matrix44f::rotation_y(0.0)))
-//        ),
+        Instance::new(
+            &cube,
+            Some(Vector4f { x: 0.0, y: 0.0, z: 2.0, w: 0.0 }),
+            None,
+            None
+        ),
+        Instance::new(
+            &cube,
+            Some(Vector4f { x: 2.0, y: -1.0, z: 0.0, w: 0.0 }),
+            None,
+            Some(Matrix44f::rotation_y(-30.0).multiply(Matrix44f::rotation_z(-30.0)))
+        ),
+        Instance::new(
+            &torus,
+            Some(Vector4f { x: 0.0, y: 3.0, z: 0.0, w: 0.0 }),
+            Some(0.2),
+            Some(Matrix44f::rotation_y(0.0).multiply(Matrix44f::rotation_x(90.0)))
+        ),
+        Instance::new(
+            &torus,
+            Some(Vector4f { x: 0.0, y: 0.0, z: 0.0, w: 0.0 }),
+            Some(0.1),
+            Some(Matrix44f::rotation_x(0.0).multiply(Matrix44f::rotation_y(0.0)))
+        ),
 //        Instance::new(
 //            &octo_flower,
 //            Some(Vector4f { x: 0.0, y: 0.0, z: 70.0, w: 0.0 }),
@@ -1134,6 +1134,7 @@ fn main() {
 //    canvas.present();
 //
 
+    let step_increase = 0.003;
     let mut delta_x;
     let mut delta_y;
     let mut delta_z;
@@ -1193,56 +1194,56 @@ fn main() {
                     },
                     Event::KeyDown { keycode: Some(Keycode::E), .. } => {
                         if cfg!(feature = "smooth_animation") {
-                            delta_angle += 0.01;
+                            delta_angle += step_increase;
                         } else {
                             angle += delta_angle;
                         };
                     },
                     Event::KeyDown { keycode: Some(Keycode::Q), .. } => {
                         if cfg!(feature = "smooth_animation") {
-                            delta_angle -= 0.01;
+                            delta_angle -= step_increase;
                         } else {
                             angle -= delta_angle;
                         };
                     },
                     Event::KeyDown { keycode: Some(Keycode::D), .. } => {
                         if cfg!(feature = "smooth_animation") {
-                            delta_x += 0.01;
+                            delta_x += step_increase;
                         } else {
                             x_position += delta_x;
                         };
                     },
                     Event::KeyDown { keycode: Some(Keycode::A), .. } => {
                         if cfg!(feature = "smooth_animation") {
-                            delta_x -= 0.01;
+                            delta_x -= step_increase;
                         } else {
                             x_position -= delta_x;
                         };
                     },
                     Event::KeyDown { keycode: Some(Keycode::W), .. } => {
                         if cfg!(feature = "smooth_animation") {
-                            delta_z += 0.01;
+                            delta_z += step_increase;
                         } else {
                             z_position += delta_z;
                         };
                     },
                     Event::KeyDown { keycode: Some(Keycode::S), .. } => {
                         if cfg!(feature = "smooth_animation") {
-                            delta_z -= 0.01;
+                            delta_z -= step_increase;
                         } else {
                             z_position -= delta_z;
                         };
                     },
                     Event::KeyDown { keycode: Some(Keycode::T), .. } => {
                         if cfg!(feature = "smooth_animation") {
-                            delta_y += 0.01;
+                            delta_y += step_increase;
                         } else {
                             y_position += delta_y;
                         };
                     },
                     Event::KeyDown { keycode: Some(Keycode::G), .. } => {
                         if cfg!(feature = "smooth_animation") {
-                            delta_y -= 0.01;
+                            delta_y -= step_increase;
                         } else {
                             y_position -= delta_y;
                         };

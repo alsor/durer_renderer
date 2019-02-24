@@ -20,10 +20,10 @@ impl Matrix44f {
     pub fn uniform_scale(scale: f64) -> Matrix44f {
         Matrix44f {
             elements: [
-                [scale, 0.0, 0.0, 0.0],
-                [0.0, scale, 0.0, 0.0],
-                [0.0, 0.0, scale, 0.0],
-                [0.0, 0.0, 0.0, 1.0],
+                [scale,   0.0,   0.0, 0.0],
+                [  0.0, scale,   0.0, 0.0],
+                [  0.0,   0.0, scale, 0.0],
+                [  0.0,   0.0,   0.0, 1.0],
             ]
         }
     }
