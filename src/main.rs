@@ -1,6 +1,7 @@
 extern crate image;
 extern crate sdl2;
 extern crate mpeg_encoder;
+extern crate rand;
 
 mod ray_tracing;
 mod vectors;
@@ -26,6 +27,7 @@ use buffer_canvas::BufferCanvas;
 use projective_camera::ProjectiveCamera;
 use model::Model;
 use vector4f::Vector4f;
+use self::rand::Rng;
 
 #[derive(Copy, Clone)]
 pub struct Point3D { x: f64, y: f64, z: f64 }
@@ -69,7 +71,8 @@ pub struct Pixel { pub x: usize, pub y: usize, pub color: Color }
 pub struct Triangle4f {
     pub a: Vector4f,
     pub b: Vector4f,
-    pub c: Vector4f
+    pub c: Vector4f,
+    pub color: Color
 }
 
 fn project(point3d: Point3D) -> Point2D {
@@ -338,7 +341,12 @@ fn triangle(size: f64) -> Model {
         vec![0, 1, 2],
     ];
 
-    Model { vertices, faces }
+    let mut rng = rand::thread_rng();
+    let colors = vec![
+        Color { r: rng.gen(), g: rng.gen(), b: rng.gen() },
+    ];
+
+    Model { vertices, faces, colors }
 }
 
 fn cube(size: f64) -> Model {
@@ -370,7 +378,23 @@ fn cube(size: f64) -> Model {
         vec![2, 7, 3],
     ];
 
-    Model { vertices, faces }
+    let mut rng = rand::thread_rng();
+    let colors = vec![
+        Color { r: rng.gen(), g: rng.gen(), b: rng.gen() },
+        Color { r: rng.gen(), g: rng.gen(), b: rng.gen() },
+        Color { r: rng.gen(), g: rng.gen(), b: rng.gen() },
+        Color { r: rng.gen(), g: rng.gen(), b: rng.gen() },
+        Color { r: rng.gen(), g: rng.gen(), b: rng.gen() },
+        Color { r: rng.gen(), g: rng.gen(), b: rng.gen() },
+        Color { r: rng.gen(), g: rng.gen(), b: rng.gen() },
+        Color { r: rng.gen(), g: rng.gen(), b: rng.gen() },
+        Color { r: rng.gen(), g: rng.gen(), b: rng.gen() },
+        Color { r: rng.gen(), g: rng.gen(), b: rng.gen() },
+        Color { r: rng.gen(), g: rng.gen(), b: rng.gen() },
+        Color { r: rng.gen(), g: rng.gen(), b: rng.gen() },
+    ];
+
+    Model { vertices, faces, colors }
 }
 
 fn two_unit_cube() -> Model {
@@ -1085,7 +1109,7 @@ fn main() {
 //        ),
         Instance::new(
             &cube,
-            Some(Vector4f { x: 0.0, y: 0.0, z: 2.0, w: 0.0 }),
+            Some(Vector4f { x: 0.0, y: 0.0, z: 4.0, w: 0.0 }),
             None,
             None
         ),

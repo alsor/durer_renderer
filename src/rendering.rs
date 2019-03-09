@@ -51,16 +51,19 @@ fn render_instance(
         transformed_vertices.push(transformed_vertex);
     }
 
+    let mut i = 0;
     for face in &instance.model.faces {
         let triangles = clip_triangles(
-            convert_face_to_triangles(face, &transformed_vertices),
+            convert_face_to_triangles(face, &transformed_vertices, instance.model.colors[i]),
             clipping_planes
         );
 
         for triangle in triangles {
-//            render_filled_triangle(triangle, camera, canvas);
-            render_wireframe_triangle(triangle, camera, canvas);
+            render_filled_triangle(triangle, camera, canvas);
+//            render_wireframe_triangle(triangle, camera, canvas);
         }
+
+        i += 1;
     }
 }
 
@@ -94,6 +97,7 @@ fn clip_triangles_against_plane(
 }
 
 fn clip_triangle_against_plane(triangle: Triangle4f, clipping_plane: &Plane) -> Vec<Triangle4f> {
+    let color = triangle.color;
     let mut result = Vec::<Triangle4f>::new();
 
     let point_a = Point3D::from_vector4f(triangle.a);
@@ -155,14 +159,14 @@ fn clip_triangle_against_plane(triangle: Triangle4f, clipping_plane: &Plane) -> 
         if points_inside.len() == 4 {
             // split to two triangles
             result.push(
-                Triangle4f { a: points_inside[0], b: points_inside[1], c: points_inside[2] }
+                Triangle4f { a: points_inside[0], b: points_inside[1], c: points_inside[2], color }
             );
             result.push(
-                Triangle4f { a: points_inside[0], b: points_inside[2], c: points_inside[3] }
+                Triangle4f { a: points_inside[0], b: points_inside[2], c: points_inside[3], color }
             );
         } else if points_inside.len() == 3 {
             result.push(
-                Triangle4f { a: points_inside[0], b: points_inside[1], c: points_inside[2] }
+                Triangle4f { a: points_inside[0], b: points_inside[1], c: points_inside[2], color }
             );
         } else {
             panic!("unexpected number of points inside: {}", points_inside.len());
@@ -207,12 +211,17 @@ fn is_vertex_inside(plane: &Plane, vertex: Vector4f) -> bool {
 }
 
 // simple implementation - just assume that face IS a triangle
-fn convert_face_to_triangles(face: &Vec<i32>, vertices: &Vec<Vector4f>) -> Vec<Triangle4f> {
+fn convert_face_to_triangles(
+    face: &Vec<i32>,
+    vertices: &Vec<Vector4f>,
+    color: Color
+) -> Vec<Triangle4f> {
     vec![
         Triangle4f {
             a: vertices[face[0] as usize],
             b: vertices[face[1] as usize],
             c: vertices[face[2] as usize],
+            color
         }
     ]
 }
@@ -226,7 +235,7 @@ fn render_filled_triangle(
         vertex_to_canvas_point(triangle.a, camera, canvas),
         vertex_to_canvas_point(triangle.b, camera, canvas),
         vertex_to_canvas_point(triangle.c, camera, canvas),
-        Color { r: 172, g: 179, b: 191 },
+        triangle.color,
         canvas
     );
 }
