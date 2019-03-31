@@ -2,6 +2,10 @@ Software Renderer written in Rust
 
 What's new:
 
+DepthBuffer implementation
+
+![Depth Bufer](https://i.imgur.com/eZD6l52.png)
+
 Split triangles when clipping
 
 ![Split triangles](https://i.imgur.com/p5V7rXe.png)

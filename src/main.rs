@@ -1121,7 +1121,7 @@ fn main() {
 //    let cube = cube(0.9);
 //    let triangle = triangle(1.3);
     let torus = ply2::load_model("resources/torus.ply2");
-//    let twirl = ply2::load_model("resources/twirl.ply2");
+    let twirl = ply2::load_model("resources/twirl.ply2");
 //    let octo_flower = ply2::load_model("resources/octa-flower.ply2");
 //    let statue = ply2::load_model("resources/statue.ply2");
 

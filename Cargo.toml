@@ -9,6 +9,7 @@ env_logger = "0.5.10"
 image = "0.13.0"
 sdl2 = "0.31.0"
 rand = "0.4"
+libc = "0.2.36"
 mpeg_encoder = { git = "https://github.com/sebcrozet/mpeg_encoder" }
 
 [features]

@@ -21,8 +21,23 @@ impl BufferCanvas {
     }
 
     pub fn clear(&mut self) {
-        self.buffer = vec![0u8; self.size * self.size * 3];
-        self.depth_buffer = vec![0.0; self.size * self.size];
+//        self.buffer = vec![0u8; self.size * self.size * 3];
+        unsafe {
+            libc::memset(
+                self.buffer.as_mut_ptr() as _,
+                0,
+                self.buffer.len() * std::mem::size_of::<u8>()
+            );
+        }
+
+//        self.depth_buffer = vec![0.0; self.size * self.size];
+        unsafe {
+            libc::memset(
+                self.depth_buffer.as_mut_ptr() as _,
+                0,
+                self.depth_buffer.len() * std::mem::size_of::<f64>()
+            )
+        };
     }
 
     pub fn viewport_to_canvas(&self, vertex: Vector4f, camera: &ProjectiveCamera) -> Point {
