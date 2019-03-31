@@ -1,3 +1,4 @@
-
+.idea
+durer.iml
 /target/
 **/*.rs.bk
