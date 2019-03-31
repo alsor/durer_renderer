@@ -46,7 +46,7 @@ fn test_transform() {
             [17.0, 18.0, 19.0, 20.0],
         ]
     };
-    let transformed = vertex.transform(&matrix);
+    let transformed = vertex.transform(matrix);
     assert_eq!(transformed.x, 130.0);
     assert_eq!(transformed.y, 140.0);
     assert_eq!(transformed.z, 150.0);
