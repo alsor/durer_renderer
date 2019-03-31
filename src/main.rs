@@ -54,7 +54,7 @@ impl Point3D {
 struct Point2D { x: f64, y: f64 }
 
 #[derive(Copy, Clone)]
-struct Point { x: i32, y: i32, h: f64 }
+struct Point { x: i32, y: i32, h: f64, z: f64 }
 
 #[derive(Copy, Clone)]
 struct Frame { x_min: f64, x_max: f64, y_min: f64, y_max: f64 }
@@ -65,7 +65,11 @@ pub struct Color {
 }
 
 #[derive(Copy, Clone)]
-pub struct Pixel { pub x: usize, pub y: usize, pub color: Color }
+pub struct Pixel {
+    pub x: usize,
+    pub y: usize,
+    pub color: Color
+}
 
 #[derive(Copy, Clone)]
 pub struct Triangle4f {
@@ -932,10 +936,15 @@ fn draw_filled_triangle(
     // x coordinates of the edges
     let mut x01 = interpolate_int(p0.y, p0.x, p1.y, p1.x);
     let mut h01 = interpolate_float(p0.y, p0.h, p1.y, p1.h);
+    let mut iz01 = interpolate_float(p0.y, 1.0 / p0.z, p1.y, 1.0 / p1.z);
+
     let mut x12 = interpolate_int(p1.y, p1.x, p2.y, p2.x);
     let mut h12 = interpolate_float(p1.y, p1.h, p2.y, p2.h);
+    let mut iz12 = interpolate_float(p1.y, 1.0 / p1.z, p2.y, 1.0 / p2.z);
+
     let mut x02 = interpolate_int(p0.y, p0.x, p2.y, p2.x);
     let mut h02 = interpolate_float(p0.y, p0.h, p2.y, p2.h);
+    let mut iz02 = interpolate_float(p0.y, 1.0 / p0.z, p2.y, 1.0 / p2.z);
 
     x01.pop();
     let mut x012 = Vec::<i32>::new();
@@ -947,10 +956,17 @@ fn draw_filled_triangle(
     h012.append(&mut h01);
     h012.append(&mut h12);
 
+    iz01.pop();
+    let mut iz012 = Vec::<f64>::new();
+    iz012.append(&mut iz01);
+    iz012.append(&mut iz12);
+
     let mut x_left;
     let mut x_right;
     let mut h_left;
     let mut h_right;
+    let mut iz_left;
+    let mut iz_right;
 
     let m = x02.len() / 2;
     if x02[m] < x012[m] {
@@ -959,22 +975,31 @@ fn draw_filled_triangle(
 
         h_left = h02;
         h_right = h012;
+
+        iz_left = iz02;
+        iz_right = iz012;
     } else {
         x_left = x012;
         x_right = x02;
 
         h_left = h012;
         h_right = h02;
+
+        iz_left = iz012;
+        iz_right = iz02;
     };
 
     for y in p0.y..(p2.y + 1) {
-        let y_cur = (y - p0.y) as usize;
-        let x_l = x_left[y_cur];
-        let x_r = x_right[y_cur];
-        let h_segment = interpolate_float(x_l, h_left[y_cur], x_r, h_right[y_cur]);
+        let y_index = (y - p0.y) as usize;
+        let x_l = x_left[y_index];
+        let x_r = x_right[y_index];
+        let h_segment = interpolate_float(x_l, h_left[y_index], x_r, h_right[y_index]);
+        let iz_segment = interpolate_float(x_l, iz_left[y_index], x_r, iz_right[y_index]);
         for x in x_l..(x_r + 1) {
-            let shaded_color = multiply_color(h_segment[(x - x_l) as usize], color);
-            canvas.draw_point(Point { x, y, h: 0.0 }, shaded_color);
+            let x_index = (x - x_l) as usize;
+            let shaded_color = multiply_color(h_segment[x_index], color);
+
+            canvas.draw_point(x, y, iz_segment[x_index], shaded_color);
         };
     }
 }

@@ -3,30 +3,36 @@ use super::Color;
 use super::Pixel;
 use super::Point;
 use super::Point2D;
+use vector4f::Vector4f;
 
 pub struct BufferCanvas {
     pub size: usize,
-    pub buffer: Vec<u8>
+    pub buffer: Vec<u8>,
+    pub depth_buffer: Vec<f64>
 }
 
 impl BufferCanvas {
     pub fn new(size: usize) -> Self {
         Self {
             size,
-            buffer: vec![0u8; size * size * 3]
+            buffer: vec![0u8; size * size * 3],
+            depth_buffer: vec![0.0; size * size]
         }
     }
 
     pub fn clear(&mut self) {
         self.buffer = vec![0u8; self.size * self.size * 3];
+        self.depth_buffer = vec![0.0; self.size * self.size];
     }
 
-    pub fn viewport_to_canvas(&self, point: Point2D, camera: &ProjectiveCamera) -> Point {
+    pub fn viewport_to_canvas(&self, vertex: Vector4f, camera: &ProjectiveCamera) -> Point {
+        let point = camera.project_vertex(vertex);
         let canvas_size = self.size as f64;
         Point {
             x: (point.x * canvas_size / camera.viewport_size) as i32,
             y: (point.y * canvas_size / camera.viewport_size) as i32,
-            h: 1.0
+            h: 1.0,
+            z: vertex.z
         }
     }
 
@@ -44,9 +50,15 @@ impl BufferCanvas {
         self.buffer[offset + 2] = pixel.color.b;
     }
 
-    pub fn draw_point(&mut self, point: Point, color: Color) {
-        let pixel = self.point_to_pixel(point, color);
-        self.put_pixel(pixel);
+    pub fn draw_point(&mut self, x: i32, y: i32, iz: f64, color: Color) {
+        let pixel = self.point_to_pixel(x, y, color);
+
+        let depth_index = (pixel.y as usize) * self.size + (pixel.x as usize);
+
+        if iz > self.depth_buffer[depth_index] {
+            self.depth_buffer[depth_index] = iz;
+            self.put_pixel(pixel);
+        }
     }
 
     fn screen_x(&self, x_canvas: i32) -> usize {
@@ -71,14 +83,14 @@ impl BufferCanvas {
         }
     }
 
-    fn point_to_pixel(&self, point: Point, color: Color) -> Pixel {
-        Pixel { x: self.screen_x(point.x), y: self.screen_y(point.y), color }
+    fn point_to_pixel(&self, x: i32, y: i32, color: Color) -> Pixel {
+        Pixel { x: self.screen_x(x), y: self.screen_y(y), color }
     }
 
     pub fn draw_line(&mut self, start: Point, end: Point, color: Color) {
         trace!("drawing line [{},{}] - [{},{}]", start.x, start.y, end.x, end.y);
-        let start_pixel = self.point_to_pixel(start, color);
-        let end_pixel = self.point_to_pixel(end, color);
+        let start_pixel = self.point_to_pixel(start.x, start.y, color);
+        let end_pixel = self.point_to_pixel(end.x, end.y, color);
         trace!(
             "drawing line pixels [{},{}] - [{},{}]",
             start_pixel.x, start_pixel.y, end_pixel.x, end_pixel.y

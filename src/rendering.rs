@@ -256,7 +256,7 @@ fn render_wireframe_triangle(
 
 fn vertex_to_canvas_point(vertex: Vector4f, camera: &ProjectiveCamera, canvas: &BufferCanvas)
     -> Point {
-    let result = canvas.viewport_to_canvas(camera.project_vertex(vertex), camera);
+    let result = canvas.viewport_to_canvas(vertex, camera);
     trace!(
         "vertex [{:.2} {:.2} {:.2}] converted to canvas point [{} {}]",
         vertex.x,
