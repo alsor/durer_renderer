@@ -7,7 +7,7 @@ use super::screen_x;
 use super::screen_y;
 use super::put_pixel;
 use super::multiply_color;
-use std;
+use ::{std, Light};
 use std::f64;
 use vectors;
 use self::rand::Rng;
@@ -19,13 +19,6 @@ pub struct Sphere {
     pub color: Color,
     pub specular: i32,
     pub reflective: f64
-}
-
-#[derive(Copy, Clone)]
-pub enum Light {
-    Ambient { intensity: f64 },
-    Point { intensity: f64, position: Point3D },
-    Directional { intensity: f64, direction: Point3D }
 }
 
 pub fn render_scene_to_buffer(

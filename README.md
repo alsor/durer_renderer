@@ -2,6 +2,10 @@ Software Renderer written in Rust
 
 What's new:
 
+First attempt at shading (flat, ambient + diffuse only)
+
+![Flat Shading](https://i.imgur.com/nOlGvw7.png)
+
 DepthBuffer implementation
 
 ![Depth Bufer](https://i.imgur.com/eZD6l52.png)

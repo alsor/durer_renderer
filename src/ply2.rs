@@ -76,7 +76,8 @@ pub fn load_model(filename: &str) -> Model {
                     face.push(faces_list[i as usize]);
                 }
                 faces.push(face);
-                colors.push(Color { r: rng.gen(), g: rng.gen(), b: rng.gen() });
+//                colors.push(Color { r: rng.gen(), g: rng.gen(), b: rng.gen() });
+                colors.push(Color { r: 119, g: 136, b: 153 });
 
                 current_face += 1;
                 if current_face == num_faces {

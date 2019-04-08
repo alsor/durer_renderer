@@ -14,17 +14,19 @@ use vectors::difference;
 use ::{Triangle4f, face_visible};
 use vectors::sum;
 use vectors::scale;
-use ::{face_visible4f, face_visible_left_4f};
+use ::{Light, vectors};
+use face_visible_4f;
 
 pub fn render_scene(
-    scene: &Vec<Instance>,
+    instances: &Vec<Instance>,
+    lights: &Vec<Light>,
     camera: &ProjectiveCamera,
     canvas: &mut BufferCanvas
 ) {
     let camera_transform = camera.camera_transform();
     let clipping_planes = camera.clipping_planes();
-    for instance in scene {
-        render_instance(instance, canvas, camera, camera_transform, &clipping_planes);
+    for instance in instances {
+        render_instance(instance, canvas, camera, lights, camera_transform, &clipping_planes);
     }
 }
 
@@ -32,6 +34,7 @@ fn render_instance(
     instance: &Instance,
     canvas: &mut BufferCanvas,
     camera: &ProjectiveCamera,
+    lights: &Vec<Light>,
     camera_transform: Matrix44f,
     clipping_planes: &Vec<Plane>
 ) {
@@ -54,19 +57,55 @@ fn render_instance(
 
     let mut i = 0;
     for face in &instance.model.faces {
-        if face_visible_left_4f(face, &transformed_vertices) {
+        let normal_direction = face_normal_direction_in_left(face, &transformed_vertices);
+        let is_face_visible = face_visible_4f(
+            Point3D::from_vector4f(transformed_vertices[face[0] as usize]),
+            normal_direction
+        );
+        if is_face_visible {
             let triangles = clip_triangles(
                 convert_face_to_triangles(face, &transformed_vertices, instance.model.colors[i]),
                 clipping_planes
             );
 
             for triangle in triangles {
-                render_filled_triangle(triangle, camera, canvas);
+                render_filled_triangle(
+                    triangle,
+                    camera,
+                    camera_transform,
+                    canvas,
+                    normal_direction,
+                    lights
+                );
     //            render_wireframe_triangle(triangle, camera, canvas);
             }
         }
         i += 1;
     }
+}
+
+fn face_normal_direction_in_right(face: &Vec<i32>, vertices: &[Vector4f]) -> Point3D {
+    let vector1 = vectors::difference(
+        Point3D::from_vector4f(vertices[face[2] as usize]),
+        Point3D::from_vector4f(vertices[face[1] as usize])
+    );
+    let vector2 = vectors::difference(
+        Point3D::from_vector4f(vertices[face[1] as usize]),
+        Point3D::from_vector4f(vertices[face[0] as usize])
+    );
+    vectors::cross_product(vector1, vector2)
+}
+
+fn face_normal_direction_in_left(face: &Vec<i32>, vertices: &[Vector4f]) -> Point3D {
+    let vector1 = vectors::difference(
+        Point3D::from_vector4f(vertices[face[2] as usize]),
+        Point3D::from_vector4f(vertices[face[1] as usize])
+    );
+    let vector2 = vectors::difference(
+        Point3D::from_vector4f(vertices[face[1] as usize]),
+        Point3D::from_vector4f(vertices[face[0] as usize])
+    );
+    vectors::cross_product(vector2, vector1)
 }
 
 fn clip_triangles(triangles: Vec<Triangle4f>, clipping_planes: &Vec<Plane>) -> Vec<Triangle4f> {
@@ -231,15 +270,70 @@ fn convert_face_to_triangles(
 fn render_filled_triangle(
     triangle: Triangle4f,
     camera: &ProjectiveCamera,
-    canvas: &mut BufferCanvas
+    camera_transform: Matrix44f,
+    canvas: &mut BufferCanvas,
+    normal_direction: Point3D,
+    lights: &Vec<Light>
 ) {
+    let center = Point3D {
+        x: (triangle.a.x + triangle.b.x + triangle.c.x) / 3.0,
+        y: (triangle.a.y + triangle.b.y + triangle.c.y) / 3.0,
+        z: (triangle.a.z + triangle.b.z + triangle.c.z) / 3.0
+    };
     draw_filled_triangle(
         vertex_to_canvas_point(triangle.a, camera, canvas),
         vertex_to_canvas_point(triangle.b, camera, canvas),
         vertex_to_canvas_point(triangle.c, camera, canvas),
         triangle.color,
-        canvas
+        canvas,
+        compute_illumination(center, normal_direction, camera, camera_transform, lights)
     );
+}
+
+fn compute_illumination(
+    vertex: Point3D,
+    normal_direction: Point3D,
+    camera: &ProjectiveCamera,
+    camera_transform: Matrix44f,
+    lights: &Vec<Light>
+) -> f64 {
+    let mut result = 0.0;
+    for light in lights {
+        result += match *light {
+            Light::Ambient { intensity } => intensity,
+            Light::Point { intensity, position } => {
+                0.0
+            }
+            Light::Directional { intensity, direction } => {
+                let transformed_direction =
+                    direction.to_vector4f().transform(camera.rotation);
+                let normal = vectors::normalize(normal_direction);
+                light_from_direction(
+                    normal,
+                    Point3D::from_vector4f(transformed_direction),
+                    intensity
+                )
+            }
+        }
+    }
+    result
+}
+
+fn light_from_direction(
+    normal: Point3D,
+    light_direction: Point3D,
+    light_intensity: f64
+) -> f64 {
+    let mut result = 0.0;
+
+    // diffuse
+    let dot = vectors::dot_product(normal, light_direction);
+    if dot > 0.0 {
+        // assuming that normal is a unit vector (has length 1)
+        result += light_intensity * dot / vectors::length(light_direction);
+    }
+
+    result
 }
 
 fn render_wireframe_triangle(

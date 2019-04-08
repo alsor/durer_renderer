@@ -22,7 +22,6 @@ use std::io::prelude::*;
 use std::str::FromStr;
 
 use ray_tracing::Sphere;
-use ray_tracing::Light;
 use buffer_canvas::BufferCanvas;
 use projective_camera::ProjectiveCamera;
 use model::Model;
@@ -77,6 +76,13 @@ pub struct Triangle4f {
     pub b: Vector4f,
     pub c: Vector4f,
     pub color: Color
+}
+
+#[derive(Copy, Clone)]
+pub enum Light {
+    Ambient { intensity: f64 },
+    Point { intensity: f64, position: Point3D },
+    Directional { intensity: f64, direction: Point3D }
 }
 
 fn project(point3d: Point3D) -> Point2D {
@@ -214,23 +220,6 @@ fn face_visible(face: &Vec<i32>, vertices: &[Point3D]) -> bool {
     vectors::dot_product(vertices[face[0] as usize], face_vector) < 0.0
 }
 
-fn face_visible4f(face: &Vec<i32>, vertices: &[Vector4f]) -> bool {
-    let vector1 = vectors::difference(
-        Point3D::from_vector4f(vertices[face[2] as usize]),
-        Point3D::from_vector4f(vertices[face[1] as usize])
-    );
-    let vector2 = vectors::difference(
-        Point3D::from_vector4f(vertices[face[1] as usize]),
-        Point3D::from_vector4f(vertices[face[0] as usize])
-    );
-    let face_vector = vectors::cross_product(
-        vector1,
-        vector2
-    );
-
-    vectors::dot_product(Point3D::from_vector4f(vertices[face[0] as usize]), face_vector) < 0.0
-}
-
 fn face_visible2(face: &Vec<i32>, vertices: &[Point3D]) -> bool {
     let vector1 = vectors::difference(vertices[face[2] as usize], vertices[face[1] as usize]);
     let vector2 = vectors::difference(vertices[face[1] as usize], vertices[face[0] as usize]);
@@ -242,21 +231,8 @@ fn face_visible2(face: &Vec<i32>, vertices: &[Point3D]) -> bool {
     vectors::dot_product(vertices[face[0] as usize], face_vector) < 0.0
 }
 
-fn face_visible_left_4f(face: &Vec<i32>, vertices: &[Vector4f]) -> bool {
-    let vector1 = vectors::difference(
-        Point3D::from_vector4f(vertices[face[2] as usize]),
-        Point3D::from_vector4f(vertices[face[1] as usize])
-    );
-    let vector2 = vectors::difference(
-        Point3D::from_vector4f(vertices[face[1] as usize]),
-        Point3D::from_vector4f(vertices[face[0] as usize])
-    );
-    let face_vector = vectors::cross_product(
-        vector2,
-        vector1
-    );
-
-    vectors::dot_product(Point3D::from_vector4f(vertices[face[0] as usize]), face_vector) < 0.0
+fn face_visible_4f(vertex: Point3D, normal_direction: Point3D) -> bool {
+    vectors::dot_product(vertex, normal_direction) < 0.0
 }
 
 fn draw_face(face: &Vec<i32>,
@@ -417,19 +393,33 @@ fn cube(size: f64) -> Model {
     ];
 
     let mut rng = rand::thread_rng();
+//    let colors = vec![
+//        Color { r: rng.gen(), g: rng.gen(), b: rng.gen() },
+//        Color { r: rng.gen(), g: rng.gen(), b: rng.gen() },
+//        Color { r: rng.gen(), g: rng.gen(), b: rng.gen() },
+//        Color { r: rng.gen(), g: rng.gen(), b: rng.gen() },
+//        Color { r: rng.gen(), g: rng.gen(), b: rng.gen() },
+//        Color { r: rng.gen(), g: rng.gen(), b: rng.gen() },
+//        Color { r: rng.gen(), g: rng.gen(), b: rng.gen() },
+//        Color { r: rng.gen(), g: rng.gen(), b: rng.gen() },
+//        Color { r: rng.gen(), g: rng.gen(), b: rng.gen() },
+//        Color { r: rng.gen(), g: rng.gen(), b: rng.gen() },
+//        Color { r: rng.gen(), g: rng.gen(), b: rng.gen() },
+//        Color { r: rng.gen(), g: rng.gen(), b: rng.gen() },
+//    ];
     let colors = vec![
-        Color { r: rng.gen(), g: rng.gen(), b: rng.gen() },
-        Color { r: rng.gen(), g: rng.gen(), b: rng.gen() },
-        Color { r: rng.gen(), g: rng.gen(), b: rng.gen() },
-        Color { r: rng.gen(), g: rng.gen(), b: rng.gen() },
-        Color { r: rng.gen(), g: rng.gen(), b: rng.gen() },
-        Color { r: rng.gen(), g: rng.gen(), b: rng.gen() },
-        Color { r: rng.gen(), g: rng.gen(), b: rng.gen() },
-        Color { r: rng.gen(), g: rng.gen(), b: rng.gen() },
-        Color { r: rng.gen(), g: rng.gen(), b: rng.gen() },
-        Color { r: rng.gen(), g: rng.gen(), b: rng.gen() },
-        Color { r: rng.gen(), g: rng.gen(), b: rng.gen() },
-        Color { r: rng.gen(), g: rng.gen(), b: rng.gen() },
+        Color { r: 119, g: 136, b: 153 },
+        Color { r: 119, g: 136, b: 153 },
+        Color { r: 119, g: 136, b: 153 },
+        Color { r: 119, g: 136, b: 153 },
+        Color { r: 119, g: 136, b: 153 },
+        Color { r: 119, g: 136, b: 153 },
+        Color { r: 119, g: 136, b: 153 },
+        Color { r: 119, g: 136, b: 153 },
+        Color { r: 119, g: 136, b: 153 },
+        Color { r: 119, g: 136, b: 153 },
+        Color { r: 119, g: 136, b: 153 },
+        Color { r: 119, g: 136, b: 153 },
     ];
 
     Model { vertices, faces, colors }
@@ -948,7 +938,8 @@ fn draw_filled_triangle(
     mut p1: Point,
     mut p2: Point,
     color: Color,
-    canvas: &mut BufferCanvas
+    canvas: &mut BufferCanvas,
+    intensity: f64
 ) {
     // sort points from bottom to top
     if p1.y < p0.y {
@@ -1031,7 +1022,10 @@ fn draw_filled_triangle(
         let iz_segment = interpolate_float(x_l, iz_left[y_index], x_r, iz_right[y_index]);
         for x in x_l..(x_r + 1) {
             let x_index = (x - x_l) as usize;
-            let shaded_color = multiply_color(h_segment[x_index], color);
+//            let shaded_color = multiply_color(h_segment[x_index], color);
+
+            // for flat shading
+            let shaded_color = multiply_color(intensity, color);
 
             canvas.draw_point(x, y, iz_segment[x_index], shaded_color);
         };
@@ -1159,7 +1153,7 @@ fn main() {
 //    let octo_flower = ply2::load_model("resources/octa-flower.ply2");
 //    let statue = ply2::load_model("resources/statue.ply2");
 
-    let scene = vec![
+    let instances = vec![
 //        Instance::new(
 //            &triangle,
 //            Some(Vector4f { x: 0.0, y: 0.0, z: 2.0, w: 0.0 }),
@@ -1204,11 +1198,22 @@ fn main() {
 //        ),
 //        Instance::new(
 //            &statue,
-//            Some(Vector4f { x: 0.0, y: 0.0, z: 70.0, w: 0.0 }),
+//            Some(Vector4f { x: 0.0, y: 0.0, z: 10.0, w: 0.0 }),
 //            None,
-//            Some(Matrix44f::rotation_x(0.0).multiply(Matrix44f::rotation_y(0.0)))
+//            Some(Matrix44f::rotation_x(30.0).multiply(Matrix44f::rotation_y(135.0)))
 //        ),
     ];
+
+
+    let lights = vec![
+        Light::Ambient { intensity: 0.2 },
+        Light::Directional {
+            intensity: 0.8,
+            direction: Point3D { x: 1.0, y: 1.0, z: -2.0 }
+        }
+    ];
+
+
 
 //    rendering::render_scene(&scene, &camera, &mut buffer_canvas, &clipping_planes);
 //    texture.update(None, &buffer_canvas.buffer, buffer_canvas.size * 3).unwrap();
@@ -1256,7 +1261,7 @@ fn main() {
         };
 
         buffer_canvas.clear();
-        rendering::render_scene(&scene, &camera, &mut buffer_canvas);
+        rendering::render_scene(&instances, &lights, &camera, &mut buffer_canvas);
 
         texture.update(None, &buffer_canvas.buffer, buffer_canvas.size * 3).unwrap();
         canvas.clear();
