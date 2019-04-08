@@ -4,6 +4,7 @@ What's new:
 
 First attempt at shading (flat, ambient + diffuse only)
 
+![Flat Shading](https://i.imgur.com/veKmcQs.png)
 ![Flat Shading](https://i.imgur.com/nOlGvw7.png)
 
 DepthBuffer implementation
