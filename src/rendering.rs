@@ -11,9 +11,10 @@ use super::draw_filled_triangle;
 use plane::Plane;
 use vectors::dot_product;
 use vectors::difference;
-use Triangle4f;
+use ::{Triangle4f, face_visible};
 use vectors::sum;
 use vectors::scale;
+use ::{face_visible4f, face_visible_left_4f};
 
 pub fn render_scene(
     scene: &Vec<Instance>,
@@ -53,16 +54,17 @@ fn render_instance(
 
     let mut i = 0;
     for face in &instance.model.faces {
-        let triangles = clip_triangles(
-            convert_face_to_triangles(face, &transformed_vertices, instance.model.colors[i]),
-            clipping_planes
-        );
+        if face_visible_left_4f(face, &transformed_vertices) {
+            let triangles = clip_triangles(
+                convert_face_to_triangles(face, &transformed_vertices, instance.model.colors[i]),
+                clipping_planes
+            );
 
-        for triangle in triangles {
-            render_filled_triangle(triangle, camera, canvas);
-//            render_wireframe_triangle(triangle, camera, canvas);
+            for triangle in triangles {
+                render_filled_triangle(triangle, camera, canvas);
+    //            render_wireframe_triangle(triangle, camera, canvas);
+            }
         }
-
         i += 1;
     }
 }

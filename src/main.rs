@@ -214,6 +214,23 @@ fn face_visible(face: &Vec<i32>, vertices: &[Point3D]) -> bool {
     vectors::dot_product(vertices[face[0] as usize], face_vector) < 0.0
 }
 
+fn face_visible4f(face: &Vec<i32>, vertices: &[Vector4f]) -> bool {
+    let vector1 = vectors::difference(
+        Point3D::from_vector4f(vertices[face[2] as usize]),
+        Point3D::from_vector4f(vertices[face[1] as usize])
+    );
+    let vector2 = vectors::difference(
+        Point3D::from_vector4f(vertices[face[1] as usize]),
+        Point3D::from_vector4f(vertices[face[0] as usize])
+    );
+    let face_vector = vectors::cross_product(
+        vector1,
+        vector2
+    );
+
+    vectors::dot_product(Point3D::from_vector4f(vertices[face[0] as usize]), face_vector) < 0.0
+}
+
 fn face_visible2(face: &Vec<i32>, vertices: &[Point3D]) -> bool {
     let vector1 = vectors::difference(vertices[face[2] as usize], vertices[face[1] as usize]);
     let vector2 = vectors::difference(vertices[face[1] as usize], vertices[face[0] as usize]);
@@ -223,6 +240,23 @@ fn face_visible2(face: &Vec<i32>, vertices: &[Point3D]) -> bool {
     );
 
     vectors::dot_product(vertices[face[0] as usize], face_vector) < 0.0
+}
+
+fn face_visible_left_4f(face: &Vec<i32>, vertices: &[Vector4f]) -> bool {
+    let vector1 = vectors::difference(
+        Point3D::from_vector4f(vertices[face[2] as usize]),
+        Point3D::from_vector4f(vertices[face[1] as usize])
+    );
+    let vector2 = vectors::difference(
+        Point3D::from_vector4f(vertices[face[1] as usize]),
+        Point3D::from_vector4f(vertices[face[0] as usize])
+    );
+    let face_vector = vectors::cross_product(
+        vector2,
+        vector1
+    );
+
+    vectors::dot_product(Point3D::from_vector4f(vertices[face[0] as usize]), face_vector) < 0.0
 }
 
 fn draw_face(face: &Vec<i32>,
@@ -1121,7 +1155,7 @@ fn main() {
 //    let cube = cube(0.9);
 //    let triangle = triangle(1.3);
     let torus = ply2::load_model("resources/torus.ply2");
-    let twirl = ply2::load_model("resources/twirl.ply2");
+//    let twirl = ply2::load_model("resources/twirl.ply2");
 //    let octo_flower = ply2::load_model("resources/octa-flower.ply2");
 //    let statue = ply2::load_model("resources/statue.ply2");
 
