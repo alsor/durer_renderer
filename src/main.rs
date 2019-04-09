@@ -425,6 +425,42 @@ fn cube(size: f64) -> Model {
     Model { vertices, faces, colors }
 }
 
+fn sphere(divs: i32) -> Model {
+    let mut vertices= Vec::<Point3D>::new();
+    let mut faces = Vec::<Vec<i32>>::new();
+    let mut colors = Vec::<Color>::new();
+
+    let delta_angle = 2.0 * f64::consts::PI / (divs as f64);
+
+    // generate vertices
+    for d in 0..(divs + 1) {
+        let y = (2.0 / (divs as f64)) * ((d as f64) - (divs as f64) / 2.0);
+        let radius = (1.0 - y * y).sqrt();
+
+        for i in 0..divs {
+            let x = radius * ((i as f64) * delta_angle).cos();
+            let z = radius * ((i as f64) * delta_angle).sin();
+            vertices.push(Point3D { x, y, z });
+//            println!("generated vertex: {:.2}, {:.2}, {:.2}", x, y, z)
+        }
+    }
+
+    // generate triangles
+    for d in 0..divs {
+        for i in 0..(divs - 1) {
+            let i0 = d * divs + i;
+
+            faces.push(vec![i0, i0 + divs + 1, i0 + 1]);
+            colors.push(Color { r: 119, g: 136, b: 153 });
+
+            faces.push(vec![i0, i0 + divs, i0 + divs + 1]);
+            colors.push(Color { r: 119, g: 136, b: 153 });
+        }
+    }
+
+    Model { vertices, faces, colors }
+}
+
 fn two_unit_cube() -> Model {
     cube(2.0)
 }
@@ -1146,6 +1182,7 @@ fn main() {
     let white = Color { r: 255, g: 255, b: 255 };
 
     let cube = two_unit_cube();
+    let sphere = sphere(25);
 //    let cube = cube(0.9);
 //    let triangle = triangle(1.3);
     let torus = ply2::load_model("resources/torus.ply2");
@@ -1160,6 +1197,7 @@ fn main() {
 //            None,
 //            Some(Matrix44f::rotation_z(-30.0))
 //        ),
+
 //        Instance::new(
 //            &cube,
 //            Some(Vector4f { x: 0.0, y: 0.0, z: 4.0, w: 0.0 }),
@@ -1168,7 +1206,7 @@ fn main() {
 //        ),
 //        Instance::new(
 //            &cube,
-//            Some(Vector4f { x: 2.0, y: -1.0, z: 0.0, w: 0.0 }),
+//            Some(Vector4f { x: 2.0, y: -2.0, z: 4.5, w: 0.0 }),
 //            None,
 //            Some(Matrix44f::rotation_y(-30.0).multiply(Matrix44f::rotation_z(-30.0)))
 //        ),
@@ -1184,6 +1222,14 @@ fn main() {
 //            Some(0.1),
 //            Some(Matrix44f::rotation_x(0.0).multiply(Matrix44f::rotation_y(0.0)))
 //        ),
+
+        Instance::new(
+            &sphere,
+            Some(Vector4f { x: 0.0, y: 0.0, z: 5.0, w: 0.0 }),
+            Some(1.3),
+            Some(Matrix44f::rotation_y(-45.0))
+        ),
+
 //        Instance::new(
 //            &octo_flower,
 //            Some(Vector4f { x: 0.0, y: 0.0, z: 70.0, w: 0.0 }),
@@ -1206,10 +1252,14 @@ fn main() {
 
 
     let lights = vec![
-        Light::Ambient { intensity: 0.2 },
+        Light::Ambient { intensity: 0.12 },
         Light::Directional {
+            intensity: 0.5,
+            direction: Point3D { x: 1.0, y: 1.0, z: 0.5 }
+        },
+        Light::Point {
             intensity: 0.8,
-            direction: Point3D { x: 1.0, y: 1.0, z: -2.0 }
+            position: Point3D { x: -4.0, y: 2.0, z: 5.0 }
         }
     ];
 
@@ -1222,7 +1272,8 @@ fn main() {
 //    canvas.present();
 //
 
-    let step_increase = 0.003;
+    let step_increase = 0.005;
+    let angle_increase = 0.1;
     let mut delta_x;
     let mut delta_y;
     let mut delta_z;
@@ -1282,14 +1333,14 @@ fn main() {
                     },
                     Event::KeyDown { keycode: Some(Keycode::E), .. } => {
                         if cfg!(feature = "smooth_animation") {
-                            delta_angle += step_increase;
+                            delta_angle += angle_increase;
                         } else {
                             angle += delta_angle;
                         };
                     },
                     Event::KeyDown { keycode: Some(Keycode::Q), .. } => {
                         if cfg!(feature = "smooth_animation") {
-                            delta_angle -= step_increase;
+                            delta_angle -= angle_increase;
                         } else {
                             angle -= delta_angle;
                         };
@@ -1347,6 +1398,10 @@ fn main() {
                     },
                     Event::KeyDown { keycode: Some(Keycode::F), .. } => {
                         projection_plane_z -= projection_plane_z_delta;
+                    },
+                    Event::KeyDown { keycode: Some(Keycode::F12), .. } => {
+                        write_image(&mut buffer_canvas.buffer, buffer_canvas.size).
+                            expect("Error writing image to file");
                     }
                     _ => {}
                 };

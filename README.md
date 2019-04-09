@@ -2,6 +2,10 @@ Software Renderer written in Rust
 
 What's new:
 
+Point lights and specular component
+
+![Point light](https://i.imgur.com/75Gl27c.png)
+
 First attempt at shading (flat, ambient + diffuse only)
 
 ![Flat Shading](https://i.imgur.com/veKmcQs.png)

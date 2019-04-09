@@ -152,7 +152,7 @@ fn compute_light_from_direction(
             // specular
             // TODO add color of the light to this component
             if shininess > 0 {
-                let reflection_direction = reflect_vector(light_direction, normal);
+                let reflection_direction = vectors::reflect(light_direction, normal);
                 let reflection_dot_view = vectors::dot_product(
                     reflection_direction,
                     view
@@ -169,13 +169,6 @@ fn compute_light_from_direction(
     }
 
     result
-}
-
-fn reflect_vector(v1: Point3D, v2: Point3D) -> Point3D {
-    vectors::difference(
-        vectors::scale(2.0 * vectors::dot_product(v1, v2), v2),
-        v1
-    )
 }
 
 fn closest_intersection(
@@ -257,7 +250,7 @@ fn trace_ray(
                     spheres,
                     lights,
                     point,
-                    reflect_vector(view, normal),
+                    vectors::reflect(view, normal),
                     0.0001,
                     std::f64::INFINITY,
                     recursion_depth - 1

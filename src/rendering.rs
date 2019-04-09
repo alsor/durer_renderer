@@ -24,9 +24,18 @@ pub fn render_scene(
     canvas: &mut BufferCanvas
 ) {
     let camera_transform = camera.camera_transform();
+    let camera_rotation_transform = camera.rotation.transpose();
     let clipping_planes = camera.clipping_planes();
     for instance in instances {
-        render_instance(instance, canvas, camera, lights, camera_transform, &clipping_planes);
+        render_instance(
+            instance,
+            canvas,
+            camera,
+            lights,
+            camera_transform,
+            camera_rotation_transform,
+            &clipping_planes
+        );
     }
 }
 
@@ -36,6 +45,7 @@ fn render_instance(
     camera: &ProjectiveCamera,
     lights: &Vec<Light>,
     camera_transform: Matrix44f,
+    camera_rotation_transform: Matrix44f,
     clipping_planes: &Vec<Plane>
 ) {
     debug!("rendering instance");
@@ -73,11 +83,13 @@ fn render_instance(
                     triangle,
                     camera,
                     camera_transform,
+                    camera_rotation_transform,
                     canvas,
                     normal_direction,
                     lights
                 );
-    //            render_wireframe_triangle(triangle, camera, canvas);
+
+//                render_wireframe_triangle(triangle, camera, canvas);
             }
         }
         i += 1;
@@ -271,6 +283,7 @@ fn render_filled_triangle(
     triangle: Triangle4f,
     camera: &ProjectiveCamera,
     camera_transform: Matrix44f,
+    camera_rotation_transform: Matrix44f,
     canvas: &mut BufferCanvas,
     normal_direction: Point3D,
     lights: &Vec<Light>
@@ -286,7 +299,14 @@ fn render_filled_triangle(
         vertex_to_canvas_point(triangle.c, camera, canvas),
         triangle.color,
         canvas,
-        compute_illumination(center, normal_direction, camera, camera_transform, lights)
+        compute_illumination(
+            center,
+            normal_direction,
+            camera,
+            camera_transform,
+            camera_rotation_transform,
+            lights
+        )
     );
 }
 
@@ -295,20 +315,29 @@ fn compute_illumination(
     normal_direction: Point3D,
     camera: &ProjectiveCamera,
     camera_transform: Matrix44f,
+    camera_rotation_transform: Matrix44f,
     lights: &Vec<Light>
 ) -> f64 {
     let mut result = 0.0;
+    let normal = vectors::normalize(normal_direction);
+
     for light in lights {
         result += match *light {
             Light::Ambient { intensity } => intensity,
             Light::Point { intensity, position } => {
-                0.0
+                let transformed_position =
+                    position.to_vector4f().transform(camera_transform);
+                let light_direction = vectors::difference(
+                    Point3D::from_vector4f(transformed_position),
+                    vertex
+                );
+                light_from_direction(vertex, normal, light_direction, intensity)
             }
             Light::Directional { intensity, direction } => {
                 let transformed_direction =
-                    direction.to_vector4f().transform(camera.rotation);
-                let normal = vectors::normalize(normal_direction);
+                    direction.to_vector4f().transform(camera_rotation_transform);
                 light_from_direction(
+                    vertex,
                     normal,
                     Point3D::from_vector4f(transformed_direction),
                     intensity
@@ -320,17 +349,37 @@ fn compute_illumination(
 }
 
 fn light_from_direction(
+    vertex: Point3D,
     normal: Point3D,
     light_direction: Point3D,
     light_intensity: f64
 ) -> f64 {
     let mut result = 0.0;
+    let shininess= 50;
 
     // diffuse
     let dot = vectors::dot_product(normal, light_direction);
     if dot > 0.0 {
         // assuming that normal is a unit vector (has length 1)
         result += light_intensity * dot / vectors::length(light_direction);
+    }
+
+    // specular
+    // TODO add color of the light to this component
+    if shininess > 0 {
+        let view = vectors::negate(vertex);
+        let reflection_direction = vectors::reflect (light_direction, normal);
+        let reflection_dot_view = vectors::dot_product(
+            reflection_direction,
+            view
+        );
+        if reflection_dot_view > 0.0 {
+            result += light_intensity *
+                (
+                    reflection_dot_view /
+                        (vectors::length(reflection_direction) * vectors::length(view))
+                ).powi(shininess)
+        }
     }
 
     result

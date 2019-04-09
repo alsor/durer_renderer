@@ -44,6 +44,13 @@ pub fn negate(vector: Point3D) -> Point3D {
     Point3D { x: -vector.x, y: -vector.y, z: -vector.z }
 }
 
+pub fn reflect(v1: Point3D, v2: Point3D) -> Point3D {
+    difference(
+        scale(2.0 * dot_product(v1, v2), v2),
+        v1
+    )
+}
+
 pub fn scale(scalar: f64, vector: Point3D) -> Point3D {
     Point3D {
         x: vector.x * scalar,
