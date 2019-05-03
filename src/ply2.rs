@@ -5,8 +5,9 @@ use super::Point3D;
 use model::Model;
 use std::str::FromStr;
 use std::io::prelude::*;
-use Color;
+use ::{Color, Triangle};
 use self::rand::Rng;
+use triangle;
 
 pub fn load_model(filename: &str) -> Model {
     let mut f = File::open(filename).expect("file not found");
@@ -91,5 +92,18 @@ pub fn load_model(filename: &str) -> Model {
     println!("vertices read: {}", vertices.len());
     println!("faces read: {}", faces.len());
 
-    Model { vertices, faces, colors }
+    let mut triangles = Vec::<Triangle>::with_capacity(faces.len());
+
+    for face in faces {
+        if face.len() != 3 {
+            panic!("for now only supporting models with friangle as faces ");
+        }
+        let triangle = Triangle::new_with_calculated_normals(
+            &vertices,
+            [face[0] as usize, face[1] as usize, face[2] as usize]
+        );
+        triangles.push(triangle);
+    }
+
+    Model { vertices, triangles, colors }
 }

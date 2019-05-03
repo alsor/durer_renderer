@@ -71,11 +71,59 @@ pub struct Pixel {
 }
 
 #[derive(Copy, Clone)]
+pub struct Triangle {
+    pub indexes: [usize; 3],
+    pub normals: [Point3D; 3],
+    pub calculated_normal: Point3D
+}
+
+impl Triangle {
+    pub fn new_with_calculated_normals(vertices: &Vec<Point3D>, indexes: [usize; 3]) -> Self {
+        let calculated_normal = vectors::normalize(Self::calculate_normal_in_left(
+            indexes,
+            vertices
+        ));
+
+        Self {
+            indexes,
+            normals: [calculated_normal, calculated_normal, calculated_normal],
+            calculated_normal
+        }
+    }
+
+    fn calculate_normal_in_left(indexes: [usize; 3], vertices: &Vec<Point3D>) -> Point3D {
+        let vector1 = vectors::difference(vertices[indexes[2]], vertices[indexes[1]]);
+        let vector2 = vectors::difference(vertices[indexes[1]], vertices[indexes[0]]);
+        vectors::cross_product(vector2, vector1)
+    }
+
+}
+
+#[test]
+fn test_new_with_calculated_normal() {
+    let triangle = Triangle::new_with_calculated_normals(
+        &vec![
+            Point3D { x: 0.0, y: 0.0, z: 0.0 },
+            Point3D { x: 5.0, y: 0.0, z: 0.0 },
+            Point3D { x: 0.0, y: 0.0, z: 5.0 },
+        ],
+        [2, 1, 0]
+    );
+    assert!(::tests::roughly_equals(triangle.normals[0].x, 0.0));
+    assert!(::tests::roughly_equals(triangle.normals[0].y, 1.0));
+    assert!(::tests::roughly_equals(triangle.normals[0].z, 0.0));
+
+    println!("normal: {:.2} {:.2} {:.2}", triangle.normals[0].x, triangle.normals[0].y, triangle.normals[0].z);
+}
+
+
+#[derive(Copy, Clone)]
 pub struct Triangle4f {
     pub a: Vector4f,
     pub b: Vector4f,
     pub c: Vector4f,
-    pub color: Color
+    pub color: Color,
+    pub normals: [Point3D; 3]
 }
 
 #[derive(Copy, Clone)]
@@ -351,8 +399,8 @@ fn triangle(size: f64) -> Model {
         Point3D { x: -half_size, y: -half_size, z: 0.0 },
     ];
 
-    let faces = vec![
-        vec![0, 1, 2],
+    let triangles = vec![
+        Triangle::new_with_calculated_normals(&vertices, [0, 1, 2])
     ];
 
     let mut rng = rand::thread_rng();
@@ -360,7 +408,7 @@ fn triangle(size: f64) -> Model {
         Color { r: rng.gen(), g: rng.gen(), b: rng.gen() },
     ];
 
-    Model { vertices, faces, colors }
+    Model { vertices, triangles, colors }
 }
 
 fn cube(size: f64) -> Model {
@@ -377,19 +425,19 @@ fn cube(size: f64) -> Model {
         Point3D { x: half_size, y: -half_size, z: -half_size },
     ];
 
-    let faces = vec![
-        vec![0, 1, 2],
-        vec![0, 2, 3],
-        vec![4, 0, 3],
-        vec![4, 3, 7],
-        vec![5, 4, 7],
-        vec![5, 7, 6],
-        vec![1, 5, 6],
-        vec![1, 6, 2],
-        vec![4, 5, 1],
-        vec![4, 1, 0],
-        vec![2, 6, 7],
-        vec![2, 7, 3],
+    let triangles = vec![
+        Triangle::new_with_calculated_normals(&vertices, [0, 1, 2]),
+        Triangle::new_with_calculated_normals(&vertices, [0, 2, 3]),
+        Triangle::new_with_calculated_normals(&vertices, [4, 0, 3]),
+        Triangle::new_with_calculated_normals(&vertices, [4, 3, 7]),
+        Triangle::new_with_calculated_normals(&vertices, [5, 4, 7]),
+        Triangle::new_with_calculated_normals(&vertices, [5, 7, 6]),
+        Triangle::new_with_calculated_normals(&vertices, [1, 5, 6]),
+        Triangle::new_with_calculated_normals(&vertices, [1, 6, 2]),
+        Triangle::new_with_calculated_normals(&vertices, [4, 5, 1]),
+        Triangle::new_with_calculated_normals(&vertices, [4, 1, 0]),
+        Triangle::new_with_calculated_normals(&vertices, [2, 6, 7]),
+        Triangle::new_with_calculated_normals(&vertices, [2, 7, 3]),
     ];
 
     let mut rng = rand::thread_rng();
@@ -422,12 +470,12 @@ fn cube(size: f64) -> Model {
         Color { r: 119, g: 136, b: 153 },
     ];
 
-    Model { vertices, faces, colors }
+    Model { vertices, triangles, colors }
 }
 
 fn sphere(divs: i32) -> Model {
     let mut vertices= Vec::<Point3D>::new();
-    let mut faces = Vec::<Vec<i32>>::new();
+    let mut triangles = Vec::<Triangle>::new();
     let mut colors = Vec::<Color>::new();
 
     let delta_angle = 2.0 * f64::consts::PI / (divs as f64);
@@ -450,15 +498,21 @@ fn sphere(divs: i32) -> Model {
         for i in 0..(divs - 1) {
             let i0 = d * divs + i;
 
-            faces.push(vec![i0, i0 + divs + 1, i0 + 1]);
+            triangles.push(Triangle::new_with_calculated_normals(
+                &vertices,
+                [i0 as usize, (i0 + divs + 1) as usize, (i0 + 1) as usize]
+            ));
             colors.push(Color { r: 119, g: 136, b: 153 });
 
-            faces.push(vec![i0, i0 + divs, i0 + divs + 1]);
+            triangles.push(Triangle::new_with_calculated_normals(
+                &vertices,
+                [i0 as usize, (i0 + divs) as usize, (i0 + divs + 1) as usize]
+            ));
             colors.push(Color { r: 119, g: 136, b: 153 });
         }
     }
 
-    Model { vertices, faces, colors }
+    Model { vertices, triangles, colors }
 }
 
 fn two_unit_cube() -> Model {
@@ -1186,7 +1240,7 @@ fn main() {
 //    let cube = cube(0.9);
 //    let triangle = triangle(1.3);
     let torus = ply2::load_model("resources/torus.ply2");
-    let twirl = ply2::load_model("resources/twirl.ply2");
+//    let twirl = ply2::load_model("resources/twirl.ply2");
 //    let octo_flower = ply2::load_model("resources/octa-flower.ply2");
 //    let statue = ply2::load_model("resources/statue.ply2");
 
@@ -1204,12 +1258,12 @@ fn main() {
 //            None,
 //            None
 //        ),
-//        Instance::new(
-//            &cube,
-//            Some(Vector4f { x: 2.0, y: -2.0, z: 4.5, w: 0.0 }),
-//            None,
-//            Some(Matrix44f::rotation_y(-30.0).multiply(Matrix44f::rotation_z(-30.0)))
-//        ),
+        Instance::new(
+            &cube,
+            Some(Vector4f { x: 2.0, y: -2.0, z: 4.5, w: 0.0 }),
+            None,
+            Some(Matrix44f::rotation_y(-30.0).multiply(Matrix44f::rotation_z(-30.0)))
+        ),
 //        Instance::new(
 //            &torus,
 //            Some(Vector4f { x: 0.0, y: 3.0, z: 0.0, w: 0.0 }),
@@ -1236,12 +1290,12 @@ fn main() {
 //            None,
 //            Some(Matrix44f::rotation_x(0.0).multiply(Matrix44f::rotation_y(0.0)))
 //        ),
-        Instance::new(
-            &twirl,
-            Some(Vector4f { x: 0.0, y: 0.0, z: 30.0, w: 0.0 }),
-            None,
-            Some(Matrix44f::rotation_x(0.0).multiply(Matrix44f::rotation_y(0.0)))
-        ),
+//        Instance::new(
+//            &twirl,
+//            Some(Vector4f { x: 0.0, y: 0.0, z: 30.0, w: 0.0 }),
+//            None,
+//            Some(Matrix44f::rotation_x(0.0).multiply(Matrix44f::rotation_y(0.0)))
+//        ),
 //        Instance::new(
 //            &statue,
 //            Some(Vector4f { x: 0.0, y: 0.0, z: 10.0, w: 0.0 }),

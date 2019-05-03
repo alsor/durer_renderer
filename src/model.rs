@@ -1,8 +1,7 @@
-use super::Point3D;
-use Color;
+use ::{Point3D, Triangle, Color};
 
 pub struct Model {
     pub vertices: Vec<Point3D>,
-    pub faces: Vec<Vec<i32>>,
+    pub triangles: Vec<Triangle>,
     pub colors: Vec<Color>
 }

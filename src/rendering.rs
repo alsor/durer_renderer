@@ -11,11 +11,12 @@ use super::draw_filled_triangle;
 use plane::Plane;
 use vectors::dot_product;
 use vectors::difference;
-use ::{Triangle4f, face_visible};
+use ::{Triangle, Triangle4f, face_visible};
 use vectors::sum;
 use vectors::scale;
 use ::{Light, vectors};
 use face_visible_4f;
+use sdl2::video::WindowPos::Positioned;
 
 pub fn render_scene(
     instances: &Vec<Instance>,
@@ -54,6 +55,12 @@ fn render_instance(
         None => { camera_transform },
         Some(instance_transform) => { instance_transform.multiply(camera_transform) },
     };
+    let combined_rotation_transform = match instance.rotation_transform {
+        None => { camera_rotation_transform },
+        Some(instanse_rotation_transform) => {
+            instanse_rotation_transform.multiply(camera_rotation_transform)
+        }
+    };
 
     let mut transformed_vertices =
         Vec::<Vector4f>::with_capacity(instance.model.vertices.len());
@@ -66,15 +73,23 @@ fn render_instance(
     }
 
     let mut i = 0;
-    for face in &instance.model.faces {
-        let normal_direction = face_normal_direction_in_left(face, &transformed_vertices);
+    for triangle in &instance.model.triangles {
+        let transformed_triangle_normal =
+            triangle.calculated_normal.to_vector4f().transform(combined_rotation_transform);
+
         let is_face_visible = face_visible_4f(
-            Point3D::from_vector4f(transformed_vertices[face[0] as usize]),
-            normal_direction
+            Point3D::from_vector4f(transformed_vertices[triangle.indexes[0]]),
+            Point3D::from_vector4f(transformed_triangle_normal)
         );
+
         if is_face_visible {
             let triangles = clip_triangles(
-                convert_face_to_triangles(face, &transformed_vertices, instance.model.colors[i]),
+                convert_face_to_triangles(
+                    triangle,
+                    &transformed_vertices,
+                    combined_rotation_transform,
+                    instance.model.colors[i]
+                ),
                 clipping_planes
             );
 
@@ -85,7 +100,6 @@ fn render_instance(
                     camera_transform,
                     camera_rotation_transform,
                     canvas,
-                    normal_direction,
                     lights
                 );
 
@@ -108,14 +122,14 @@ fn face_normal_direction_in_right(face: &Vec<i32>, vertices: &[Vector4f]) -> Poi
     vectors::cross_product(vector1, vector2)
 }
 
-fn face_normal_direction_in_left(face: &Vec<i32>, vertices: &[Vector4f]) -> Point3D {
+fn face_normal_direction_in_left(triangle: &Triangle, vertices: &[Vector4f]) -> Point3D {
     let vector1 = vectors::difference(
-        Point3D::from_vector4f(vertices[face[2] as usize]),
-        Point3D::from_vector4f(vertices[face[1] as usize])
+        Point3D::from_vector4f(vertices[triangle.indexes[2]]),
+        Point3D::from_vector4f(vertices[triangle.indexes[1]])
     );
     let vector2 = vectors::difference(
-        Point3D::from_vector4f(vertices[face[1] as usize]),
-        Point3D::from_vector4f(vertices[face[0] as usize])
+        Point3D::from_vector4f(vertices[triangle.indexes[1]]),
+        Point3D::from_vector4f(vertices[triangle.indexes[0]])
     );
     vectors::cross_product(vector2, vector1)
 }
@@ -212,14 +226,14 @@ fn clip_triangle_against_plane(triangle: Triangle4f, clipping_plane: &Plane) -> 
         if points_inside.len() == 4 {
             // split to two triangles
             result.push(
-                Triangle4f { a: points_inside[0], b: points_inside[1], c: points_inside[2], color }
+                Triangle4f { a: points_inside[0], b: points_inside[1], c: points_inside[2], color, normals: triangle.normals }
             );
             result.push(
-                Triangle4f { a: points_inside[0], b: points_inside[2], c: points_inside[3], color }
+                Triangle4f { a: points_inside[0], b: points_inside[2], c: points_inside[3], color, normals: triangle.normals }
             );
         } else if points_inside.len() == 3 {
             result.push(
-                Triangle4f { a: points_inside[0], b: points_inside[1], c: points_inside[2], color }
+                Triangle4f { a: points_inside[0], b: points_inside[1], c: points_inside[2], color, normals: triangle.normals }
             );
         } else {
             panic!("unexpected number of points inside: {}", points_inside.len());
@@ -263,18 +277,25 @@ fn is_vertex_inside(plane: &Plane, vertex: Vector4f) -> bool {
     !is_vertex_outside(plane, vertex)
 }
 
-// simple implementation - just assume that face IS a triangle
 fn convert_face_to_triangles(
-    face: &Vec<i32>,
+    triangle: &Triangle,
     vertices: &Vec<Vector4f>,
+    camera_rotation_transform: Matrix44f,
     color: Color
 ) -> Vec<Triangle4f> {
+    let transformed_normals = [
+        Point3D::from_vector4f(triangle.normals[0].to_vector4f().transform(camera_rotation_transform)),
+        Point3D::from_vector4f(triangle.normals[1].to_vector4f().transform(camera_rotation_transform)),
+        Point3D::from_vector4f(triangle.normals[2].to_vector4f().transform(camera_rotation_transform)),
+    ];
+
     vec![
         Triangle4f {
-            a: vertices[face[0] as usize],
-            b: vertices[face[1] as usize],
-            c: vertices[face[2] as usize],
-            color
+            a: vertices[triangle.indexes[0]],
+            b: vertices[triangle.indexes[1]],
+            c: vertices[triangle.indexes[2]],
+            color,
+            normals: transformed_normals
         }
     ]
 }
@@ -285,7 +306,6 @@ fn render_filled_triangle(
     camera_transform: Matrix44f,
     camera_rotation_transform: Matrix44f,
     canvas: &mut BufferCanvas,
-    normal_direction: Point3D,
     lights: &Vec<Light>
 ) {
     let center = Point3D {
@@ -301,7 +321,7 @@ fn render_filled_triangle(
         canvas,
         compute_illumination(
             center,
-            normal_direction,
+            triangle.normals[0],
             camera,
             camera_transform,
             camera_rotation_transform,

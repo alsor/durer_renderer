@@ -1,11 +1,12 @@
 use model::Model;
 use matrix44f::Matrix44f;
 use vector4f::Vector4f;
-use Color;
+use ::{Color, Triangle};
 
 pub struct Instance<'a> {
     pub model: &'a Model,
-    pub transform: Option<Matrix44f>
+    pub transform: Option<Matrix44f>,
+    pub rotation_transform: Option<Matrix44f>
 }
 
 impl<'a> Instance<'a> {
@@ -43,20 +44,22 @@ impl<'a> Instance<'a> {
             },
         };
 
-        Self { model, transform }
+        Self { model, transform, rotation_transform: rotation }
     }
 }
 
 #[test]
 fn test_new() {
     use super::Point3D;
+    let vertices = vec![
+        Point3D { x: 1.0, y: 0.0, z: 0.0 },
+        Point3D { x: 0.0, y: 1.0, z: 0.0 },
+        Point3D { x: 0.0, y: 0.0, z: 1.0 },
+    ];
+    let triangles = vec![Triangle::new_with_calculated_normals(&vertices, [0, 1, 2])];
     let model = Model {
-        vertices: vec![
-            Point3D { x: 1.0, y: 0.0, z: 0.0 },
-            Point3D { x: 0.0, y: 1.0, z: 0.0 },
-            Point3D { x: 0.0, y: 0.0, z: 1.0 },
-        ],
-        faces: vec![vec![0, 1, 2]],
+        vertices,
+        triangles,
         colors: vec![Color { r: 0, g: 0, b: 0 }]
     };
 
@@ -74,13 +77,15 @@ fn test_new() {
 #[test]
 fn test_new_with_position() {
     use super::Point3D;
+    let vertices = vec![
+        Point3D { x: 1.0, y: 0.0, z: 0.0 },
+        Point3D { x: 0.0, y: 1.0, z: 0.0 },
+        Point3D { x: 0.0, y: 0.0, z: 1.0 },
+    ];
+    let triangles = vec![Triangle::new_with_calculated_normals(&vertices, [0, 1, 2])];
     let model = Model {
-        vertices: vec![
-            Point3D { x: 1.0, y: 0.0, z: 0.0 },
-            Point3D { x: 0.0, y: 1.0, z: 0.0 },
-            Point3D { x: 0.0, y: 0.0, z: 1.0 },
-        ],
-        faces: vec![vec![0, 1, 2]],
+        vertices,
+        triangles,
         colors: vec![Color { r: 0, g: 0, b: 0 }]
     };
 
@@ -98,13 +103,15 @@ fn test_new_with_position() {
 #[test]
 fn test_new_with_scale() {
     use super::Point3D;
+    let vertices = vec![
+        Point3D { x: 1.0, y: 0.0, z: 0.0 },
+        Point3D { x: 0.0, y: 1.0, z: 0.0 },
+        Point3D { x: 0.0, y: 0.0, z: 1.0 },
+    ];
+    let triangles = vec![Triangle::new_with_calculated_normals(&vertices, [0, 1, 2])];
     let model = Model {
-        vertices: vec![
-            Point3D { x: 1.0, y: 0.0, z: 0.0 },
-            Point3D { x: 0.0, y: 1.0, z: 0.0 },
-            Point3D { x: 0.0, y: 0.0, z: 1.0 },
-        ],
-        faces: vec![vec![0, 1, 2]],
+        vertices,
+        triangles,
         colors: vec![Color { r: 0, g: 0, b: 0 }]
     };
 
@@ -122,13 +129,15 @@ fn test_new_with_scale() {
 #[test]
 fn test_new_with_rotation() {
     use super::Point3D;
+    let vertices = vec![
+        Point3D { x: 1.0, y: 0.0, z: 0.0 },
+        Point3D { x: 0.0, y: 1.0, z: 0.0 },
+        Point3D { x: 0.0, y: 0.0, z: 1.0 },
+    ];
+    let triangles = vec![Triangle::new_with_calculated_normals(&vertices, [0, 1, 2])];
     let model = Model {
-        vertices: vec![
-            Point3D { x: 1.0, y: 0.0, z: 0.0 },
-            Point3D { x: 0.0, y: 1.0, z: 0.0 },
-            Point3D { x: 0.0, y: 0.0, z: 1.0 },
-        ],
-        faces: vec![vec![0, 1, 2]],
+        vertices,
+        triangles,
         colors: vec![Color { r: 0, g: 0, b: 0 }]
     };
 

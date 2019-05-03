@@ -1,0 +1,4 @@
+moving normals to model
+ - as normals now stored in the model - they always need to be transformed by camera rotation
+ - need to interpolate normals when clipping triangles
+ + which normal to use for backface culling - use calculated normal, ignore provided normals for this purpose
