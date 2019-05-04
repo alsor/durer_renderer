@@ -7,7 +7,6 @@ use super::Point;
 use super::Color;
 use matrix44f::Matrix44f;
 use vector4f::Vector4f;
-use super::draw_filled_triangle;
 use plane::Plane;
 use vectors::dot_product;
 use vectors::difference;
@@ -15,13 +14,15 @@ use ::{Triangle, Triangle4f, face_visible};
 use vectors::sum;
 use vectors::scale;
 use ::{Light, vectors};
-use face_visible_4f;
+use ::{face_visible_4f, transform};
 use sdl2::video::WindowPos::Positioned;
+use ShadingModel;
 
 pub fn render_scene(
     instances: &Vec<Instance>,
     lights: &Vec<Light>,
     camera: &ProjectiveCamera,
+    shading_model: ShadingModel,
     canvas: &mut BufferCanvas
 ) {
     let camera_transform = camera.camera_transform();
@@ -33,6 +34,7 @@ pub fn render_scene(
             canvas,
             camera,
             lights,
+            shading_model,
             camera_transform,
             camera_rotation_transform,
             &clipping_planes
@@ -45,20 +47,41 @@ fn render_instance(
     canvas: &mut BufferCanvas,
     camera: &ProjectiveCamera,
     lights: &Vec<Light>,
+    shading_model: ShadingModel,
     camera_transform: Matrix44f,
     camera_rotation_transform: Matrix44f,
     clipping_planes: &Vec<Plane>
 ) {
     debug!("rendering instance");
 
-    let transform = match instance.transform {
+    let mut transformed_lights = Vec::<Light>::with_capacity(lights.len());
+    for light in lights {
+        let transformed_light = match *light {
+            Light::Ambient { intensity } => {
+                Light::Ambient { intensity }
+            },
+            Light::Point { intensity, position } => {
+                let transformed_position =
+                    position.to_vector4f().transform(camera_transform);
+                Light::Point { intensity, position: Point3D::from_vector4f(transformed_position) }
+            }
+            Light::Directional { intensity, direction } => {
+                let transformed_direction =
+                    direction.to_vector4f().transform(camera_rotation_transform);
+                Light::Directional { intensity, direction: Point3D::from_vector4f(transformed_direction) }
+            }
+        };
+        transformed_lights.push(transformed_light);
+    }
+
+    let instance_transform = match instance.transform {
         None => { camera_transform },
         Some(instance_transform) => { instance_transform.multiply(camera_transform) },
     };
     let combined_rotation_transform = match instance.rotation_transform {
         None => { camera_rotation_transform },
-        Some(instanse_rotation_transform) => {
-            instanse_rotation_transform.multiply(camera_rotation_transform)
+        Some(instance_rotation_transform) => {
+            instance_rotation_transform.multiply(camera_rotation_transform)
         }
     };
 
@@ -68,7 +91,7 @@ fn render_instance(
     for point3d in &instance.model.vertices {
         let vertex = point3d.to_vector4f();
 
-        let transformed_vertex = vertex.transform(transform);
+        let transformed_vertex = vertex.transform(instance_transform);
         transformed_vertices.push(transformed_vertex);
     }
 
@@ -97,10 +120,9 @@ fn render_instance(
                 render_filled_triangle(
                     triangle,
                     camera,
-                    camera_transform,
-                    camera_rotation_transform,
                     canvas,
-                    lights
+                    &transformed_lights,
+                    shading_model
                 );
 
 //                render_wireframe_triangle(triangle, camera, canvas);
@@ -280,13 +302,13 @@ fn is_vertex_inside(plane: &Plane, vertex: Vector4f) -> bool {
 fn convert_face_to_triangles(
     triangle: &Triangle,
     vertices: &Vec<Vector4f>,
-    camera_rotation_transform: Matrix44f,
+    combined_rotation_transform: Matrix44f,
     color: Color
 ) -> Vec<Triangle4f> {
     let transformed_normals = [
-        Point3D::from_vector4f(triangle.normals[0].to_vector4f().transform(camera_rotation_transform)),
-        Point3D::from_vector4f(triangle.normals[1].to_vector4f().transform(camera_rotation_transform)),
-        Point3D::from_vector4f(triangle.normals[2].to_vector4f().transform(camera_rotation_transform)),
+        Point3D::from_vector4f(triangle.normals[0].to_vector4f().transform(combined_rotation_transform)),
+        Point3D::from_vector4f(triangle.normals[1].to_vector4f().transform(combined_rotation_transform)),
+        Point3D::from_vector4f(triangle.normals[2].to_vector4f().transform(combined_rotation_transform)),
     ];
 
     vec![
@@ -303,30 +325,16 @@ fn convert_face_to_triangles(
 fn render_filled_triangle(
     triangle: Triangle4f,
     camera: &ProjectiveCamera,
-    camera_transform: Matrix44f,
-    camera_rotation_transform: Matrix44f,
     canvas: &mut BufferCanvas,
-    lights: &Vec<Light>
+    lights: &Vec<Light>,
+    shading_model: ShadingModel
 ) {
-    let center = Point3D {
-        x: (triangle.a.x + triangle.b.x + triangle.c.x) / 3.0,
-        y: (triangle.a.y + triangle.b.y + triangle.c.y) / 3.0,
-        z: (triangle.a.z + triangle.b.z + triangle.c.z) / 3.0
-    };
-    draw_filled_triangle(
-        vertex_to_canvas_point(triangle.a, camera, canvas),
-        vertex_to_canvas_point(triangle.b, camera, canvas),
-        vertex_to_canvas_point(triangle.c, camera, canvas),
+    flat_shading_triangle(
+        triangle,
         triangle.color,
+        camera,
+        lights,
         canvas,
-        compute_illumination(
-            center,
-            triangle.normals[0],
-            camera,
-            camera_transform,
-            camera_rotation_transform,
-            lights
-        )
     );
 }
 
@@ -334,8 +342,6 @@ fn compute_illumination(
     vertex: Point3D,
     normal_direction: Point3D,
     camera: &ProjectiveCamera,
-    camera_transform: Matrix44f,
-    camera_rotation_transform: Matrix44f,
     lights: &Vec<Light>
 ) -> f64 {
     let mut result = 0.0;
@@ -345,23 +351,11 @@ fn compute_illumination(
         result += match *light {
             Light::Ambient { intensity } => intensity,
             Light::Point { intensity, position } => {
-                let transformed_position =
-                    position.to_vector4f().transform(camera_transform);
-                let light_direction = vectors::difference(
-                    Point3D::from_vector4f(transformed_position),
-                    vertex
-                );
-                light_from_direction(vertex, normal, light_direction, intensity)
+                let direction = vectors::difference(position, vertex);
+                light_from_direction(vertex, normal, direction, intensity)
             }
             Light::Directional { intensity, direction } => {
-                let transformed_direction =
-                    direction.to_vector4f().transform(camera_rotation_transform);
-                light_from_direction(
-                    vertex,
-                    normal,
-                    Point3D::from_vector4f(transformed_direction),
-                    intensity
-                )
+                light_from_direction(vertex, normal, direction, intensity)
             }
         }
     }
@@ -419,6 +413,120 @@ fn render_wireframe_triangle(
     canvas.draw_line(c, a, Color { r: 255, g: 255, b: 255 });
 }
 
+fn flat_shading_triangle(
+    triangle: Triangle4f,
+    color: Color,
+    camera: &ProjectiveCamera,
+    lights: &Vec<Light>,
+    canvas: &mut BufferCanvas,
+) {
+    let mut p0 = vertex_to_canvas_point(triangle.a, camera, canvas);
+    let mut p1 = vertex_to_canvas_point(triangle.b, camera, canvas);
+    let mut p2 = vertex_to_canvas_point(triangle.c, camera, canvas);
+
+    let center = Point3D {
+        x: (triangle.a.x + triangle.b.x + triangle.c.x) / 3.0,
+        y: (triangle.a.y + triangle.b.y + triangle.c.y) / 3.0,
+        z: (triangle.a.z + triangle.b.z + triangle.c.z) / 3.0
+    };
+    let intensity = compute_illumination(
+        center,
+        triangle.normals[0],
+        camera,
+        lights
+    );
+
+    // sort points from bottom to top
+    if p1.y < p0.y {
+        let swap = p0;
+        p0 = p1;
+        p1 = swap;
+    }
+    if p2.y < p0.y {
+        let swap = p0;
+        p0 = p2;
+        p2 = swap;
+    }
+    if p2.y < p1.y {
+        let swap = p1;
+        p1 = p2;
+        p2 = swap;
+    }
+
+    // x coordinates of the edges
+    let mut x01 = interpolate_int(p0.y, p0.x, p1.y, p1.x);
+    let mut h01 = interpolate_float(p0.y, p0.h, p1.y, p1.h);
+    let mut iz01 = interpolate_float(p0.y, 1.0 / p0.z, p1.y, 1.0 / p1.z);
+
+    let mut x12 = interpolate_int(p1.y, p1.x, p2.y, p2.x);
+    let mut h12 = interpolate_float(p1.y, p1.h, p2.y, p2.h);
+    let mut iz12 = interpolate_float(p1.y, 1.0 / p1.z, p2.y, 1.0 / p2.z);
+
+    let mut x02 = interpolate_int(p0.y, p0.x, p2.y, p2.x);
+    let mut h02 = interpolate_float(p0.y, p0.h, p2.y, p2.h);
+    let mut iz02 = interpolate_float(p0.y, 1.0 / p0.z, p2.y, 1.0 / p2.z);
+
+    x01.pop();
+    let mut x012 = Vec::<i32>::new();
+    x012.append(&mut x01);
+    x012.append(&mut x12);
+
+    h01.pop();
+    let mut h012 = Vec::<f64>::new();
+    h012.append(&mut h01);
+    h012.append(&mut h12);
+
+    iz01.pop();
+    let mut iz012 = Vec::<f64>::new();
+    iz012.append(&mut iz01);
+    iz012.append(&mut iz12);
+
+    let mut x_left;
+    let mut x_right;
+    let mut h_left;
+    let mut h_right;
+    let mut iz_left;
+    let mut iz_right;
+
+    let m = x02.len() / 2;
+    if x02[m] < x012[m] {
+        x_left = x02;
+        x_right = x012;
+
+        h_left = h02;
+        h_right = h012;
+
+        iz_left = iz02;
+        iz_right = iz012;
+    } else {
+        x_left = x012;
+        x_right = x02;
+
+        h_left = h012;
+        h_right = h02;
+
+        iz_left = iz012;
+        iz_right = iz02;
+    };
+
+    for y in p0.y..(p2.y + 1) {
+        let y_index = (y - p0.y) as usize;
+        let x_l = x_left[y_index];
+        let x_r = x_right[y_index];
+        let h_segment = interpolate_float(x_l, h_left[y_index], x_r, h_right[y_index]);
+        let iz_segment = interpolate_float(x_l, iz_left[y_index], x_r, iz_right[y_index]);
+        for x in x_l..(x_r + 1) {
+            let x_index = (x - x_l) as usize;
+//            let shaded_color = multiply_color(h_segment[x_index], color);
+
+            // for flat shading
+            let shaded_color = multiply_color(intensity, color);
+
+            canvas.draw_point(x, y, iz_segment[x_index], shaded_color);
+        };
+    }
+}
+
 fn vertex_to_canvas_point(vertex: Vector4f, camera: &ProjectiveCamera, canvas: &BufferCanvas)
     -> Point {
     let result = canvas.viewport_to_canvas(vertex, camera);
@@ -432,4 +540,71 @@ fn vertex_to_canvas_point(vertex: Vector4f, camera: &ProjectiveCamera, canvas: &
     );
 
     result
+}
+
+fn interpolate_int(i0: i32, d0: i32, i1: i32, d1: i32) -> Vec<i32> {
+    if i0 == i1 {
+        return vec![d0];
+    }
+
+    let mut results = Vec::<i32>::new();
+    let a = (d1 - d0) as f64 / (i1 - i0) as f64;
+    let mut d = d0 as f64;
+    for i in i0..(i1 + 1) {
+        results.push(d.round() as i32);
+        d += a;
+    }
+
+    results
+}
+
+fn interpolate_float(i0: i32, d0: f64, i1: i32, d1: f64) -> Vec<f64> {
+    if i0 == i1 {
+        return vec![d0];
+    }
+
+    let mut results = Vec::<f64>::new();
+    let a = (d1 - d0) / ((i1 - i0) as f64);
+    let mut d = d0;
+    for i in i0..(i1 + 1) {
+        results.push(d);
+        d += a;
+    }
+
+    results
+}
+
+pub fn multiply_color(k: f64, color: Color) -> Color {
+    Color {
+        r: multiply_channel(k, color.r),
+        g: multiply_channel(k, color.g),
+        b: multiply_channel(k, color.b)
+    }
+}
+
+fn multiply_channel(k: f64, channel: u8) -> u8 {
+    let scaled = channel as f64 * k;
+    if scaled > 255.0 {
+        255
+    } else if scaled < 0.0 {
+        0
+    } else {
+        scaled as u8
+    }
+}
+
+#[test]
+fn test_interpolate_int() {
+    let results = interpolate_int(0, 0, 10, 6);
+    for result in results {
+        println!("result: {}", result);
+    }
+}
+
+#[test]
+fn test_interpolate_float() {
+    let results = interpolate_float(0, 0.0, 10, 10.0);
+    for result in results {
+        println!("result float: {:.2}", result);
+    }
 }

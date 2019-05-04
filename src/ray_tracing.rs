@@ -6,7 +6,7 @@ use super::Point3D;
 use super::screen_x;
 use super::screen_y;
 use super::put_pixel;
-use super::multiply_color;
+use rendering::multiply_color;
 use ::{std, Light};
 use std::f64;
 use vectors;

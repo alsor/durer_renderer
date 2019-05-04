@@ -133,6 +133,11 @@ pub enum Light {
     Directional { intensity: f64, direction: Point3D }
 }
 
+#[derive(Copy, Clone)]
+pub enum ShadingModel {
+    Flat, Gouraud
+}
+
 fn project(point3d: Point3D) -> Point2D {
     Point2D { x: -point3d.x / point3d.z, y: -point3d.y / point3d.z }
 }
@@ -963,54 +968,6 @@ fn render_video() {
 
 }
 
-fn interpolate_int(i0: i32, d0: i32, i1: i32, d1: i32) -> Vec<i32> {
-    if i0 == i1 {
-        return vec![d0];
-    }
-
-    let mut results = Vec::<i32>::new();
-    let a = (d1 - d0) as f64 / (i1 - i0) as f64;
-    let mut d = d0 as f64;
-    for i in i0..(i1 + 1) {
-        results.push(d.round() as i32);
-        d += a;
-    }
-
-    results
-}
-
-fn interpolate_float(i0: i32, d0: f64, i1: i32, d1: f64) -> Vec<f64> {
-    if i0 == i1 {
-        return vec![d0];
-    }
-
-    let mut results = Vec::<f64>::new();
-    let a = (d1 - d0) / ((i1 - i0) as f64);
-    let mut d = d0;
-    for i in i0..(i1 + 1) {
-        results.push(d);
-        d += a;
-    }
-
-    results
-}
-
-#[test]
-fn test_interpolate_int() {
-    let results = interpolate_int(0, 0, 10, 6);
-    for result in results {
-        println!("result: {}", result);
-    }
-}
-
-#[test]
-fn test_interpolate_float() {
-    let results = interpolate_float(0, 0.0, 10, 10.0);
-    for result in results {
-        println!("result float: {:.2}", result);
-    }
-}
-
 fn draw_wireframe_triangle(
     p0: Point,
     p1: Point,
@@ -1023,123 +980,6 @@ fn draw_wireframe_triangle(
     canvas.draw_line(p2, p0, color);
 }
 
-fn draw_filled_triangle(
-    mut p0: Point,
-    mut p1: Point,
-    mut p2: Point,
-    color: Color,
-    canvas: &mut BufferCanvas,
-    intensity: f64
-) {
-    // sort points from bottom to top
-    if p1.y < p0.y {
-        let swap = p0;
-        p0 = p1;
-        p1 = swap;
-    }
-    if p2.y < p0.y {
-        let swap = p0;
-        p0 = p2;
-        p2 = swap;
-    }
-    if p2.y < p1.y {
-        let swap = p1;
-        p1 = p2;
-        p2 = swap;
-    }
-
-    // x coordinates of the edges
-    let mut x01 = interpolate_int(p0.y, p0.x, p1.y, p1.x);
-    let mut h01 = interpolate_float(p0.y, p0.h, p1.y, p1.h);
-    let mut iz01 = interpolate_float(p0.y, 1.0 / p0.z, p1.y, 1.0 / p1.z);
-
-    let mut x12 = interpolate_int(p1.y, p1.x, p2.y, p2.x);
-    let mut h12 = interpolate_float(p1.y, p1.h, p2.y, p2.h);
-    let mut iz12 = interpolate_float(p1.y, 1.0 / p1.z, p2.y, 1.0 / p2.z);
-
-    let mut x02 = interpolate_int(p0.y, p0.x, p2.y, p2.x);
-    let mut h02 = interpolate_float(p0.y, p0.h, p2.y, p2.h);
-    let mut iz02 = interpolate_float(p0.y, 1.0 / p0.z, p2.y, 1.0 / p2.z);
-
-    x01.pop();
-    let mut x012 = Vec::<i32>::new();
-    x012.append(&mut x01);
-    x012.append(&mut x12);
-
-    h01.pop();
-    let mut h012 = Vec::<f64>::new();
-    h012.append(&mut h01);
-    h012.append(&mut h12);
-
-    iz01.pop();
-    let mut iz012 = Vec::<f64>::new();
-    iz012.append(&mut iz01);
-    iz012.append(&mut iz12);
-
-    let mut x_left;
-    let mut x_right;
-    let mut h_left;
-    let mut h_right;
-    let mut iz_left;
-    let mut iz_right;
-
-    let m = x02.len() / 2;
-    if x02[m] < x012[m] {
-        x_left = x02;
-        x_right = x012;
-
-        h_left = h02;
-        h_right = h012;
-
-        iz_left = iz02;
-        iz_right = iz012;
-    } else {
-        x_left = x012;
-        x_right = x02;
-
-        h_left = h012;
-        h_right = h02;
-
-        iz_left = iz012;
-        iz_right = iz02;
-    };
-
-    for y in p0.y..(p2.y + 1) {
-        let y_index = (y - p0.y) as usize;
-        let x_l = x_left[y_index];
-        let x_r = x_right[y_index];
-        let h_segment = interpolate_float(x_l, h_left[y_index], x_r, h_right[y_index]);
-        let iz_segment = interpolate_float(x_l, iz_left[y_index], x_r, iz_right[y_index]);
-        for x in x_l..(x_r + 1) {
-            let x_index = (x - x_l) as usize;
-//            let shaded_color = multiply_color(h_segment[x_index], color);
-
-            // for flat shading
-            let shaded_color = multiply_color(intensity, color);
-
-            canvas.draw_point(x, y, iz_segment[x_index], shaded_color);
-        };
-    }
-}
-
-pub fn multiply_color(k: f64, color: Color) -> Color {
-    Color {
-        r: multiply_channel(k, color.r),
-        g: multiply_channel(k, color.g),
-        b: multiply_channel(k, color.b)
-    }
-}
-
-fn multiply_channel(k: f64, channel: u8) -> u8 {
-    let scaled = channel as f64 * k;
-    if scaled > 255.0 {
-        255
-    } else if scaled < 0.0 {
-        0
-    } else {
-        scaled as u8
-    }
-}
 
 pub fn screen_x(x_canvas: i32, canvas_width: i32) -> usize {
     (canvas_width / 2 + x_canvas) as usize
@@ -1197,6 +1037,7 @@ extern crate env_logger;
 fn main() {
     env_logger::init();
 
+    let mut shading_model = ShadingModel::Flat;
     let mut buffer_canvas = BufferCanvas::new(750);
 
     let sdl_context = sdl2::init().unwrap();
@@ -1366,7 +1207,7 @@ fn main() {
         };
 
         buffer_canvas.clear();
-        rendering::render_scene(&instances, &lights, &camera, &mut buffer_canvas);
+        rendering::render_scene(&instances, &lights, &camera, shading_model, &mut buffer_canvas);
 
         texture.update(None, &buffer_canvas.buffer, buffer_canvas.size * 3).unwrap();
         canvas.clear();
