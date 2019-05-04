@@ -158,6 +158,12 @@ pub enum ShadingModel {
     Flat, Gouraud
 }
 
+pub struct RenderingSettings {
+    pub shading_model: ShadingModel,
+    pub show_normals: bool,
+    pub backface_culling: bool
+}
+
 fn project(point3d: Point3D) -> Point2D {
     Point2D { x: -point3d.x / point3d.z, y: -point3d.y / point3d.z }
 }
@@ -425,12 +431,15 @@ fn triangle(size: f64) -> Model {
     ];
 
     let triangles = vec![
-        Triangle::new_with_calculated_normals(&vertices, [0, 1, 2])
+        Triangle::new_with_calculated_normals(&vertices, [2, 1, 0])
     ];
 
     let mut rng = rand::thread_rng();
+//    let colors = vec![
+//        Color { r: rng.gen(), g: rng.gen(), b: rng.gen() },
+//    ];
     let colors = vec![
-        Color { r: rng.gen(), g: rng.gen(), b: rng.gen() },
+        Color { r: 119, g: 136, b: 153 },
     ];
 
     Model { vertices, triangles, colors }
@@ -1059,7 +1068,11 @@ extern crate env_logger;
 fn main() {
     env_logger::init();
 
-    let mut shading_model = ShadingModel::Gouraud;
+    let mut rendering_settings = RenderingSettings {
+        shading_model: ShadingModel::Flat,
+        show_normals: true,
+        backface_culling: false
+    };
     let mut buffer_canvas = BufferCanvas::new(750);
 
     let sdl_context = sdl2::init().unwrap();
@@ -1098,22 +1111,22 @@ fn main() {
     let blue = Color { r: 0, g: 0, b: 255 };
     let white = Color { r: 255, g: 255, b: 255 };
 
-    let cube = two_unit_cube();
-    let sphere = sphere(15);
+//    let cube = two_unit_cube();
+//    let sphere = sphere(15);
 //    let cube = cube(0.9);
-//    let triangle = triangle(1.3);
-    let torus = ply2::load_model("resources/torus.ply2");
+    let triangle = triangle(5.0);
+//    let torus = ply2::load_model("resources/torus.ply2");
 //    let twirl = ply2::load_model("resources/twirl.ply2");
 //    let octo_flower = ply2::load_model("resources/octa-flower.ply2");
 //    let statue = ply2::load_model("resources/statue.ply2");
 
     let instances = vec![
-//        Instance::new(
-//            &triangle,
-//            Some(Vector4f { x: 0.0, y: 0.0, z: 2.0, w: 0.0 }),
-//            None,
-//            Some(Matrix44f::rotation_z(-30.0))
-//        ),
+        Instance::new(
+            &triangle,
+            Some(Vector4f { x: 0.0, y: 0.0, z: 10.0, w: 0.0 }),
+            None,
+            Some(Matrix44f::rotation_x(90.0))
+        ),
 
 //        Instance::new(
 //            &cube,
@@ -1121,12 +1134,12 @@ fn main() {
 //            None,
 //            None
 //        ),
-        Instance::new(
-            &cube,
-            Some(Vector4f { x: 2.0, y: -2.0, z: 4.5, w: 0.0 }),
-            None,
-            Some(Matrix44f::rotation_y(-30.0).multiply(Matrix44f::rotation_z(-30.0)))
-        ),
+//        Instance::new(
+//            &cube,
+//            Some(Vector4f { x: 2.0, y: -2.0, z: 4.5, w: 0.0 }),
+//            None,
+//            Some(Matrix44f::rotation_y(-30.0).multiply(Matrix44f::rotation_z(-30.0)))
+//        ),
 //        Instance::new(
 //            &torus,
 //            Some(Vector4f { x: 0.0, y: 3.0, z: 0.0, w: 0.0 }),
@@ -1140,12 +1153,12 @@ fn main() {
 //            Some(Matrix44f::rotation_x(0.0).multiply(Matrix44f::rotation_y(0.0)))
 //        ),
 
-        Instance::new(
-            &sphere,
-            Some(Vector4f { x: 0.0, y: 0.0, z: 5.0, w: 0.0 }),
-            Some(1.3),
-            Some(Matrix44f::rotation_y(-45.0))
-        ),
+//        Instance::new(
+//            &sphere,
+//            Some(Vector4f { x: 0.0, y: 0.0, z: 5.0, w: 0.0 }),
+//            Some(1.3),
+//            Some(Matrix44f::rotation_y(-45.0))
+//        ),
 
 //        Instance::new(
 //            &octo_flower,
@@ -1229,7 +1242,7 @@ fn main() {
         };
 
         buffer_canvas.clear();
-        rendering::render_scene(&instances, &lights, &camera, shading_model, &mut buffer_canvas);
+        rendering::render_scene(&instances, &lights, &camera, &rendering_settings, &mut buffer_canvas);
 
         texture.update(None, &buffer_canvas.buffer, buffer_canvas.size * 3).unwrap();
         canvas.clear();

@@ -16,13 +16,13 @@ use vectors::scale;
 use ::{Light, vectors};
 use ::{face_visible_4f, transform};
 use sdl2::video::WindowPos::Positioned;
-use ShadingModel;
+use ::{ShadingModel, RenderingSettings};
 
 pub fn render_scene(
     instances: &Vec<Instance>,
     lights: &Vec<Light>,
     camera: &ProjectiveCamera,
-    shading_model: ShadingModel,
+    rendering_settings: &RenderingSettings,
     canvas: &mut BufferCanvas
 ) {
     let camera_transform = camera.camera_transform();
@@ -34,7 +34,7 @@ pub fn render_scene(
             canvas,
             camera,
             lights,
-            shading_model,
+            rendering_settings,
             camera_transform,
             camera_rotation_transform,
             &clipping_planes
@@ -47,7 +47,7 @@ fn render_instance(
     canvas: &mut BufferCanvas,
     camera: &ProjectiveCamera,
     lights: &Vec<Light>,
-    shading_model: ShadingModel,
+    rendering_settings: &RenderingSettings,
     camera_transform: Matrix44f,
     camera_rotation_transform: Matrix44f,
     clipping_planes: &Vec<Plane>
@@ -100,10 +100,14 @@ fn render_instance(
         let transformed_triangle_normal =
             triangle.calculated_normal.to_vector4f().transform(combined_rotation_transform);
 
-        let is_face_visible = face_visible_4f(
-            Point3D::from_vector4f(transformed_vertices[triangle.indexes[0]]),
-            Point3D::from_vector4f(transformed_triangle_normal)
-        );
+        let is_face_visible = if rendering_settings.backface_culling {
+            face_visible_4f(
+                Point3D::from_vector4f(transformed_vertices[triangle.indexes[0]]),
+                Point3D::from_vector4f(transformed_triangle_normal),
+            )
+        } else {
+            true
+        };
 
         if is_face_visible {
             let triangles = clip_triangles(
@@ -122,7 +126,7 @@ fn render_instance(
                     camera,
                     canvas,
                     &transformed_lights,
-                    shading_model
+                    rendering_settings
                 );
 
 //                render_wireframe_triangle(triangle, camera, canvas);
@@ -327,12 +331,47 @@ fn render_filled_triangle(
     camera: &ProjectiveCamera,
     canvas: &mut BufferCanvas,
     lights: &Vec<Light>,
-    shading_model: ShadingModel
+    rendering_settings: &RenderingSettings
 ) {
-    match shading_model {
+    match rendering_settings.shading_model {
         ShadingModel::Flat => flat_shaded_triangle(triangle, camera, lights, canvas),
         ShadingModel::Gouraud => gouraud_shaded_triangle(triangle, camera, lights, canvas),
     }
+
+    if rendering_settings.show_normals {
+        draw_normal_to_vertex(triangle.a, triangle.normals[0], camera, canvas);
+        draw_normal_to_vertex(triangle.b, triangle.normals[1], camera, canvas);
+        draw_normal_to_vertex(triangle.c, triangle.normals[2], camera, canvas);
+    }
+}
+
+fn draw_normal_to_vertex(
+    vertex: Vector4f,
+    normal: Point3D,
+    camera: &ProjectiveCamera,
+    canvas: &mut BufferCanvas
+) {
+    let start = vertex_to_canvas_point(vertex, camera, canvas);
+    let end = vertex_to_canvas_point(
+        vectors::sum(Point3D::from_vector4f(vertex), normal).to_vector4f(),
+        camera,
+        canvas
+    );
+
+    if is_point_in_canvas(start, canvas) && is_point_in_canvas(end, canvas) {
+        canvas.draw_line(start, end, Color { r: 0, g: 0, b: 255 });
+    }
+
+}
+
+fn is_point_in_canvas(point: Point, canvas: &BufferCanvas) -> bool {
+    let canvas_half_size = (canvas.size / 2) as i32;
+    let min_x = -canvas_half_size;
+    let max_x = canvas_half_size;
+    let min_y = -canvas_half_size;
+    let max_y = canvas_half_size;
+
+    point.x >= min_x && point.x <= max_x && point.y >= min_y && point.y <= max_y
 }
 
 fn compute_illumination(
