@@ -91,6 +91,26 @@ impl Triangle {
         }
     }
 
+    pub fn new_with_provided_normals(
+        vertices: &Vec<Point3D>,
+        indexes: [usize; 3],
+        normal_directions: [Point3D; 3]
+    )
+    -> Self {
+        let calculated_normal = vectors::normalize(Self::calculate_normal_in_left(
+            indexes,
+            vertices
+        ));
+
+        let normals= [
+            vectors::normalize(normal_directions[0]),
+            vectors::normalize(normal_directions[1]),
+            vectors::normalize(normal_directions[2]),
+        ];
+
+        Self { indexes, normals, calculated_normal }
+    }
+
     fn calculate_normal_in_left(indexes: [usize; 3], vertices: &Vec<Point3D>) -> Point3D {
         let vector1 = vectors::difference(vertices[indexes[2]], vertices[indexes[1]]);
         let vector2 = vectors::difference(vertices[indexes[1]], vertices[indexes[0]]);
@@ -503,15 +523,17 @@ fn sphere(divs: i32) -> Model {
         for i in 0..(divs - 1) {
             let i0 = d * divs + i;
 
-            triangles.push(Triangle::new_with_calculated_normals(
+            triangles.push(Triangle::new_with_provided_normals(
                 &vertices,
-                [i0 as usize, (i0 + divs + 1) as usize, (i0 + 1) as usize]
+                [i0 as usize, (i0 + divs + 1) as usize, (i0 + 1) as usize],
+                [vertices[i0 as usize], vertices[(i0 + divs + 1) as usize], vertices[(i0 + 1) as usize]]
             ));
             colors.push(Color { r: 119, g: 136, b: 153 });
 
-            triangles.push(Triangle::new_with_calculated_normals(
+            triangles.push(Triangle::new_with_provided_normals(
                 &vertices,
-                [i0 as usize, (i0 + divs) as usize, (i0 + divs + 1) as usize]
+                [i0 as usize, (i0 + divs) as usize, (i0 + divs + 1) as usize],
+                [vertices[i0 as usize], vertices[(i0 + divs) as usize], vertices[(i0 + divs + 1) as usize]]
             ));
             colors.push(Color { r: 119, g: 136, b: 153 });
         }
@@ -1037,7 +1059,7 @@ extern crate env_logger;
 fn main() {
     env_logger::init();
 
-    let mut shading_model = ShadingModel::Flat;
+    let mut shading_model = ShadingModel::Gouraud;
     let mut buffer_canvas = BufferCanvas::new(750);
 
     let sdl_context = sdl2::init().unwrap();
@@ -1077,7 +1099,7 @@ fn main() {
     let white = Color { r: 255, g: 255, b: 255 };
 
     let cube = two_unit_cube();
-    let sphere = sphere(25);
+    let sphere = sphere(15);
 //    let cube = cube(0.9);
 //    let triangle = triangle(1.3);
     let torus = ply2::load_model("resources/torus.ply2");

@@ -329,13 +329,10 @@ fn render_filled_triangle(
     lights: &Vec<Light>,
     shading_model: ShadingModel
 ) {
-    flat_shading_triangle(
-        triangle,
-        triangle.color,
-        camera,
-        lights,
-        canvas,
-    );
+    match shading_model {
+        ShadingModel::Flat => flat_shaded_triangle(triangle, camera, lights, canvas),
+        ShadingModel::Gouraud => gouraud_shaded_triangle(triangle, camera, lights, canvas),
+    }
 }
 
 fn compute_illumination(
@@ -369,7 +366,7 @@ fn light_from_direction(
     light_intensity: f64
 ) -> f64 {
     let mut result = 0.0;
-    let shininess= 50;
+    let shininess= 0;
 
     // diffuse
     let dot = vectors::dot_product(normal, light_direction);
@@ -413,9 +410,8 @@ fn render_wireframe_triangle(
     canvas.draw_line(c, a, Color { r: 255, g: 255, b: 255 });
 }
 
-fn flat_shading_triangle(
+fn flat_shaded_triangle(
     triangle: Triangle4f,
-    color: Color,
     camera: &ProjectiveCamera,
     lights: &Vec<Light>,
     canvas: &mut BufferCanvas,
@@ -517,11 +513,142 @@ fn flat_shading_triangle(
         let iz_segment = interpolate_float(x_l, iz_left[y_index], x_r, iz_right[y_index]);
         for x in x_l..(x_r + 1) {
             let x_index = (x - x_l) as usize;
-//            let shaded_color = multiply_color(h_segment[x_index], color);
+            let shaded_color = multiply_color(intensity, triangle.color);
+            canvas.draw_point(x, y, iz_segment[x_index], shaded_color);
+        };
+    }
+}
 
-            // for flat shading
-            let shaded_color = multiply_color(intensity, color);
+fn gouraud_shaded_triangle(
+    triangle: Triangle4f,
+    camera: &ProjectiveCamera,
+    lights: &Vec<Light>,
+    canvas: &mut BufferCanvas,
+) {
+    let mut v0 = Point3D::from_vector4f(triangle.a);
+    let mut v1 = Point3D::from_vector4f(triangle.b);
+    let mut v2 = Point3D::from_vector4f(triangle.c);
 
+    let mut p0 = vertex_to_canvas_point(triangle.a, camera, canvas);
+    let mut p1 = vertex_to_canvas_point(triangle.b, camera, canvas);
+    let mut p2 = vertex_to_canvas_point(triangle.c, camera, canvas);
+
+    // sort points from bottom to top
+    if p1.y < p0.y {
+        let swap = p0;
+        p0 = p1;
+        p1 = swap;
+
+        let swap = v0;
+        v0 = v1;
+        v1 = swap;
+    }
+    if p2.y < p0.y {
+        let swap = p0;
+        p0 = p2;
+        p2 = swap;
+
+        let swap = v0;
+        v0 = v2;
+        v2 = swap;
+    }
+    if p2.y < p1.y {
+        let swap = p1;
+        p1 = p2;
+        p2 = swap;
+
+        let swap = v1;
+        v1 = v2;
+        v2 = swap;
+    }
+
+    let i0 = compute_illumination(v0, triangle.normals[0], camera, lights);
+    let i1 = compute_illumination(v1, triangle.normals[1], camera, lights);
+    let i2 = compute_illumination(v2, triangle.normals[2], camera, lights);
+
+    //interpolating attributes along edges
+    let mut x01 = interpolate_int(p0.y, p0.x, p1.y, p1.x);
+    let mut h01 = interpolate_float(p0.y, p0.h, p1.y, p1.h);
+    let mut iz01 = interpolate_float(p0.y, 1.0 / p0.z, p1.y, 1.0 / p1.z);
+    let mut i01 = interpolate_float(p0.y, i0, p1.y, i1);
+
+    let mut x12 = interpolate_int(p1.y, p1.x, p2.y, p2.x);
+    let mut h12 = interpolate_float(p1.y, p1.h, p2.y, p2.h);
+    let mut iz12 = interpolate_float(p1.y, 1.0 / p1.z, p2.y, 1.0 / p2.z);
+    let mut i12 = interpolate_float(p1.y, i1, p2.y, i2);
+
+    let mut x02 = interpolate_int(p0.y, p0.x, p2.y, p2.x);
+    let mut h02 = interpolate_float(p0.y, p0.h, p2.y, p2.h);
+    let mut iz02 = interpolate_float(p0.y, 1.0 / p0.z, p2.y, 1.0 / p2.z);
+    let mut i02 = interpolate_float(p0.y, i0, p2.y, i2);
+
+    // combining 3 edges to left and right boundaries
+    x01.pop();
+    let mut x012 = Vec::<i32>::new();
+    x012.append(&mut x01);
+    x012.append(&mut x12);
+
+    h01.pop();
+    let mut h012 = Vec::<f64>::new();
+    h012.append(&mut h01);
+    h012.append(&mut h12);
+
+    iz01.pop();
+    let mut iz012 = Vec::<f64>::new();
+    iz012.append(&mut iz01);
+    iz012.append(&mut iz12);
+
+    i01.pop();
+    let mut i012 = Vec::<f64>::new();
+    i012.append(&mut i01);
+    i012.append(&mut i12);
+
+    let mut x_left;
+    let mut x_right;
+    let mut h_left;
+    let mut h_right;
+    let mut iz_left;
+    let mut iz_right;
+    let mut i_left;
+    let mut i_right;
+
+    let m = x02.len() / 2;
+    if x02[m] < x012[m] {
+        x_left = x02;
+        x_right = x012;
+
+        h_left = h02;
+        h_right = h012;
+
+        iz_left = iz02;
+        iz_right = iz012;
+
+        i_left = i02;
+        i_right = i012;
+    } else {
+        x_left = x012;
+        x_right = x02;
+
+        h_left = h012;
+        h_right = h02;
+
+        iz_left = iz012;
+        iz_right = iz02;
+
+        i_left = i012;
+        i_right = i02;
+    };
+
+    for y in p0.y..(p2.y + 1) {
+        let y_index = (y - p0.y) as usize;
+        let x_l = x_left[y_index];
+        let x_r = x_right[y_index];
+        let h_segment = interpolate_float(x_l, h_left[y_index], x_r, h_right[y_index]);
+        let iz_segment = interpolate_float(x_l, iz_left[y_index], x_r, iz_right[y_index]);
+        let i_segment = interpolate_float(x_l, i_left[y_index], x_r, i_right[y_index]);
+        for x in x_l..(x_r + 1) {
+            let x_index = (x - x_l) as usize;
+            let shaded_color = multiply_color(i_segment[x_index], triangle.color);
             canvas.draw_point(x, y, iz_segment[x_index], shaded_color);
         };
     }
