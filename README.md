@@ -2,6 +2,10 @@ Software Renderer written in Rust
 
 What's new:
 
+Gouraud Shading model
+
+![Gouraud Shading](https://i.imgur.com/9GumSIM.png)
+
 Point lights and specular component
 
 ![Point light](https://i.imgur.com/75Gl27c.png)

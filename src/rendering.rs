@@ -405,7 +405,7 @@ fn light_from_direction(
     light_intensity: f64
 ) -> f64 {
     let mut result = 0.0;
-    let shininess= 0;
+    let shininess= 50;
 
     // diffuse
     let dot = vectors::dot_product(normal, light_direction);
@@ -568,6 +568,10 @@ fn gouraud_shaded_triangle(
     let mut v1 = Point3D::from_vector4f(triangle.b);
     let mut v2 = Point3D::from_vector4f(triangle.c);
 
+    let mut normal0 = triangle.normals[0];
+    let mut normal1 = triangle.normals[1];
+    let mut normal2 = triangle.normals[2];
+
     let mut p0 = vertex_to_canvas_point(triangle.a, camera, canvas);
     let mut p1 = vertex_to_canvas_point(triangle.b, camera, canvas);
     let mut p2 = vertex_to_canvas_point(triangle.c, camera, canvas);
@@ -581,6 +585,10 @@ fn gouraud_shaded_triangle(
         let swap = v0;
         v0 = v1;
         v1 = swap;
+
+        let swap = normal0;
+        normal0 = normal1;
+        normal1 = swap;
     }
     if p2.y < p0.y {
         let swap = p0;
@@ -590,6 +598,10 @@ fn gouraud_shaded_triangle(
         let swap = v0;
         v0 = v2;
         v2 = swap;
+
+        let swap = normal0;
+        normal0 = normal2;
+        normal2 = swap;
     }
     if p2.y < p1.y {
         let swap = p1;
@@ -599,11 +611,15 @@ fn gouraud_shaded_triangle(
         let swap = v1;
         v1 = v2;
         v2 = swap;
+
+        let swap = normal1;
+        normal1 = normal2;
+        normal2 = swap;
     }
 
-    let i0 = compute_illumination(v0, triangle.normals[0], camera, lights);
-    let i1 = compute_illumination(v1, triangle.normals[1], camera, lights);
-    let i2 = compute_illumination(v2, triangle.normals[2], camera, lights);
+    let i0 = compute_illumination(v0, normal0, camera, lights);
+    let i1 = compute_illumination(v1, normal1, camera, lights);
+    let i2 = compute_illumination(v2, normal2, camera, lights);
 
     //interpolating attributes along edges
     let mut x01 = interpolate_int(p0.y, p0.x, p1.y, p1.x);
