@@ -17,6 +17,7 @@ use ::{Light, vectors};
 use ::{face_visible_4f, transform};
 use sdl2::video::WindowPos::Positioned;
 use ::{ShadingModel, RenderingSettings};
+use Pixel;
 
 pub fn render_scene(
     instances: &Vec<Instance>,
@@ -336,6 +337,7 @@ fn render_filled_triangle(
     match rendering_settings.shading_model {
         ShadingModel::Flat => flat_shaded_triangle(triangle, camera, lights, canvas),
         ShadingModel::Gouraud => gouraud_shaded_triangle(triangle, camera, lights, canvas),
+        ShadingModel::Phong => phong_shaded_triangle(triangle, camera, lights, canvas),
     }
 
     if rendering_settings.show_normals {
@@ -545,6 +547,7 @@ fn flat_shaded_triangle(
     };
 
     for y in p0.y..(p2.y + 1) {
+        let screen_y = canvas.screen_y(y);
         let y_index = (y - p0.y) as usize;
         let x_l = x_left[y_index];
         let x_r = x_right[y_index];
@@ -552,8 +555,14 @@ fn flat_shaded_triangle(
         let iz_segment = interpolate_float(x_l, iz_left[y_index], x_r, iz_right[y_index]);
         for x in x_l..(x_r + 1) {
             let x_index = (x - x_l) as usize;
-            let shaded_color = multiply_color(intensity, triangle.color);
-            canvas.draw_point(x, y, iz_segment[x_index], shaded_color);
+            let iz = iz_segment[x_index];
+            let screen_x = canvas.screen_x(x);
+
+            if canvas.update_depth_buffer_if_closer(screen_x, screen_y, iz) {
+                let shaded_color = multiply_color(intensity, triangle.color);
+                canvas.put_pixel(Pixel { x: screen_x, y: screen_y, color: shaded_color });
+
+            }
         };
     }
 }
@@ -695,6 +704,7 @@ fn gouraud_shaded_triangle(
     };
 
     for y in p0.y..(p2.y + 1) {
+        let screen_y = canvas.screen_y(y);
         let y_index = (y - p0.y) as usize;
         let x_l = x_left[y_index];
         let x_r = x_right[y_index];
@@ -702,11 +712,229 @@ fn gouraud_shaded_triangle(
         let iz_segment = interpolate_float(x_l, iz_left[y_index], x_r, iz_right[y_index]);
         let i_segment = interpolate_float(x_l, i_left[y_index], x_r, i_right[y_index]);
         for x in x_l..(x_r + 1) {
+            let screen_x = canvas.screen_x(x);
             let x_index = (x - x_l) as usize;
-            let shaded_color = multiply_color(i_segment[x_index], triangle.color);
-            canvas.draw_point(x, y, iz_segment[x_index], shaded_color);
+            let iz = iz_segment[x_index];
+
+            if canvas.update_depth_buffer_if_closer(screen_x, screen_y, iz) {
+                let shaded_color = multiply_color(i_segment[x_index], triangle.color);
+                canvas.put_pixel(Pixel { x: screen_x, y: screen_y, color: shaded_color });
+            }
         };
     }
+}
+
+fn phong_shaded_triangle(
+    triangle: Triangle4f,
+    camera: &ProjectiveCamera,
+    lights: &Vec<Light>,
+    canvas: &mut BufferCanvas,
+) {
+    let mut v0 = Point3D::from_vector4f(triangle.a);
+    let mut v1 = Point3D::from_vector4f(triangle.b);
+    let mut v2 = Point3D::from_vector4f(triangle.c);
+
+    let mut normal0 = triangle.normals[0];
+    let mut normal1 = triangle.normals[1];
+    let mut normal2 = triangle.normals[2];
+
+    let mut p0 = vertex_to_canvas_point(triangle.a, camera, canvas);
+    let mut p1 = vertex_to_canvas_point(triangle.b, camera, canvas);
+    let mut p2 = vertex_to_canvas_point(triangle.c, camera, canvas);
+
+    // sort points from bottom to top
+    if p1.y < p0.y {
+        let swap = p0;
+        p0 = p1;
+        p1 = swap;
+
+        let swap = v0;
+        v0 = v1;
+        v1 = swap;
+
+        let swap = normal0;
+        normal0 = normal1;
+        normal1 = swap;
+    }
+    if p2.y < p0.y {
+        let swap = p0;
+        p0 = p2;
+        p2 = swap;
+
+        let swap = v0;
+        v0 = v2;
+        v2 = swap;
+
+        let swap = normal0;
+        normal0 = normal2;
+        normal2 = swap;
+    }
+    if p2.y < p1.y {
+        let swap = p1;
+        p1 = p2;
+        p2 = swap;
+
+        let swap = v1;
+        v1 = v2;
+        v2 = swap;
+
+        let swap = normal1;
+        normal1 = normal2;
+        normal2 = swap;
+    }
+
+    //interpolating attributes along edges
+    let mut x01 = interpolate_int(p0.y, p0.x, p1.y, p1.x);
+    let mut h01 = interpolate_float(p0.y, p0.h, p1.y, p1.h);
+    let mut iz01 = interpolate_float(p0.y, 1.0 / p0.z, p1.y, 1.0 / p1.z);
+    let mut normal_x_01 = interpolate_float(p0.y, normal0.x, p1.y, normal1.x);
+    let mut normal_y_01 = interpolate_float(p0.y, normal0.y, p1.y, normal1.y);
+    let mut normal_z_01 = interpolate_float(p0.y, normal0.z, p1.y, normal1.z);
+
+
+    let mut x12 = interpolate_int(p1.y, p1.x, p2.y, p2.x);
+    let mut h12 = interpolate_float(p1.y, p1.h, p2.y, p2.h);
+    let mut iz12 = interpolate_float(p1.y, 1.0 / p1.z, p2.y, 1.0 / p2.z);
+    let mut normal_x_12 = interpolate_float(p1.y, normal1.x, p2.y, normal2.x);
+    let mut normal_y_12 = interpolate_float(p1.y, normal1.y, p2.y, normal2.y);
+    let mut normal_z_12 = interpolate_float(p1.y, normal1.z, p2.y, normal2.z);
+
+    let mut x02 = interpolate_int(p0.y, p0.x, p2.y, p2.x);
+    let mut h02 = interpolate_float(p0.y, p0.h, p2.y, p2.h);
+    let mut iz02 = interpolate_float(p0.y, 1.0 / p0.z, p2.y, 1.0 / p2.z);
+    let mut normal_x_02 = interpolate_float(p0.y, normal0.x, p2.y, normal2.x);
+    let mut normal_y_02 = interpolate_float(p0.y, normal0.y, p2.y, normal2.y);
+    let mut normal_z_02 = interpolate_float(p0.y, normal0.z, p2.y, normal2.z);
+
+    // combining 3 edges to left and right boundaries
+    x01.pop();
+    let mut x012 = Vec::<i32>::new();
+    x012.append(&mut x01);
+    x012.append(&mut x12);
+
+    h01.pop();
+    let mut h012 = Vec::<f64>::new();
+    h012.append(&mut h01);
+    h012.append(&mut h12);
+
+    iz01.pop();
+    let mut iz012 = Vec::<f64>::new();
+    iz012.append(&mut iz01);
+    iz012.append(&mut iz12);
+
+    normal_x_01.pop();
+    let mut normal_x_012 = Vec::<f64>::with_capacity(normal_x_01.len() + normal_x_12.len());
+    normal_x_012.append(&mut normal_x_01);
+    normal_x_012.append(&mut normal_x_12);
+
+    normal_y_01.pop();
+    let mut normal_y_012 = Vec::<f64>::with_capacity(normal_y_01.len() + normal_y_12.len());
+    normal_y_012.append(&mut normal_y_01);
+    normal_y_012.append(&mut normal_y_12);
+
+    normal_z_01.pop();
+    let mut normal_z_012 = Vec::<f64>::with_capacity(normal_z_01.len() + normal_z_12.len());
+    normal_z_012.append(&mut normal_z_01);
+    normal_z_012.append(&mut normal_z_12);
+
+    let x_left;
+    let x_right;
+    let h_left;
+    let h_right;
+    let iz_left;
+    let iz_right;
+    let normal_x_left;
+    let normal_x_right;
+    let normal_y_left;
+    let normal_y_right;
+    let normal_z_left;
+    let normal_z_right;
+
+    let m = x02.len() / 2;
+    if x02[m] < x012[m] {
+        x_left = x02;
+        x_right = x012;
+
+        h_left = h02;
+        h_right = h012;
+
+        iz_left = iz02;
+        iz_right = iz012;
+
+        normal_x_left = normal_x_02;
+        normal_x_right = normal_x_012;
+        normal_y_left = normal_y_02;
+        normal_y_right = normal_y_012;
+        normal_z_left = normal_z_02;
+        normal_z_right = normal_z_012;
+    } else {
+        x_left = x012;
+        x_right = x02;
+
+        h_left = h012;
+        h_right = h02;
+
+        iz_left = iz012;
+        iz_right = iz02;
+
+        normal_x_left = normal_x_012;
+        normal_x_right = normal_x_02;
+        normal_y_left = normal_y_012;
+        normal_y_right = normal_y_02;
+        normal_z_left = normal_z_012;
+        normal_z_right = normal_z_02;
+    };
+
+    for y in p0.y..(p2.y + 1) {
+        let screen_y = canvas.screen_y(y);
+        let y_index = (y - p0.y) as usize;
+        let x_l = x_left[y_index];
+        let x_r = x_right[y_index];
+        let h_segment = interpolate_float(x_l, h_left[y_index], x_r, h_right[y_index]);
+        let iz_segment = interpolate_float(x_l, iz_left[y_index], x_r, iz_right[y_index]);
+        let normal_x_segment =
+            interpolate_float(x_l, normal_x_left[y_index], x_r, normal_x_right[y_index]);
+        let normal_y_segment =
+            interpolate_float(x_l, normal_y_left[y_index], x_r, normal_y_right[y_index]);
+        let normal_z_segment =
+            interpolate_float(x_l, normal_z_left[y_index], x_r, normal_z_right[y_index]);
+        for x in x_l..(x_r + 1) {
+            let screen_x = canvas.screen_x(x);
+            let x_index = (x - x_l) as usize;
+            let iz = iz_segment[x_index];
+
+            if canvas.update_depth_buffer_if_closer(screen_x, screen_y, iz) {
+                let vertex = unproject_vertex(x, y, iz, canvas, camera);
+                let normal = Point3D {
+                    x: normal_x_segment[x_index],
+                    y: normal_y_segment[x_index],
+                    z: normal_z_segment[x_index]
+                };
+                let intensity = compute_illumination(vertex, normal, camera, lights);
+
+                let shaded_color = multiply_color(intensity, triangle.color);
+                canvas.put_pixel(Pixel { x: screen_x, y: screen_y, color: shaded_color });
+            }
+        };
+    }
+}
+
+fn unproject_vertex(
+    canvas_x: i32,
+    canvas_y: i32,
+    iz: f64,
+    canvas: &BufferCanvas,
+    camera: &ProjectiveCamera
+) -> Point3D {
+    let z = 1.0 / iz;
+
+    let viewport_x =  (canvas_x as f64) * camera.viewport_size / (canvas.size as f64);
+    let viewport_y = (canvas_y as f64) * camera.viewport_size / (canvas.size as f64);
+
+    let unprojected_x = viewport_x * z / camera.projection_plane_z;
+    let unprojected_y = viewport_y * z / camera.projection_plane_z;
+
+    Point3D { x: unprojected_x, y: unprojected_y, z }
 }
 
 fn vertex_to_canvas_point(vertex: Vector4f, camera: &ProjectiveCamera, canvas: &BufferCanvas)

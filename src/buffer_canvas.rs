@@ -4,6 +4,7 @@ use super::Pixel;
 use super::Point;
 use super::Point2D;
 use vector4f::Vector4f;
+use Point3D;
 
 pub struct BufferCanvas {
     pub size: usize,
@@ -65,18 +66,18 @@ impl BufferCanvas {
         self.buffer[offset + 2] = pixel.color.b;
     }
 
-    pub fn draw_point(&mut self, x: i32, y: i32, iz: f64, color: Color) {
-        let pixel = self.point_to_pixel(x, y, color);
-
-        let depth_index = (pixel.y as usize) * self.size + (pixel.x as usize);
+    pub fn update_depth_buffer_if_closer(&mut self, screen_x: usize, screen_y: usize, iz: f64) -> bool {
+        let depth_index = screen_y * self.size + screen_x;
 
         if iz > self.depth_buffer[depth_index] {
             self.depth_buffer[depth_index] = iz;
-            self.put_pixel(pixel);
+            return true;
         }
+
+        false
     }
 
-    fn screen_x(&self, x_canvas: i32) -> usize {
+    pub fn screen_x(&self, x_canvas: i32) -> usize {
         let canvas_width = self.size as i32;
         let result = (canvas_width / 2 + x_canvas);
 
@@ -87,7 +88,7 @@ impl BufferCanvas {
         }
     }
 
-    fn screen_y(&self, y_canvas: i32) -> usize {
+    pub fn screen_y(&self, y_canvas: i32) -> usize {
         let canvas_height = self.size as i32;
         let result = (canvas_height / 2 - y_canvas - 1);
 

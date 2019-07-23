@@ -2,6 +2,10 @@ Software Renderer written in Rust
 
 What's new:
 
+Phong Shading model
+
+![Phong Shading](https://i.imgur.com/uL3Ar1Q.png)
+
 Gouraud Shading model
 
 ![Gouraud Shading](https://i.imgur.com/9GumSIM.png)

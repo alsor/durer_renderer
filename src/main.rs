@@ -155,7 +155,7 @@ pub enum Light {
 
 #[derive(Copy, Clone)]
 pub enum ShadingModel {
-    Flat, Gouraud
+    Flat, Gouraud, Phong
 }
 
 pub struct RenderingSettings {
@@ -1069,7 +1069,7 @@ fn main() {
     env_logger::init();
 
     let mut rendering_settings = RenderingSettings {
-        shading_model: ShadingModel::Gouraud,
+        shading_model: ShadingModel::Phong,
         show_normals: false,
         backface_culling: true
     };
@@ -1112,10 +1112,10 @@ fn main() {
     let white = Color { r: 255, g: 255, b: 255 };
 
 //    let cube = two_unit_cube();
-    let sphere = sphere(45);
+    let sphere = sphere(35);
     let cube = cube(0.9);
 //    let triangle = triangle(5.0);
-//    let torus = ply2::load_model("resources/torus.ply2");
+    let torus = ply2::load_model("resources/torus.ply2");
 //    let twirl = ply2::load_model("resources/twirl.ply2");
 //    let octo_flower = ply2::load_model("resources/octa-flower.ply2");
 //    let statue = ply2::load_model("resources/statue.ply2");
@@ -1146,12 +1146,12 @@ fn main() {
 //            Some(0.2),
 //            Some(Matrix44f::rotation_y(0.0).multiply(Matrix44f::rotation_x(90.0)))
 //        ),
-//        Instance::new(
-//            &torus,
-//            Some(Vector4f { x: 0.0, y: 0.0, z: 0.0, w: 0.0 }),
-//            Some(0.1),
-//            Some(Matrix44f::rotation_x(0.0).multiply(Matrix44f::rotation_y(0.0)))
-//        ),
+        Instance::new(
+            &torus,
+            Some(Vector4f { x: 0.0, y: 0.0, z: 0.0, w: 0.0 }),
+            Some(0.1),
+            Some(Matrix44f::rotation_x(0.0).multiply(Matrix44f::rotation_y(0.0)))
+        ),
 
         Instance::new(
             &sphere,
@@ -1183,10 +1183,10 @@ fn main() {
 
     let lights = vec![
         Light::Ambient { intensity: 0.12 },
-        Light::Directional {
-            intensity: 0.5,
-            direction: Point3D { x: 1.0, y: 1.0, z: 0.5 }
-        },
+//        Light::Directional {
+//            intensity: 0.5,
+//            direction: Point3D { x: 1.0, y: 1.0, z: 0.5 }
+//        },
         Light::Point {
             intensity: 0.8,
             position: Point3D { x: -4.0, y: 2.0, z: 5.0 }
