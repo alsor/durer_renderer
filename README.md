@@ -2,6 +2,10 @@ Software Renderer written in Rust
 
 What's new:
 
+Textures
+
+![Textures](https://i.imgur.com/Iu7rrnb.png)
+
 Phong Shading model
 
 ![Phong Shading](https://i.imgur.com/uL3Ar1Q.png)

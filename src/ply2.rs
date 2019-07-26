@@ -105,5 +105,5 @@ pub fn load_model(filename: &str) -> Model {
         triangles.push(triangle);
     }
 
-    Model { vertices, triangles, colors }
+    Model { vertices, triangles, colors, textures: None, uvs: None }
 }

@@ -4,7 +4,7 @@ use vector4f::Vector4f;
 use ::{Color, Triangle};
 
 pub struct Instance<'a> {
-    pub model: &'a Model,
+    pub model: &'a Model<'a>,
     pub transform: Option<Matrix44f>,
     pub rotation_transform: Option<Matrix44f>
 }
@@ -60,7 +60,9 @@ fn test_new() {
     let model = Model {
         vertices,
         triangles,
-        colors: vec![Color { r: 0, g: 0, b: 0 }]
+        colors: vec![Color { r: 0, g: 0, b: 0 }],
+        textures: None,
+        uvs: None
     };
 
     let instance = Instance::new(
@@ -86,7 +88,9 @@ fn test_new_with_position() {
     let model = Model {
         vertices,
         triangles,
-        colors: vec![Color { r: 0, g: 0, b: 0 }]
+        colors: vec![Color { r: 0, g: 0, b: 0 }],
+        textures: None,
+        uvs: None
     };
 
     let instance = Instance::new(
@@ -112,7 +116,9 @@ fn test_new_with_scale() {
     let model = Model {
         vertices,
         triangles,
-        colors: vec![Color { r: 0, g: 0, b: 0 }]
+        colors: vec![Color { r: 0, g: 0, b: 0 }],
+        textures: None,
+        uvs: None
     };
 
     let instance = Instance::new(
@@ -138,7 +144,9 @@ fn test_new_with_rotation() {
     let model = Model {
         vertices,
         triangles,
-        colors: vec![Color { r: 0, g: 0, b: 0 }]
+        colors: vec![Color { r: 0, g: 0, b: 0 }],
+        textures: None,
+        uvs: None
     };
 
     let instance = Instance::new(

@@ -13,6 +13,8 @@ mod ply2;
 mod matrix44f;
 mod vector4f;
 mod plane;
+mod texture;
+mod uv;
 
 use image::ColorType;
 use image::png::PNGEncoder;
@@ -26,6 +28,7 @@ use buffer_canvas::BufferCanvas;
 use projective_camera::ProjectiveCamera;
 use model::Model;
 use vector4f::Vector4f;
+use texture::Texture;
 use self::rand::Rng;
 
 #[derive(Copy, Clone)]
@@ -421,7 +424,7 @@ fn rotated_cube(t: f64) -> (Vec<Point3D>, Vec<Vec<i32>>) {
     (vertices, faces)
 }
 
-fn triangle(size: f64) -> Model {
+fn triangle<'a>(size: f64) -> Model<'a> {
     let half_size = size / 2.0;
 
     let vertices = vec![
@@ -442,10 +445,10 @@ fn triangle(size: f64) -> Model {
         Color { r: 119, g: 136, b: 153 },
     ];
 
-    Model { vertices, triangles, colors }
+    Model { vertices, triangles, colors, textures: None, uvs: None }
 }
 
-fn cube(size: f64) -> Model {
+fn cube<'a>(size: f64) -> Model<'a> {
     let half_size = size / 2.0;
 
     let vertices = vec![
@@ -504,10 +507,87 @@ fn cube(size: f64) -> Model {
         Color { r: 119, g: 136, b: 153 },
     ];
 
-    Model { vertices, triangles, colors }
+    Model { vertices, triangles, colors, textures: None, uvs: None }
 }
 
-fn sphere(divs: i32) -> Model {
+fn textured_cube(size: f64, texture: &Texture) -> Model {
+    let half_size = size / 2.0;
+
+    let vertices = vec![
+        Point3D { x: half_size, y: half_size, z: half_size },
+        Point3D { x: -half_size, y: half_size, z: half_size },
+        Point3D { x: -half_size, y: -half_size, z: half_size },
+        Point3D { x: half_size, y: -half_size, z: half_size },
+        Point3D { x: half_size, y: half_size, z: -half_size },
+        Point3D { x: -half_size, y: half_size, z: -half_size },
+        Point3D { x: -half_size, y: -half_size, z: -half_size },
+        Point3D { x: half_size, y: -half_size, z: -half_size },
+    ];
+
+    let triangles = vec![
+        Triangle::new_with_calculated_normals(&vertices, [0, 1, 2]),
+        Triangle::new_with_calculated_normals(&vertices, [0, 2, 3]),
+        Triangle::new_with_calculated_normals(&vertices, [4, 0, 3]),
+        Triangle::new_with_calculated_normals(&vertices, [4, 3, 7]),
+        Triangle::new_with_calculated_normals(&vertices, [5, 4, 7]),
+        Triangle::new_with_calculated_normals(&vertices, [5, 7, 6]),
+        Triangle::new_with_calculated_normals(&vertices, [1, 5, 6]),
+        Triangle::new_with_calculated_normals(&vertices, [1, 6, 2]),
+        Triangle::new_with_calculated_normals(&vertices, [1, 0, 5]),
+        Triangle::new_with_calculated_normals(&vertices, [5, 0, 4]),
+        Triangle::new_with_calculated_normals(&vertices, [2, 6, 7]),
+        Triangle::new_with_calculated_normals(&vertices, [2, 7, 3]),
+    ];
+
+    let colors = vec![
+        Color { r: 119, g: 136, b: 153 },
+        Color { r: 119, g: 136, b: 153 },
+        Color { r: 119, g: 136, b: 153 },
+        Color { r: 119, g: 136, b: 153 },
+        Color { r: 119, g: 136, b: 153 },
+        Color { r: 119, g: 136, b: 153 },
+        Color { r: 119, g: 136, b: 153 },
+        Color { r: 119, g: 136, b: 153 },
+        Color { r: 119, g: 136, b: 153 },
+        Color { r: 119, g: 136, b: 153 },
+        Color { r: 119, g: 136, b: 153 },
+        Color { r: 119, g: 136, b: 153 },
+    ];
+
+    let textures = vec![
+        texture,
+        texture,
+        texture,
+        texture,
+        texture,
+        texture,
+        texture,
+        texture,
+        texture,
+        texture,
+        texture,
+        texture,
+    ];
+
+    let uvs = vec![
+        [UV { u: 0.0, v: 0.0 }, UV { u: 1.0, v: 0.0 }, UV { u: 1.0, v: 1.0 }],
+        [UV { u: 0.0, v: 0.0 }, UV { u: 1.0, v: 1.0 }, UV { u: 0.0, v: 1.0 }],
+        [UV { u: 0.0, v: 0.0 }, UV { u: 1.0, v: 0.0 }, UV { u: 1.0, v: 1.0 }],
+        [UV { u: 0.0, v: 0.0 }, UV { u: 1.0, v: 1.0 }, UV { u: 0.0, v: 1.0 }],
+        [UV { u: 0.0, v: 0.0 }, UV { u: 1.0, v: 0.0 }, UV { u: 1.0, v: 1.0 }],
+        [UV { u: 0.0, v: 0.0 }, UV { u: 1.0, v: 1.0 }, UV { u: 0.0, v: 1.0 }],
+        [UV { u: 0.0, v: 0.0 }, UV { u: 1.0, v: 0.0 }, UV { u: 1.0, v: 1.0 }],
+        [UV { u: 0.0, v: 0.0 }, UV { u: 1.0, v: 1.0 }, UV { u: 0.0, v: 1.0 }],
+        [UV { u: 0.0, v: 0.0 }, UV { u: 1.0, v: 0.0 }, UV { u: 1.0, v: 1.0 }],
+        [UV { u: 0.0, v: 1.0 }, UV { u: 1.0, v: 1.0 }, UV { u: 0.0, v: 0.0 }],
+        [UV { u: 0.0, v: 0.0 }, UV { u: 1.0, v: 0.0 }, UV { u: 1.0, v: 1.0 }],
+        [UV { u: 0.0, v: 0.0 }, UV { u: 1.0, v: 1.0 }, UV { u: 0.0, v: 1.0 }],
+    ];
+
+    Model { vertices, triangles, colors, textures: Some(textures), uvs: Some(uvs) }
+}
+
+fn sphere<'a>(divs: i32) -> Model<'a> {
     let mut vertices= Vec::<Point3D>::new();
     let mut triangles = Vec::<Triangle>::new();
     let mut colors = Vec::<Color>::new();
@@ -548,10 +628,10 @@ fn sphere(divs: i32) -> Model {
         }
     }
 
-    Model { vertices, triangles, colors }
+    Model { vertices, triangles, colors, textures: None, uvs: None }
 }
 
-fn two_unit_cube() -> Model {
+fn two_unit_cube<'a>() -> Model<'a> {
     cube(2.0)
 }
 
@@ -1061,6 +1141,7 @@ use matrix44f::Matrix44f;
 mod rendering;
 use std::{thread, time};
 use plane::Plane;
+use uv::UV;
 
 #[macro_use] extern crate log;
 extern crate env_logger;
@@ -1111,9 +1192,14 @@ fn main() {
     let blue = Color { r: 0, g: 0, b: 255 };
     let white = Color { r: 255, g: 255, b: 255 };
 
+    let wooden_crate = texture::load_from_file("resources/textures/wooden-crate.jpg");
+    let bricks = texture::load_from_file("resources/textures/bricks.jpg");
+
 //    let cube = two_unit_cube();
     let sphere = sphere(35);
     let cube = cube(0.9);
+    let wooden_cube = textured_cube(0.9, &wooden_crate);
+    let brick_cube = textured_cube(1.0, &bricks);
 //    let triangle = triangle(5.0);
     let torus = ply2::load_model("resources/torus.ply2");
 //    let twirl = ply2::load_model("resources/twirl.ply2");
@@ -1128,37 +1214,52 @@ fn main() {
 //            Some(Matrix44f::rotation_x(90.0))
 //        ),
 
+        Instance::new(
+            &wooden_cube,
+            Some(Vector4f { x: 1.0, y: 1.0, z: 4.0, w: 0.0 }),
+            None,
+            Some(Matrix44f::rotation_y(-30.0).multiply(Matrix44f::rotation_z(-30.0)))
+        ),
+        Instance::new(
+            &brick_cube,
+            Some(Vector4f { x: -0.3, y: -0.4, z: 3.0, w: 0.0 }),
+            None,
+            Some(Matrix44f::rotation_y(20.0).
+                multiply(Matrix44f::rotation_z(10.0)).
+                multiply(Matrix44f::rotation_x(25.0))),
+        ),
+
 //        Instance::new(
 //            &cube,
 //            Some(Vector4f { x: 0.0, y: 0.0, z: 4.0, w: 0.0 }),
 //            None,
 //            None
 //        ),
-        Instance::new(
-            &cube,
-            Some(Vector4f { x: 2.0, y: -2.0, z: 4.5, w: 0.0 }),
-            None,
-            Some(Matrix44f::rotation_y(-30.0).multiply(Matrix44f::rotation_z(-30.0)))
-        ),
+//        Instance::new(
+//            &cube,
+//            Some(Vector4f { x: 2.0, y: -2.0, z: 4.5, w: 0.0 }),
+//            None,
+//            Some(Matrix44f::rotation_y(-30.0).multiply(Matrix44f::rotation_z(-30.0)))
+//        ),
 //        Instance::new(
 //            &torus,
 //            Some(Vector4f { x: 0.0, y: 3.0, z: 0.0, w: 0.0 }),
 //            Some(0.2),
 //            Some(Matrix44f::rotation_y(0.0).multiply(Matrix44f::rotation_x(90.0)))
 //        ),
-        Instance::new(
-            &torus,
-            Some(Vector4f { x: 0.0, y: 0.0, z: 0.0, w: 0.0 }),
-            Some(0.1),
-            Some(Matrix44f::rotation_x(0.0).multiply(Matrix44f::rotation_y(0.0)))
-        ),
-
-        Instance::new(
-            &sphere,
-            Some(Vector4f { x: 0.0, y: 0.0, z: 5.0, w: 0.0 }),
-            Some(1.3),
-            Some(Matrix44f::rotation_y(-45.0))
-        ),
+//        Instance::new(
+//            &torus,
+//            Some(Vector4f { x: 0.0, y: 0.0, z: 0.0, w: 0.0 }),
+//            Some(0.1),
+//            Some(Matrix44f::rotation_x(0.0).multiply(Matrix44f::rotation_y(0.0)))
+//        ),
+//
+//        Instance::new(
+//            &sphere,
+//            Some(Vector4f { x: 0.0, y: 0.0, z: 5.0, w: 0.0 }),
+//            Some(1.3),
+//            Some(Matrix44f::rotation_y(-45.0))
+//        ),
 
 //        Instance::new(
 //            &octo_flower,
@@ -1182,17 +1283,16 @@ fn main() {
 
 
     let lights = vec![
-        Light::Ambient { intensity: 0.12 },
+        Light::Ambient { intensity: 0.2 },
 //        Light::Directional {
 //            intensity: 0.5,
 //            direction: Point3D { x: 1.0, y: 1.0, z: 0.5 }
 //        },
         Light::Point {
-            intensity: 0.8,
-            position: Point3D { x: -4.0, y: 2.0, z: 5.0 }
+            intensity: 0.7,
+            position: Point3D { x: -4.0, y: 4.0, z: -0.5 }
         }
     ];
-
 
 
 //    rendering::render_scene(&scene, &camera, &mut buffer_canvas, &clipping_planes);
