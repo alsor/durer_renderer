@@ -1,5 +1,5 @@
 use super::Point2D;
-use super::Point3D;
+use super::Vector3f;
 use vector4f::Vector4f;
 use matrix44f::Matrix44f;
 use plane::Plane;
@@ -15,7 +15,7 @@ pub struct ProjectiveCamera {
 }
 
 impl ProjectiveCamera {
-    pub fn project(&self, point: Point3D) -> Point2D {
+    pub fn project(&self, point: Vector3f) -> Point2D {
         Point2D {
             x: point.x * self.projection_plane_z / point.z,
             y: point.y * self.projection_plane_z / point.z
@@ -40,39 +40,39 @@ impl ProjectiveCamera {
         vec![
             Plane {
                 plane_type: Near,
-                normal: Point3D { x: 0.0, y: 0.0, z: 1.0 },
-                point: Point3D { x: 0.0, y: 0.0, z: self.projection_plane_z }
+                normal: Vector3f { x: 0.0, y: 0.0, z: 1.0 },
+                point: Vector3f { x: 0.0, y: 0.0, z: self.projection_plane_z }
             },
             Plane {
                 plane_type: Left,
                 normal: self.left_plane_normal(half_viewport_size),
-                point: Point3D { x: 0.0, y: 0.0, z: 0.0 }
+                point: Vector3f { x: 0.0, y: 0.0, z: 0.0 }
             },
             Plane {
                 plane_type: Right,
                 normal: self.right_plane_normal(half_viewport_size),
-                point: Point3D { x: 0.0, y: 0.0, z: 0.0 }
+                point: Vector3f { x: 0.0, y: 0.0, z: 0.0 }
             },
             Plane {
                 plane_type: Top,
                 normal: self.top_plane_normal(half_viewport_size),
-                point: Point3D { x: 0.0, y: 0.0, z: 0.0 }
+                point: Vector3f { x: 0.0, y: 0.0, z: 0.0 }
             },
             Plane {
                 plane_type: Bottom,
                 normal: self.bottom_plane_normal(half_viewport_size),
-                point: Point3D { x: 0.0, y: 0.0, z: 0.0 }
+                point: Vector3f { x: 0.0, y: 0.0, z: 0.0 }
             }
         ]
     }
 
-    fn right_plane_normal(&self, half_viewport_size: f64) -> Point3D {
-        let v1 = Point3D {
+    fn right_plane_normal(&self, half_viewport_size: f64) -> Vector3f {
+        let v1 = Vector3f {
             x: half_viewport_size,
             y: -half_viewport_size,
             z: self.projection_plane_z,
         };
-        let v2 = Point3D {
+        let v2 = Vector3f {
             x: half_viewport_size,
             y: half_viewport_size,
             z: self.projection_plane_z
@@ -81,13 +81,13 @@ impl ProjectiveCamera {
         cross_product(v1, v2)
     }
 
-    fn top_plane_normal(&self, half_viewport_size: f64) -> Point3D {
-        let v1 = Point3D {
+    fn top_plane_normal(&self, half_viewport_size: f64) -> Vector3f {
+        let v1 = Vector3f {
             x: half_viewport_size,
             y: half_viewport_size,
             z: self.projection_plane_z,
         };
-        let v2 = Point3D {
+        let v2 = Vector3f {
             x: -half_viewport_size,
             y: half_viewport_size,
             z: self.projection_plane_z
@@ -96,13 +96,13 @@ impl ProjectiveCamera {
         cross_product(v1, v2)
     }
 
-    fn left_plane_normal(&self, half_viewport_size: f64) -> Point3D {
-        let v1 = Point3D {
+    fn left_plane_normal(&self, half_viewport_size: f64) -> Vector3f {
+        let v1 = Vector3f {
             x: -half_viewport_size,
             y: half_viewport_size,
             z: self.projection_plane_z,
         };
-        let v2 = Point3D {
+        let v2 = Vector3f {
             x: -half_viewport_size,
             y: -half_viewport_size,
             z: self.projection_plane_z
@@ -111,13 +111,13 @@ impl ProjectiveCamera {
         cross_product(v1, v2)
     }
 
-    fn bottom_plane_normal(&self, half_viewport_size: f64) -> Point3D {
-        let v1 = Point3D {
+    fn bottom_plane_normal(&self, half_viewport_size: f64) -> Vector3f {
+        let v1 = Vector3f {
             x: -half_viewport_size,
             y: -half_viewport_size,
             z: self.projection_plane_z,
         };
-        let v2 = Point3D {
+        let v2 = Vector3f {
             x: half_viewport_size,
             y: -half_viewport_size,
             z: self.projection_plane_z

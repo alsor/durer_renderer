@@ -32,11 +32,13 @@ use texture::Texture;
 use self::rand::Rng;
 
 #[derive(Copy, Clone)]
-pub struct Point3D { x: f64, y: f64, z: f64 }
+pub struct Vector3f { x: f64, y: f64, z: f64 }
 
-impl Point3D {
+impl Vector3f {
+    pub fn zero_vector() -> Self { Self { x: 0.0, y: 0.0, z: 0.0 } }
+
     pub fn from_vec(vec: [f64; 3]) -> Self {
-        Point3D { x: vec[0], y: vec[1], z: vec[2] }
+        Vector3f { x: vec[0], y: vec[1], z: vec[2] }
     }
 
     pub fn to_vec(&self) -> [f64; 3] {
@@ -44,7 +46,7 @@ impl Point3D {
     }
 
     pub fn from_vector4f(vector: Vector4f) -> Self {
-        Point3D { x: vector.x, y: vector.y, z: vector.z }
+        Vector3f { x: vector.x, y: vector.y, z: vector.z }
     }
 
     pub fn to_vector4f(&self) -> Vector4f {
@@ -76,12 +78,12 @@ pub struct Pixel {
 #[derive(Copy, Clone)]
 pub struct Triangle {
     pub indexes: [usize; 3],
-    pub normals: [Point3D; 3],
-    pub calculated_normal: Point3D
+    pub normals: [Vector3f; 3],
+    pub calculated_normal: Vector3f
 }
 
 impl Triangle {
-    pub fn new_with_calculated_normals(vertices: &Vec<Point3D>, indexes: [usize; 3]) -> Self {
+    pub fn new_with_calculated_normals(vertices: &Vec<Vector3f>, indexes: [usize; 3]) -> Self {
         let calculated_normal = vectors::normalize(Self::calculate_normal_in_left(
             indexes,
             vertices
@@ -95,11 +97,11 @@ impl Triangle {
     }
 
     pub fn new_with_provided_normals(
-        vertices: &Vec<Point3D>,
+        vertices: &Vec<Vector3f>,
         indexes: [usize; 3],
-        normal_directions: [Point3D; 3]
+        normal_directions: [Vector3f; 3]
     )
-    -> Self {
+        -> Self {
         let calculated_normal = vectors::normalize(Self::calculate_normal_in_left(
             indexes,
             vertices
@@ -114,7 +116,7 @@ impl Triangle {
         Self { indexes, normals, calculated_normal }
     }
 
-    fn calculate_normal_in_left(indexes: [usize; 3], vertices: &Vec<Point3D>) -> Point3D {
+    fn calculate_normal_in_left(indexes: [usize; 3], vertices: &Vec<Vector3f>) -> Vector3f {
         let vector1 = vectors::difference(vertices[indexes[2]], vertices[indexes[1]]);
         let vector2 = vectors::difference(vertices[indexes[1]], vertices[indexes[0]]);
         vectors::cross_product(vector2, vector1)
@@ -126,9 +128,9 @@ impl Triangle {
 fn test_new_with_calculated_normal() {
     let triangle = Triangle::new_with_calculated_normals(
         &vec![
-            Point3D { x: 0.0, y: 0.0, z: 0.0 },
-            Point3D { x: 5.0, y: 0.0, z: 0.0 },
-            Point3D { x: 0.0, y: 0.0, z: 5.0 },
+            Vector3f { x: 0.0, y: 0.0, z: 0.0 },
+            Vector3f { x: 5.0, y: 0.0, z: 0.0 },
+            Vector3f { x: 0.0, y: 0.0, z: 5.0 },
         ],
         [2, 1, 0]
     );
@@ -146,14 +148,14 @@ pub struct Triangle4f {
     pub b: Vector4f,
     pub c: Vector4f,
     pub color: Color,
-    pub normals: [Point3D; 3]
+    pub normals: [Vector3f; 3]
 }
 
 #[derive(Copy, Clone)]
 pub enum Light {
     Ambient { intensity: f64 },
-    Point { intensity: f64, position: Point3D },
-    Directional { intensity: f64, direction: Point3D }
+    Point { intensity: f64, position: Vector3f },
+    Directional { intensity: f64, direction: Vector3f }
 }
 
 #[derive(Copy, Clone)]
@@ -167,7 +169,7 @@ pub struct RenderingSettings {
     pub backface_culling: bool
 }
 
-fn project(point3d: Point3D) -> Point2D {
+fn project(point3d: Vector3f) -> Point2D {
     Point2D { x: -point3d.x / point3d.z, y: -point3d.y / point3d.z }
 }
 
@@ -291,7 +293,7 @@ fn write_image(buffer: &[u8], size: usize) -> Result<(), std::io::Error> {
     Ok(())
 }
 
-fn face_visible(face: &Vec<i32>, vertices: &[Point3D]) -> bool {
+fn face_visible(face: &Vec<i32>, vertices: &[Vector3f]) -> bool {
     let vector1 = vectors::difference(vertices[face[2] as usize], vertices[face[1] as usize]);
     let vector2 = vectors::difference(vertices[face[1] as usize], vertices[face[0] as usize]);
     let face_vector = vectors::cross_product(
@@ -302,7 +304,7 @@ fn face_visible(face: &Vec<i32>, vertices: &[Point3D]) -> bool {
     vectors::dot_product(vertices[face[0] as usize], face_vector) < 0.0
 }
 
-fn face_visible2(face: &Vec<i32>, vertices: &[Point3D]) -> bool {
+fn face_visible2(face: &Vec<i32>, vertices: &[Vector3f]) -> bool {
     let vector1 = vectors::difference(vertices[face[2] as usize], vertices[face[1] as usize]);
     let vector2 = vectors::difference(vertices[face[1] as usize], vertices[face[0] as usize]);
     let face_vector = vectors::cross_product(
@@ -313,7 +315,7 @@ fn face_visible2(face: &Vec<i32>, vertices: &[Point3D]) -> bool {
     vectors::dot_product(vertices[face[0] as usize], face_vector) < 0.0
 }
 
-fn face_visible_4f(vertex: Point3D, normal_direction: Point3D) -> bool {
+fn face_visible_4f(vertex: Vector3f, normal_direction: Vector3f) -> bool {
     vectors::dot_product(vertex, normal_direction) < 0.0
 }
 
@@ -339,11 +341,11 @@ fn draw_face(face: &Vec<i32>,
     }
 }
 
-fn transform(vertices: &Vec<Point3D>, vector: Point3D) -> Vec<Point3D> {
+fn transform(vertices: &Vec<Vector3f>, vector: Vector3f) -> Vec<Vector3f> {
     let mut result = Vec::new();
     for i in 0..vertices.len() {
         result.push(
-            Point3D {
+            Vector3f {
                 x: vertices[i].x + vector.x,
                 y: vertices[i].y + vector.y,
                 z: vertices[i].z + vector.z
@@ -353,53 +355,53 @@ fn transform(vertices: &Vec<Point3D>, vector: Point3D) -> Vec<Point3D> {
     result
 }
 
-fn rotated_cube_vertices(t: f64) -> [Point3D; 8] {
+fn rotated_cube_vertices(t: f64) -> [Vector3f; 8] {
     let radius = (2.0 as f64).sqrt() / 2.0;
     [
         // 0
-        Point3D {
+        Vector3f {
             x: (5.0 * f64::consts::PI / 4.0 + t).cos() * radius,
             y: -0.5,
             z: (5.0 * f64::consts::PI / 4.0 + t).sin() * radius
         },
         // 1
-        Point3D {
+        Vector3f {
             x: (5.0 * f64::consts::PI / 4.0 + t).cos() * radius,
             y: 0.5,
             z: (5.0 * f64::consts::PI / 4.0 + t).sin() * radius
         },
         // 2
-        Point3D {
+        Vector3f {
             x: (7.0 * f64::consts::PI / 4.0 + t).cos() * radius,
             y: 0.5,
             z: (7.0 * f64::consts::PI / 4.0 + t).sin() * radius
         },
         // 3
-        Point3D {
+        Vector3f {
             x: (7.0 * f64::consts::PI / 4.0 + t).cos() * radius,
             y: -0.5,
             z: (7.0 * f64::consts::PI / 4.0 + t).sin() * radius
         },
         // 4
-        Point3D {
+        Vector3f {
             x: (3.0 * f64::consts::PI / 4.0 + t).cos() * radius,
             y: -0.5,
             z: (3.0 * f64::consts::PI / 4.0 + t).sin() * radius
         },
         // 5
-        Point3D {
+        Vector3f {
             x: (3.0 * f64::consts::PI / 4.0 + t).cos() * radius,
             y: 0.5,
             z: (3.0 * f64::consts::PI / 4.0 + t).sin() * radius
         },
         // 6
-        Point3D {
+        Vector3f {
             x: (f64::consts::PI / 4.0 + t).cos() * radius,
             y: 0.5,
             z: (f64::consts::PI / 4.0 + t).sin() * radius
         },
         // 7
-        Point3D {
+        Vector3f {
             x: (f64::consts::PI / 4.0 + t).cos() * radius,
             y: -0.5,
             z: (f64::consts::PI / 4.0 + t).sin() * radius
@@ -407,10 +409,10 @@ fn rotated_cube_vertices(t: f64) -> [Point3D; 8] {
     ]
 }
 
-fn rotated_cube(t: f64) -> (Vec<Point3D>, Vec<Vec<i32>>) {
+fn rotated_cube(t: f64) -> (Vec<Vector3f>, Vec<Vec<i32>>) {
     let cube_vertices = rotated_cube_vertices(t).to_vec();
 
-    let vertices = transform(&cube_vertices, Point3D { x: 0.0, y: 0.0, z: 5.0 });
+    let vertices = transform(&cube_vertices, Vector3f { x: 0.0, y: 0.0, z: 5.0 });
 
     let faces = vec![
         vec![0, 3, 2, 1],
@@ -428,9 +430,9 @@ fn triangle<'a>(size: f64) -> Model<'a> {
     let half_size = size / 2.0;
 
     let vertices = vec![
-        Point3D { x: half_size, y: half_size, z: 0.0 },
-        Point3D { x: -half_size, y: half_size, z: 0.0 },
-        Point3D { x: -half_size, y: -half_size, z: 0.0 },
+        Vector3f { x: half_size, y: half_size, z: 0.0 },
+        Vector3f { x: -half_size, y: half_size, z: 0.0 },
+        Vector3f { x: -half_size, y: -half_size, z: 0.0 },
     ];
 
     let triangles = vec![
@@ -445,21 +447,21 @@ fn triangle<'a>(size: f64) -> Model<'a> {
         Color { r: 119, g: 136, b: 153 },
     ];
 
-    Model { vertices, triangles, colors, textures: None, uvs: None }
+    Model { name: "triangle", vertices, triangles, colors, textures: None, uvs: None }
 }
 
 fn cube<'a>(size: f64) -> Model<'a> {
     let half_size = size / 2.0;
 
     let vertices = vec![
-        Point3D { x: half_size, y: half_size, z: half_size },
-        Point3D { x: -half_size, y: half_size, z: half_size },
-        Point3D { x: -half_size, y: -half_size, z: half_size },
-        Point3D { x: half_size, y: -half_size, z: half_size },
-        Point3D { x: half_size, y: half_size, z: -half_size },
-        Point3D { x: -half_size, y: half_size, z: -half_size },
-        Point3D { x: -half_size, y: -half_size, z: -half_size },
-        Point3D { x: half_size, y: -half_size, z: -half_size },
+        Vector3f { x: half_size, y: half_size, z: half_size },
+        Vector3f { x: -half_size, y: half_size, z: half_size },
+        Vector3f { x: -half_size, y: -half_size, z: half_size },
+        Vector3f { x: half_size, y: -half_size, z: half_size },
+        Vector3f { x: half_size, y: half_size, z: -half_size },
+        Vector3f { x: -half_size, y: half_size, z: -half_size },
+        Vector3f { x: -half_size, y: -half_size, z: -half_size },
+        Vector3f { x: half_size, y: -half_size, z: -half_size },
     ];
 
     let triangles = vec![
@@ -507,21 +509,21 @@ fn cube<'a>(size: f64) -> Model<'a> {
         Color { r: 119, g: 136, b: 153 },
     ];
 
-    Model { vertices, triangles, colors, textures: None, uvs: None }
+    Model { name: "cube", vertices, triangles, colors, textures: None, uvs: None }
 }
 
 fn textured_cube(size: f64, texture: &Texture) -> Model {
     let half_size = size / 2.0;
 
     let vertices = vec![
-        Point3D { x: half_size, y: half_size, z: half_size },
-        Point3D { x: -half_size, y: half_size, z: half_size },
-        Point3D { x: -half_size, y: -half_size, z: half_size },
-        Point3D { x: half_size, y: -half_size, z: half_size },
-        Point3D { x: half_size, y: half_size, z: -half_size },
-        Point3D { x: -half_size, y: half_size, z: -half_size },
-        Point3D { x: -half_size, y: -half_size, z: -half_size },
-        Point3D { x: half_size, y: -half_size, z: -half_size },
+        Vector3f { x: half_size, y: half_size, z: half_size },
+        Vector3f { x: -half_size, y: half_size, z: half_size },
+        Vector3f { x: -half_size, y: -half_size, z: half_size },
+        Vector3f { x: half_size, y: -half_size, z: half_size },
+        Vector3f { x: half_size, y: half_size, z: -half_size },
+        Vector3f { x: -half_size, y: half_size, z: -half_size },
+        Vector3f { x: -half_size, y: -half_size, z: -half_size },
+        Vector3f { x: half_size, y: -half_size, z: -half_size },
     ];
 
     let triangles = vec![
@@ -584,11 +586,11 @@ fn textured_cube(size: f64, texture: &Texture) -> Model {
         [UV { u: 0.0, v: 0.0 }, UV { u: 1.0, v: 1.0 }, UV { u: 0.0, v: 1.0 }],
     ];
 
-    Model { vertices, triangles, colors, textures: Some(textures), uvs: Some(uvs) }
+    Model { name: "cube", vertices, triangles, colors, textures: Some(textures), uvs: Some(uvs) }
 }
 
 fn sphere<'a>(divs: i32) -> Model<'a> {
-    let mut vertices= Vec::<Point3D>::new();
+    let mut vertices= Vec::<Vector3f>::new();
     let mut triangles = Vec::<Triangle>::new();
     let mut colors = Vec::<Color>::new();
 
@@ -602,7 +604,7 @@ fn sphere<'a>(divs: i32) -> Model<'a> {
         for i in 0..divs {
             let x = radius * ((i as f64) * delta_angle).cos();
             let z = radius * ((i as f64) * delta_angle).sin();
-            vertices.push(Point3D { x, y, z });
+            vertices.push(Vector3f { x, y, z });
 //            println!("generated vertex: {:.2}, {:.2}, {:.2}", x, y, z)
         }
     }
@@ -628,14 +630,14 @@ fn sphere<'a>(divs: i32) -> Model<'a> {
         }
     }
 
-    Model { vertices, triangles, colors, textures: None, uvs: None }
+    Model { name: "sphere", vertices, triangles, colors, textures: None, uvs: None }
 }
 
 fn two_unit_cube<'a>() -> Model<'a> {
     cube(2.0)
 }
 
-fn enclosing_frame(vertices: &Vec<Point3D>) -> Frame {
+fn enclosing_frame(vertices: &Vec<Vector3f>) -> Frame {
     let mut x_min = 0.0;
     let mut x_max = 0.0;
     let mut y_min = 0.0;
@@ -686,7 +688,7 @@ fn enclosing_frame(vertices: &Vec<Point3D>) -> Frame {
     }
 }
 
-fn find_z_transform(vertices: &Vec<Point3D>) -> f64 {
+fn find_z_transform(vertices: &Vec<Vector3f>) -> f64 {
     let mut z_min = 0.0;
     let mut z_max = 0.0;
 
@@ -707,7 +709,7 @@ fn find_z_transform(vertices: &Vec<Point3D>) -> f64 {
 fn render_model_to_buffer(
     buffer: &mut [u8],
     size: usize,
-    vertices: Vec<Point3D>,
+    vertices: Vec<Vector3f>,
     faces: Vec<Vec<i32>>,
     frame: Frame) {
 
@@ -819,7 +821,7 @@ fn rotating_cube_window(buffer: &mut [u8], size: usize) {
     let z_transform = find_z_transform(&vertices);
     println!("calculated z transform: {:.2}", z_transform);
     let z_transform = 2.0;
-    let mut transform_vector = Point3D { x: 0.0, y: -1.0, z: z_transform };
+    let mut transform_vector = Vector3f { x: 0.0, y: -1.0, z: z_transform };
 
     let vertices = transform(&vertices, transform_vector);
 
@@ -927,33 +929,33 @@ fn three_spheres_window(buffer: &mut [u8], size: usize) {
 
     let mut angle = 0.0;
 
-    let origin = Point3D { x: x_position, y: 0.0, z: z_position };
+    let origin = Vector3f { x: x_position, y: 0.0, z: z_position };
     let rotation = vectors::rotation_around_y(angle);
 
     let spheres = vec![
         Sphere {
-            center: Point3D { x: 0.0, y: -1.0, z: 3.0 },
+            center: Vector3f { x: 0.0, y: -1.0, z: 3.0 },
             radius: 1.0,
             color: Color { r: 255, g: 0, b: 0 },
             specular: 200,
             reflective: 0.0
         },
         Sphere {
-            center: Point3D { x: -2.0, y: 0.0, z: 4.0 },
+            center: Vector3f { x: -2.0, y: 0.0, z: 4.0 },
             radius: 1.0,
             color: Color { r: 150, g: 150, b: 150 },
             specular: 200,
             reflective: 0.5
         },
         Sphere {
-            center: Point3D { x: 2.0, y: 0.0, z: 4.0 },
+            center: Vector3f { x: 2.0, y: 0.0, z: 4.0 },
             radius: 1.0,
             color: Color { r: 0, g: 0, b: 255 },
             specular: 200,
             reflective: 0.3
         },
         Sphere {
-            center: Point3D { x: 0.0, y: -5001.0, z: 0.0 },
+            center: Vector3f { x: 0.0, y: -5001.0, z: 0.0 },
             radius: 5000.0,
             color: Color { r: 100, g: 100, b: 0 },
             specular: 0,
@@ -965,7 +967,7 @@ fn three_spheres_window(buffer: &mut [u8], size: usize) {
         Light::Ambient { intensity: 0.2 },
         Light::Directional {
             intensity: 0.8,
-            direction: Point3D { x: 1.0, y: 4.0, z: 4.0 }
+            direction: Vector3f { x: 1.0, y: 4.0, z: 4.0 }
         }
     ];
 
@@ -1047,7 +1049,7 @@ fn three_spheres_window(buffer: &mut [u8], size: usize) {
             }
 
             let mut buffer = vec![0u8; size as usize * size as usize * 3];
-            let origin = Point3D { x: x_position, y: 0.0, z: z_position };
+            let origin = Vector3f { x: x_position, y: 0.0, z: z_position };
             let rotation = vectors::rotation_around_y(angle);
 
             ray_tracing::render_scene_to_buffer(
@@ -1206,81 +1208,80 @@ fn main() {
 //    let octo_flower = ply2::load_model("resources/octa-flower.ply2");
 //    let statue = ply2::load_model("resources/statue.ply2");
 
-    let instances = vec![
+    let mut current_instance_index: Option<i32> = None;
+
+    let mut instances = vec![
 //        Instance::new(
 //            &triangle,
-//            Some(Vector4f { x: 0.0, y: 0.0, z: 10.0, w: 0.0 }),
-//            None,
-//            Some(Matrix44f::rotation_x(90.0))
+//            Vector3f { x: 0.0, y: 0.0, z: 10.0 },
+//            1.0,
+//            Vector3f { x: 90.0, y: 0.0, z: 0.0 }
 //        ),
 
         Instance::new(
             &wooden_cube,
-            Some(Vector4f { x: 1.0, y: 1.0, z: 4.0, w: 0.0 }),
-            None,
-            Some(Matrix44f::rotation_y(-30.0).multiply(Matrix44f::rotation_z(-30.0)))
+            Vector3f { x: 1.0, y: 1.0, z: 4.0 },
+            1.0,
+            Vector3f { x: 0.0, y: -30.0, z: -30.0 }
         ),
         Instance::new(
             &brick_cube,
-            Some(Vector4f { x: -0.3, y: -0.4, z: 3.0, w: 0.0 }),
-            None,
-            Some(Matrix44f::rotation_y(20.0).
-                multiply(Matrix44f::rotation_z(10.0)).
-                multiply(Matrix44f::rotation_x(25.0))),
+            Vector3f { x: -0.3, y: -0.4, z: 3.0 },
+            1.0,
+            Vector3f {x: 25.0, y: 20.0, z: 10.0 }
         ),
 
 //        Instance::new(
 //            &cube,
-//            Some(Vector4f { x: 0.0, y: 0.0, z: 4.0, w: 0.0 }),
-//            None,
-//            None
+//            Vector3f { x: 0.0, y: 0.0, z: 4.0 },
+//            1.0,
+//            Vector3f::zero_vector()
 //        ),
 //        Instance::new(
 //            &cube,
-//            Some(Vector4f { x: 2.0, y: -2.0, z: 4.5, w: 0.0 }),
-//            None,
-//            Some(Matrix44f::rotation_y(-30.0).multiply(Matrix44f::rotation_z(-30.0)))
+//            Vector3f { x: 2.0, y: -2.0, z: 4.5 },
+//            1.0,
+//            Vector3f { x: 0.0, y: -30.0, z: -30.0 }
 //        ),
 //        Instance::new(
 //            &torus,
-//            Some(Vector4f { x: 0.0, y: 3.0, z: 0.0, w: 0.0 }),
-//            Some(0.2),
-//            Some(Matrix44f::rotation_y(0.0).multiply(Matrix44f::rotation_x(90.0)))
+//            Vector3f { x: 0.0, y: 3.0, z: 0.0 },
+//            0.2,
+//            Vector3f { x: 90.0, y: 0.0, z: 0.0 }
 //        ),
 //        Instance::new(
 //            &torus,
-//            Some(Vector4f { x: 0.0, y: 0.0, z: 0.0, w: 0.0 }),
-//            Some(0.1),
-//            Some(Matrix44f::rotation_x(0.0).multiply(Matrix44f::rotation_y(0.0)))
+//            Vector3f { x: 0.0, y: 0.0, z: 0.0 },
+//            0.1,
+//            Vector3f::zero_vector()
 //        ),
 //
 //        Instance::new(
 //            &sphere,
-//            Some(Vector4f { x: 0.0, y: 0.0, z: 5.0, w: 0.0 }),
-//            Some(1.3),
-//            Some(Matrix44f::rotation_y(-45.0))
+//            Vector3f { x: 0.0, y: 0.0, z: 5.0 },
+//            1.3,
+//            Vector3f { x: 0.0, y: -45.0, z: 0.0 }
 //        ),
 
 //        Instance::new(
 //            &octo_flower,
-//            Some(Vector4f { x: 0.0, y: 0.0, z: 70.0, w: 0.0 }),
-//            None,
-//            Some(Matrix44f::rotation_x(0.0).multiply(Matrix44f::rotation_y(0.0)))
+//            Vector3f { x: 0.0, y: 0.0, z: 70.0 },
+//            1.0,
+//            Vector3f::zero_vector()
 //        ),
 //        Instance::new(
 //            &twirl,
-//            Some(Vector4f { x: 0.0, y: 0.0, z: 30.0, w: 0.0 }),
-//            None,
-//            Some(Matrix44f::rotation_x(0.0).multiply(Matrix44f::rotation_y(0.0)))
+//            Vector3f { x: 0.0, y: 0.0, z: 30.0 },
+//            1.0,
+//            Vector3f::zero_vector()
 //        ),
 //        Instance::new(
 //            &statue,
-//            Some(Vector4f { x: 0.0, y: 0.0, z: 10.0, w: 0.0 }),
-//            None,
-//            Some(Matrix44f::rotation_x(30.0).multiply(Matrix44f::rotation_y(135.0)))
+//            Vector3f { x: 0.0, y: 0.0, z: 10.0 },
+//            1.0,
+//            Vector3f { x: 30.0, y: 135.0, z: 0.0 }
 //        ),
     ];
-
 
     let lights = vec![
         Light::Ambient { intensity: 0.2 },
@@ -1290,7 +1291,7 @@ fn main() {
 //        },
         Light::Point {
             intensity: 0.7,
-            position: Point3D { x: -4.0, y: 4.0, z: -0.5 }
+            position: Vector3f { x: -4.0, y: 4.0, z: -0.5 }
         }
     ];
 

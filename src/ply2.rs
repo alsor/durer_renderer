@@ -1,7 +1,7 @@
 extern crate rand;
 
 use std::fs::File;
-use super::Point3D;
+use super::Vector3f;
 use model::Model;
 use std::str::FromStr;
 use std::io::prelude::*;
@@ -60,7 +60,7 @@ pub fn load_model(filename: &str) -> Model {
                 for float in line.trim().split(" ") {
                     coords.push(f64::from_str(float).unwrap());
                 }
-                vertices.push(Point3D { x: coords[0], y: coords[1], z: coords[2] });
+                vertices.push(Vector3f { x: coords[0], y: coords[1], z: coords[2] });
                 current_vertex += 1;
                 if current_vertex == num_vertices {
                     current_section += 1;
@@ -105,5 +105,5 @@ pub fn load_model(filename: &str) -> Model {
         triangles.push(triangle);
     }
 
-    Model { vertices, triangles, colors, textures: None, uvs: None }
+    Model { name: "filename", vertices, triangles, colors, textures: None, uvs: None }
 }

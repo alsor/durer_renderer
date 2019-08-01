@@ -2,62 +2,57 @@ use model::Model;
 use matrix44f::Matrix44f;
 use vector4f::Vector4f;
 use ::{Color, Triangle};
+use Vector3f;
 
 pub struct Instance<'a> {
     pub model: &'a Model<'a>,
-    pub transform: Option<Matrix44f>,
-    pub rotation_transform: Option<Matrix44f>
+    position: Vector4f,
+    scale: f64,
+    rotation: Vector3f,
+    position_delta: Vector3f,
+    scale_delta: f64,
+    rotation_delta: Vector3f,
 }
 
 impl<'a> Instance<'a> {
-    pub fn new(
-        model: &'a Model,
-        position: Option<Vector4f>,
-        scale: Option<f64>,
-        rotation: Option<Matrix44f>
-    ) -> Self {
-        let mut transform = rotation;
+    pub fn new(model: &'a Model, position: Vector3f, scale: f64, rotation: Vector3f) -> Self {
+        Self {
+            model,
+            position: position.to_vector4f(),
+            scale,
+            rotation,
+            position_delta: Vector3f::zero_vector(),
+            scale_delta: 0.0,
+            rotation_delta: Vector3f::zero_vector(),
+        }
 
-        match scale {
-            None => (),
-            Some(scale_factor) => {
-                let scale_matrix = Matrix44f::uniform_scale(scale_factor);
-                transform = match transform {
-                    None => { Some(scale_matrix) },
-                    Some(existing_transform) => {
-                        Some(existing_transform.multiply(scale_matrix))
-                    },
-                };
-            },
-        };
 
-        match position {
-            None => (),
-            Some(position_vector) => {
-                let translate_matrix = Matrix44f::translation(position_vector);
-                transform = match transform {
-                    None => { Some(translate_matrix) },
-                    Some(existing_transform) => {
-                        Some(existing_transform.multiply(translate_matrix))
-                    },
-                };
-            },
-        };
+    }
 
-        Self { model, transform, rotation_transform: rotation }
+    pub fn transform(&self) -> Matrix44f {
+        self.rotation_transform().
+            multiply(Matrix44f::uniform_scale(self.scale)).
+            multiply(Matrix44f::translation(self.position))
+    }
+
+    pub fn rotation_transform(&self) -> Matrix44f {
+        Matrix44f::rotation_x(self.rotation.x).
+            multiply(Matrix44f::rotation_y(self.rotation.y).
+                multiply(Matrix44f::rotation_z(self.rotation.z)))
     }
 }
 
 #[test]
 fn test_new() {
-    use super::Point3D;
+    use super::Vector3f;
     let vertices = vec![
-        Point3D { x: 1.0, y: 0.0, z: 0.0 },
-        Point3D { x: 0.0, y: 1.0, z: 0.0 },
-        Point3D { x: 0.0, y: 0.0, z: 1.0 },
+        Vector3f { x: 1.0, y: 0.0, z: 0.0 },
+        Vector3f { x: 0.0, y: 1.0, z: 0.0 },
+        Vector3f { x: 0.0, y: 0.0, z: 1.0 },
     ];
     let triangles = vec![Triangle::new_with_calculated_normals(&vertices, [0, 1, 2])];
     let model = Model {
+        name: "test_model",
         vertices,
         triangles,
         colors: vec![Color { r: 0, g: 0, b: 0 }],
@@ -67,9 +62,9 @@ fn test_new() {
 
     let instance = Instance::new(
         &model,
-        None,
-        None,
-        None
+        Vector3f::zero_vector(),
+        1.0,
+        Vector3f::zero_vector()
     );
     for vertex in &instance.model.vertices {
         println!("{:.2} {:.2} {:.2}", vertex.x, vertex.y, vertex.z);
@@ -78,14 +73,15 @@ fn test_new() {
 
 #[test]
 fn test_new_with_position() {
-    use super::Point3D;
+    use super::Vector3f;
     let vertices = vec![
-        Point3D { x: 1.0, y: 0.0, z: 0.0 },
-        Point3D { x: 0.0, y: 1.0, z: 0.0 },
-        Point3D { x: 0.0, y: 0.0, z: 1.0 },
+        Vector3f { x: 1.0, y: 0.0, z: 0.0 },
+        Vector3f { x: 0.0, y: 1.0, z: 0.0 },
+        Vector3f { x: 0.0, y: 0.0, z: 1.0 },
     ];
     let triangles = vec![Triangle::new_with_calculated_normals(&vertices, [0, 1, 2])];
     let model = Model {
+        name: "test_model",
         vertices,
         triangles,
         colors: vec![Color { r: 0, g: 0, b: 0 }],
@@ -95,9 +91,9 @@ fn test_new_with_position() {
 
     let instance = Instance::new(
         &model,
-        Some(Vector4f { x: 1.0, y: 1.0, z: 1.0, w: 0.0 }),
-        None,
-        None
+        Vector3f { x: 1.0, y: 1.0, z: 1.0 },
+        1.0,
+        Vector3f::zero_vector()
     );
     for vertex in &instance.model.vertices {
         println!("{:.2} {:.2} {:.2}", vertex.x, vertex.y, vertex.z);
@@ -106,14 +102,15 @@ fn test_new_with_position() {
 
 #[test]
 fn test_new_with_scale() {
-    use super::Point3D;
+    use super::Vector3f;
     let vertices = vec![
-        Point3D { x: 1.0, y: 0.0, z: 0.0 },
-        Point3D { x: 0.0, y: 1.0, z: 0.0 },
-        Point3D { x: 0.0, y: 0.0, z: 1.0 },
+        Vector3f { x: 1.0, y: 0.0, z: 0.0 },
+        Vector3f { x: 0.0, y: 1.0, z: 0.0 },
+        Vector3f { x: 0.0, y: 0.0, z: 1.0 },
     ];
     let triangles = vec![Triangle::new_with_calculated_normals(&vertices, [0, 1, 2])];
     let model = Model {
+        name: "test_model",
         vertices,
         triangles,
         colors: vec![Color { r: 0, g: 0, b: 0 }],
@@ -123,9 +120,9 @@ fn test_new_with_scale() {
 
     let instance = Instance::new(
         &model,
-        None,
-        Some(2.0),
-        None
+        Vector3f::zero_vector(),
+        2.0,
+        Vector3f::zero_vector()
     );
     for vertex in &instance.model.vertices {
         println!("{:.2} {:.2} {:.2}", vertex.x, vertex.y, vertex.z);
@@ -134,14 +131,15 @@ fn test_new_with_scale() {
 
 #[test]
 fn test_new_with_rotation() {
-    use super::Point3D;
+    use super::Vector3f;
     let vertices = vec![
-        Point3D { x: 1.0, y: 0.0, z: 0.0 },
-        Point3D { x: 0.0, y: 1.0, z: 0.0 },
-        Point3D { x: 0.0, y: 0.0, z: 1.0 },
+        Vector3f { x: 1.0, y: 0.0, z: 0.0 },
+        Vector3f { x: 0.0, y: 1.0, z: 0.0 },
+        Vector3f { x: 0.0, y: 0.0, z: 1.0 },
     ];
     let triangles = vec![Triangle::new_with_calculated_normals(&vertices, [0, 1, 2])];
     let model = Model {
+        name: "test_model",
         vertices,
         triangles,
         colors: vec![Color { r: 0, g: 0, b: 0 }],
@@ -151,9 +149,9 @@ fn test_new_with_rotation() {
 
     let instance = Instance::new(
         &model,
-        None,
-        None,
-        Some(Matrix44f::rotation_y(30.0))
+        Vector3f::zero_vector(),
+        1.0,
+        Vector3f { x: 0.0, y: 30.0, z: 0.0 }
     );
     for vertex in &instance.model.vertices {
         println!("{:.2} {:.2} {:.2}", vertex.x, vertex.y, vertex.z);

@@ -1,10 +1,10 @@
-use super::Point3D;
+use super::Vector3f;
 
 #[derive(Copy, Clone, Debug)]
 pub enum PlaneType { Near, Left, Right, Top, Bottom }
 
 pub struct Plane {
     pub plane_type: PlaneType,
-    pub normal: Point3D,
-    pub point: Point3D
+    pub normal: Vector3f,
+    pub point: Vector3f
 }

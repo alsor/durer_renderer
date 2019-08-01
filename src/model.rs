@@ -1,9 +1,10 @@
-use ::{Point3D, Triangle, Color};
+use ::{Vector3f, Triangle, Color};
 use texture::Texture;
 use uv::UV;
 
 pub struct Model<'a> {
-    pub vertices: Vec<Point3D>,
+    pub name: &'a str,
+    pub vertices: Vec<Vector3f>,
     pub triangles: Vec<Triangle>,
     pub colors: Vec<Color>,
     pub textures: Option<Vec<&'a Texture>>,

@@ -9,6 +9,10 @@ pub struct Vector4f {
 }
 
 impl Vector4f {
+    pub fn zero_vector() -> Self {
+        Self { x: 0.0, y: 0.0, z: 0.0, w: 0.0 }
+    }
+
     pub fn transform(&self, matrix: Matrix44f) -> Self {
         Self {
             x: self.x * matrix.elements[0][0] +

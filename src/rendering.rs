@@ -2,7 +2,7 @@ use instance::Instance;
 use buffer_canvas::BufferCanvas;
 use projective_camera::ProjectiveCamera;
 use super::Point2D;
-use super::Point3D;
+use super::Vector3f;
 use super::Point;
 use super::Color;
 use matrix44f::Matrix44f;
@@ -66,27 +66,19 @@ fn render_instance(
             Light::Point { intensity, position } => {
                 let transformed_position =
                     position.to_vector4f().transform(camera_transform);
-                Light::Point { intensity, position: Point3D::from_vector4f(transformed_position) }
+                Light::Point { intensity, position: Vector3f::from_vector4f(transformed_position) }
             }
             Light::Directional { intensity, direction } => {
                 let transformed_direction =
                     direction.to_vector4f().transform(camera_rotation_transform);
-                Light::Directional { intensity, direction: Point3D::from_vector4f(transformed_direction) }
+                Light::Directional { intensity, direction: Vector3f::from_vector4f(transformed_direction) }
             }
         };
         transformed_lights.push(transformed_light);
     }
 
-    let instance_transform = match instance.transform {
-        None => { camera_transform },
-        Some(instance_transform) => { instance_transform.multiply(camera_transform) },
-    };
-    let combined_rotation_transform = match instance.rotation_transform {
-        None => { camera_rotation_transform },
-        Some(instance_rotation_transform) => {
-            instance_rotation_transform.multiply(camera_rotation_transform)
-        }
-    };
+    let instance_transform = instance.transform().multiply(camera_transform);
+    let combined_rotation_transform = instance.rotation_transform().multiply(camera_rotation_transform);
 
     let mut transformed_vertices =
         Vec::<Vector4f>::with_capacity(instance.model.vertices.len());
@@ -105,8 +97,8 @@ fn render_instance(
 
         let is_face_visible = if rendering_settings.backface_culling {
             face_visible_4f(
-                Point3D::from_vector4f(transformed_vertices[triangle.indexes[0]]),
-                Point3D::from_vector4f(transformed_triangle_normal),
+                Vector3f::from_vector4f(transformed_vertices[triangle.indexes[0]]),
+                Vector3f::from_vector4f(transformed_triangle_normal),
             )
         } else {
             true
@@ -158,26 +150,26 @@ fn render_instance(
     }
 }
 
-fn face_normal_direction_in_right(face: &Vec<i32>, vertices: &[Vector4f]) -> Point3D {
+fn face_normal_direction_in_right(face: &Vec<i32>, vertices: &[Vector4f]) -> Vector3f {
     let vector1 = vectors::difference(
-        Point3D::from_vector4f(vertices[face[2] as usize]),
-        Point3D::from_vector4f(vertices[face[1] as usize])
+        Vector3f::from_vector4f(vertices[face[2] as usize]),
+        Vector3f::from_vector4f(vertices[face[1] as usize])
     );
     let vector2 = vectors::difference(
-        Point3D::from_vector4f(vertices[face[1] as usize]),
-        Point3D::from_vector4f(vertices[face[0] as usize])
+        Vector3f::from_vector4f(vertices[face[1] as usize]),
+        Vector3f::from_vector4f(vertices[face[0] as usize])
     );
     vectors::cross_product(vector1, vector2)
 }
 
-fn face_normal_direction_in_left(triangle: &Triangle, vertices: &[Vector4f]) -> Point3D {
+fn face_normal_direction_in_left(triangle: &Triangle, vertices: &[Vector4f]) -> Vector3f {
     let vector1 = vectors::difference(
-        Point3D::from_vector4f(vertices[triangle.indexes[2]]),
-        Point3D::from_vector4f(vertices[triangle.indexes[1]])
+        Vector3f::from_vector4f(vertices[triangle.indexes[2]]),
+        Vector3f::from_vector4f(vertices[triangle.indexes[1]])
     );
     let vector2 = vectors::difference(
-        Point3D::from_vector4f(vertices[triangle.indexes[1]]),
-        Point3D::from_vector4f(vertices[triangle.indexes[0]])
+        Vector3f::from_vector4f(vertices[triangle.indexes[1]]),
+        Vector3f::from_vector4f(vertices[triangle.indexes[0]])
     );
     vectors::cross_product(vector2, vector1)
 }
@@ -215,9 +207,9 @@ fn clip_triangle_against_plane(triangle: Triangle4f, clipping_plane: &Plane) -> 
     let color = triangle.color;
     let mut result = Vec::<Triangle4f>::new();
 
-    let point_a = Point3D::from_vector4f(triangle.a);
-    let point_b = Point3D::from_vector4f(triangle.b);
-    let point_c = Point3D::from_vector4f(triangle.c);
+    let point_a = Vector3f::from_vector4f(triangle.a);
+    let point_b = Vector3f::from_vector4f(triangle.b);
+    let point_c = Vector3f::from_vector4f(triangle.c);
 
     let vector_p_a = difference(point_a, clipping_plane.point);
     let vector_p_b = difference(point_b, clipping_plane.point);
@@ -292,9 +284,9 @@ fn clip_triangle_against_plane(triangle: Triangle4f, clipping_plane: &Plane) -> 
 }
 
 fn find_split_vertex(
-    point1: Point3D,
+    point1: Vector3f,
     dot_product1: f64,
-    point2: Point3D,
+    point2: Vector3f,
     dot_product2: f64
 ) -> Vector4f {
     let t = dot_product1 / (dot_product1 - dot_product2);
@@ -316,7 +308,7 @@ fn find_split_vertex(
 }
 
 fn is_vertex_outside(plane: &Plane, vertex: Vector4f) -> bool {
-    let point3d = Point3D::from_vector4f(vertex);
+    let point3d = Vector3f::from_vector4f(vertex);
 
     dot_product(plane.normal, difference(point3d, plane.point)) < 0.0
 }
@@ -332,9 +324,9 @@ fn convert_face_to_triangles(
     color: Color
 ) -> Vec<Triangle4f> {
     let transformed_normals = [
-        Point3D::from_vector4f(triangle.normals[0].to_vector4f().transform(combined_rotation_transform)),
-        Point3D::from_vector4f(triangle.normals[1].to_vector4f().transform(combined_rotation_transform)),
-        Point3D::from_vector4f(triangle.normals[2].to_vector4f().transform(combined_rotation_transform)),
+        Vector3f::from_vector4f(triangle.normals[0].to_vector4f().transform(combined_rotation_transform)),
+        Vector3f::from_vector4f(triangle.normals[1].to_vector4f().transform(combined_rotation_transform)),
+        Vector3f::from_vector4f(triangle.normals[2].to_vector4f().transform(combined_rotation_transform)),
     ];
 
     vec![
@@ -390,13 +382,13 @@ fn render_filled_triangle(
 
 fn draw_normal_to_vertex(
     vertex: Vector4f,
-    normal: Point3D,
+    normal: Vector3f,
     camera: &ProjectiveCamera,
     canvas: &mut BufferCanvas
 ) {
     let start = vertex_to_canvas_point(vertex, camera, canvas);
     let end = vertex_to_canvas_point(
-        vectors::sum(Point3D::from_vector4f(vertex), normal).to_vector4f(),
+        vectors::sum(Vector3f::from_vector4f(vertex), normal).to_vector4f(),
         camera,
         canvas
     );
@@ -418,8 +410,8 @@ fn is_point_in_canvas(point: Point, canvas: &BufferCanvas) -> bool {
 }
 
 fn compute_illumination(
-    vertex: Point3D,
-    normal_direction: Point3D,
+    vertex: Vector3f,
+    normal_direction: Vector3f,
     camera: &ProjectiveCamera,
     lights: &Vec<Light>
 ) -> f64 {
@@ -442,9 +434,9 @@ fn compute_illumination(
 }
 
 fn light_from_direction(
-    vertex: Point3D,
-    normal: Point3D,
-    light_direction: Point3D,
+    vertex: Vector3f,
+    normal: Vector3f,
+    light_direction: Vector3f,
     light_intensity: f64
 ) -> f64 {
     let mut result = 0.0;
@@ -502,7 +494,7 @@ fn flat_shaded_triangle(
     let mut p1 = vertex_to_canvas_point(triangle.b, camera, canvas);
     let mut p2 = vertex_to_canvas_point(triangle.c, camera, canvas);
 
-    let center = Point3D {
+    let center = Vector3f {
         x: (triangle.a.x + triangle.b.x + triangle.c.x) / 3.0,
         y: (triangle.a.y + triangle.b.y + triangle.c.y) / 3.0,
         z: (triangle.a.z + triangle.b.z + triangle.c.z) / 3.0
@@ -614,9 +606,9 @@ fn gouraud_shaded_triangle(
     lights: &Vec<Light>,
     canvas: &mut BufferCanvas,
 ) {
-    let mut v0 = Point3D::from_vector4f(triangle.a);
-    let mut v1 = Point3D::from_vector4f(triangle.b);
-    let mut v2 = Point3D::from_vector4f(triangle.c);
+    let mut v0 = Vector3f::from_vector4f(triangle.a);
+    let mut v1 = Vector3f::from_vector4f(triangle.b);
+    let mut v2 = Vector3f::from_vector4f(triangle.c);
 
     let mut normal0 = triangle.normals[0];
     let mut normal1 = triangle.normals[1];
@@ -771,9 +763,9 @@ fn phong_shaded_triangle(
     lights: &Vec<Light>,
     canvas: &mut BufferCanvas,
 ) {
-    let mut v0 = Point3D::from_vector4f(triangle.a);
-    let mut v1 = Point3D::from_vector4f(triangle.b);
-    let mut v2 = Point3D::from_vector4f(triangle.c);
+    let mut v0 = Vector3f::from_vector4f(triangle.a);
+    let mut v1 = Vector3f::from_vector4f(triangle.b);
+    let mut v2 = Vector3f::from_vector4f(triangle.c);
 
     let mut normal0 = triangle.normals[0];
     let mut normal1 = triangle.normals[1];
@@ -945,7 +937,7 @@ fn phong_shaded_triangle(
 
             if canvas.update_depth_buffer_if_closer(screen_x, screen_y, iz) {
                 let vertex = unproject_vertex(x, y, iz, canvas, camera);
-                let normal = Point3D {
+                let normal = Vector3f {
                     x: normal_x_segment[x_index],
                     y: normal_y_segment[x_index],
                     z: normal_z_segment[x_index]
@@ -967,9 +959,9 @@ fn textured_phong_shaded_triangle(
     lights: &Vec<Light>,
     canvas: &mut BufferCanvas,
 ) {
-    let mut v0 = Point3D::from_vector4f(triangle.a);
-    let mut v1 = Point3D::from_vector4f(triangle.b);
-    let mut v2 = Point3D::from_vector4f(triangle.c);
+    let mut v0 = Vector3f::from_vector4f(triangle.a);
+    let mut v1 = Vector3f::from_vector4f(triangle.b);
+    let mut v2 = Vector3f::from_vector4f(triangle.c);
 
     let mut normal0 = triangle.normals[0];
     let mut normal1 = triangle.normals[1];
@@ -1191,7 +1183,7 @@ fn textured_phong_shaded_triangle(
 
             if canvas.update_depth_buffer_if_closer(screen_x, screen_y, iz) {
                 let vertex = unproject_vertex(x, y, iz, canvas, camera);
-                let normal = Point3D {
+                let normal = Vector3f {
                     x: normal_x_segment[x_index],
                     y: normal_y_segment[x_index],
                     z: normal_z_segment[x_index]
@@ -1215,7 +1207,7 @@ fn unproject_vertex(
     iz: f64,
     canvas: &BufferCanvas,
     camera: &ProjectiveCamera
-) -> Point3D {
+) -> Vector3f {
     let z = 1.0 / iz;
 
     let viewport_x =  (canvas_x as f64) * camera.viewport_size / (canvas.size as f64);
@@ -1224,7 +1216,7 @@ fn unproject_vertex(
     let unprojected_x = viewport_x * z / camera.projection_plane_z;
     let unprojected_y = viewport_y * z / camera.projection_plane_z;
 
-    Point3D { x: unprojected_x, y: unprojected_y, z }
+    Vector3f { x: unprojected_x, y: unprojected_y, z }
 }
 
 fn vertex_to_canvas_point(vertex: Vector4f, camera: &ProjectiveCamera, canvas: &BufferCanvas)

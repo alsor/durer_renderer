@@ -4,7 +4,7 @@ use super::Pixel;
 use super::Point;
 use super::Point2D;
 use vector4f::Vector4f;
-use Point3D;
+use Vector3f;
 
 pub struct BufferCanvas {
     pub size: usize,

@@ -2,7 +2,7 @@ extern crate rand;
 
 use super::Pixel;
 use super::Color;
-use super::Point3D;
+use super::Vector3f;
 use super::screen_x;
 use super::screen_y;
 use super::put_pixel;
@@ -14,7 +14,7 @@ use self::rand::Rng;
 
 #[derive(Copy, Clone)]
 pub struct Sphere {
-    pub center: Point3D,
+    pub center: Vector3f,
     pub radius: f64,
     pub color: Color,
     pub specular: i32,
@@ -26,7 +26,7 @@ pub fn render_scene_to_buffer(
     lights: &Vec<Light>,
     buffer: &mut [u8],
     size: usize,
-    origin: Point3D,
+    origin: Vector3f,
     rotation: [[f64; 3]; 3]
 ) {
     let canvas_width = size as i32;
@@ -36,7 +36,7 @@ pub fn render_scene_to_buffer(
     for x in -canvas_width/2..canvas_width/2 {
         for y in -canvas_height/2..canvas_height/2 {
 //            let direction = canvas_to_viewport(x, y, canvas_width, canvas_height);
-            let direction = Point3D::from_vec(
+            let direction = Vector3f::from_vec(
                 vectors::multiply_vec_and_mat(
                     canvas_to_viewport(x, y, canvas_width, canvas_height).to_vec(),
                     rotation
@@ -66,12 +66,12 @@ pub fn render_scene_to_buffer(
     }
 }
 
-fn canvas_to_viewport(x: i32, y: i32, canvas_width: i32, canvas_height: i32) -> Point3D {
+fn canvas_to_viewport(x: i32, y: i32, canvas_width: i32, canvas_height: i32) -> Vector3f {
     let d = 1.0;
     let viewport_width = 1.0;
     let viewport_height = 1.0;
 
-    Point3D {
+    Vector3f {
         x: x as f64 * viewport_width / canvas_width as f64,
         y: y as f64 * viewport_height / canvas_height as f64,
         z: d
@@ -79,9 +79,9 @@ fn canvas_to_viewport(x: i32, y: i32, canvas_width: i32, canvas_height: i32) -> 
 }
 
 fn compute_lighting(
-    point: Point3D,
-    normal: Point3D,
-    view: Point3D,
+    point: Vector3f,
+    normal: Vector3f,
+    view: Vector3f,
     lights: &Vec<Light>,
     shininess: i32,
     spheres: &Vec<Sphere>
@@ -120,13 +120,13 @@ fn compute_lighting(
 }
 
 fn compute_light_from_direction(
-    point: Point3D,
-    normal: Point3D,
-    view: Point3D,
+    point: Vector3f,
+    normal: Vector3f,
+    view: Vector3f,
     shininess: i32,
     spheres: &Vec<Sphere>,
     light_intensity: f64,
-    light_direction: Point3D,
+    light_direction: Vector3f,
     max_t: f64
 ) -> f64 {
     let mut result = 0.0;
@@ -172,8 +172,8 @@ fn compute_light_from_direction(
 }
 
 fn closest_intersection(
-    origin: Point3D,
-    direction: Point3D,
+    origin: Vector3f,
+    direction: Vector3f,
     min_t: f64,
     max_t: f64,
     spheres: &Vec<Sphere>
@@ -199,8 +199,8 @@ fn closest_intersection(
 fn trace_ray(
     spheres: &Vec<Sphere>,
     lights: &Vec<Light>,
-    origin: Point3D,
-    direction: Point3D,
+    origin: Vector3f,
+    direction: Vector3f,
     min_t: f64,
     max_t: f64,
     recursion_depth: i32
@@ -281,7 +281,7 @@ fn contains(range: (f64, f64), n: f64) -> bool {
 }
 
 
-fn intersect_ray_with_sphere(origin: Point3D, direction: Point3D, sphere: Sphere) -> (f64, f64) {
+fn intersect_ray_with_sphere(origin: Vector3f, direction: Vector3f, sphere: Sphere) -> (f64, f64) {
     let oc = vectors::difference(origin, sphere.center);
     let k1 = vectors::dot_product(direction, direction);
     let k2 = 2.0 * vectors::dot_product(oc, direction);
