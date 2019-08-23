@@ -10,7 +10,8 @@ image = "0.22.0"
 sdl2 = "0.31.0"
 rand = "0.4"
 libc = "0.2.36"
-mpeg_encoder = { git = "https://github.com/sebcrozet/mpeg_encoder" }
+mpeg_encoder = { git = "https://github.com/sebcrozet/mpeg_encoder", optional = true }
 
 [features]
 smooth_animation = []
+with_mpeg = ["mpeg_encoder"]
