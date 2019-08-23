@@ -1219,10 +1219,17 @@ fn main() {
         ),
         Instance::new(
             &brick_cube,
-            Vector3f { x: -0.3, y: -0.4, z: 3.0 },
+            Vector3f { x: -0.3, y: -0.4, z: 3.5 },
             1.0,
             Vector3f {x: 25.0, y: 20.0, z: 10.0 }
         ),
+
+//        Instance::new(
+//            &torus,
+//            Vector3f { x: 0.0, y: 0.0, z: 5.0 },
+//            0.2,
+//            Vector3f { x: 90.0, y: 0.0, z: 0.0 }
+//        ),
 
 //        Instance::new(
 //            &cube,
@@ -1235,12 +1242,6 @@ fn main() {
 //            Vector3f { x: 2.0, y: -2.0, z: 4.5 },
 //            1.0,
 //            Vector3f { x: 0.0, y: -30.0, z: -30.0 }
-//        ),
-//        Instance::new(
-//            &torus,
-//            Vector3f { x: 0.0, y: 3.0, z: 0.0 },
-//            0.2,
-//            Vector3f { x: 90.0, y: 0.0, z: 0.0 }
 //        ),
 //        Instance::new(
 //            &torus,
@@ -1277,14 +1278,14 @@ fn main() {
     ];
 
     let lights = vec![
-        Light::Ambient { intensity: 0.2 },
+        Light::Ambient { intensity: 0.15 },
 //        Light::Directional {
-//            intensity: 0.5,
-//            direction: Point3D { x: 1.0, y: 1.0, z: 0.5 }
+//            intensity: 0.7,
+//            direction: Vector3f { x: 1.0, y: 0.0, z: -0.5 }
 //        },
         Light::Point {
-            intensity: 0.7,
-            position: Vector3f { x: -4.0, y: 4.0, z: -0.5 }
+            intensity: 0.85,
+            position: Vector3f { x: 0.0, y: 1.0, z: 0.0 }
         }
     ];
 
@@ -1316,6 +1317,15 @@ fn main() {
         delta_angle = 1.0;
     };
 
+
+    instances[0].rotation_delta.x = angle_increase * 4.5;
+    instances[0].rotation_delta.y = angle_increase * 1.5;
+    instances[0].rotation_delta.z = angle_increase * 6.5;
+
+    instances[1].rotation_delta.y = angle_increase * 8.0;
+    instances[1].rotation_delta.z = angle_increase * 3.0;
+
+
     let mut event_pump = sdl_context.event_pump().unwrap();
     'running: loop {
 
@@ -1326,6 +1336,9 @@ fn main() {
             y_position += delta_y;
             z_position += delta_z;
             angle += delta_angle;
+
+            instances[0].update_rotation();
+            instances[1].update_rotation();
         };
 
         let camera = ProjectiveCamera {

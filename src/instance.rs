@@ -9,9 +9,9 @@ pub struct Instance<'a> {
     position: Vector4f,
     scale: f64,
     rotation: Vector3f,
-    position_delta: Vector3f,
-    scale_delta: f64,
-    rotation_delta: Vector3f,
+    pub position_delta: Vector3f,
+    pub scale_delta: f64,
+    pub rotation_delta: Vector3f,
 }
 
 impl<'a> Instance<'a> {
@@ -25,8 +25,6 @@ impl<'a> Instance<'a> {
             scale_delta: 0.0,
             rotation_delta: Vector3f::zero_vector(),
         }
-
-
     }
 
     pub fn transform(&self) -> Matrix44f {
@@ -39,6 +37,12 @@ impl<'a> Instance<'a> {
         Matrix44f::rotation_x(self.rotation.x).
             multiply(Matrix44f::rotation_y(self.rotation.y).
                 multiply(Matrix44f::rotation_z(self.rotation.z)))
+    }
+
+    pub fn update_rotation(&mut self) {
+        self.rotation.x += self.rotation_delta.x;
+        self.rotation.y += self.rotation_delta.y;
+        self.rotation.z += self.rotation_delta.z;
     }
 }
 
