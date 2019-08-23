@@ -1,6 +1,7 @@
-use image::GenericImageView;
 use image::DynamicImage;
-use Color;
+use image::GenericImageView;
+
+use crate::Color;
 
 pub struct Texture {
     img: DynamicImage,

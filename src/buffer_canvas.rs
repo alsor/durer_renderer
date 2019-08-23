@@ -1,10 +1,12 @@
-use projective_camera::ProjectiveCamera;
-use super::Color;
-use super::Pixel;
-use super::Point;
-use super::Point2D;
-use vector4f::Vector4f;
-use Vector3f;
+use log::*;
+
+use crate::Color;
+use crate::Pixel;
+use crate::Point;
+use crate::Point2D;
+use crate::projective_camera::ProjectiveCamera;
+use crate::Vector3f;
+use crate::vector4f::Vector4f;
 
 pub struct BufferCanvas {
     pub size: usize,

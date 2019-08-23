@@ -1,7 +1,28 @@
-extern crate image;
-extern crate sdl2;
-extern crate mpeg_encoder;
-extern crate rand;
+use std::{thread, time};
+use std::f64;
+use std::fs::File;
+use std::io::prelude::*;
+use std::str::FromStr;
+
+use image::ColorType;
+use image::png::PNGEncoder;
+use log::*;
+use rand::Rng;
+use sdl2::event::Event;
+use sdl2::keyboard::Keycode;
+use sdl2::pixels::PixelFormatEnum;
+use sdl2::rect::Rect;
+
+use buffer_canvas::BufferCanvas;
+use instance::Instance;
+use matrix44f::Matrix44f;
+use model::Model;
+use plane::Plane;
+use projective_camera::ProjectiveCamera;
+use ray_tracing::Sphere;
+use texture::Texture;
+use uv::UV;
+use vector4f::Vector4f;
 
 mod ray_tracing;
 mod vectors;
@@ -15,21 +36,6 @@ mod vector4f;
 mod plane;
 mod texture;
 mod uv;
-
-use image::ColorType;
-use image::png::PNGEncoder;
-use std::fs::File;
-use std::f64;
-use std::io::prelude::*;
-use std::str::FromStr;
-
-use ray_tracing::Sphere;
-use buffer_canvas::BufferCanvas;
-use projective_camera::ProjectiveCamera;
-use model::Model;
-use vector4f::Vector4f;
-use texture::Texture;
-use self::rand::Rng;
 
 #[derive(Copy, Clone)]
 pub struct Vector3f { x: f64, y: f64, z: f64 }
@@ -134,9 +140,9 @@ fn test_new_with_calculated_normal() {
         ],
         [2, 1, 0]
     );
-    assert!(::tests::roughly_equals(triangle.normals[0].x, 0.0));
-    assert!(::tests::roughly_equals(triangle.normals[0].y, 1.0));
-    assert!(::tests::roughly_equals(triangle.normals[0].z, 0.0));
+    assert!(tests::roughly_equals(triangle.normals[0].x, 0.0));
+    assert!(tests::roughly_equals(triangle.normals[0].y, 1.0));
+    assert!(tests::roughly_equals(triangle.normals[0].z, 0.0));
 
     println!("normal: {:.2} {:.2} {:.2}", triangle.normals[0].x, triangle.normals[0].y, triangle.normals[0].z);
 }
@@ -754,11 +760,6 @@ fn render_model_to_buffer(
     //    rasterize_line(Pixel { x: 60, y: 50 }, Pixel { x: 120, y: 60 }, &mut buffer, size);
 }
 
-use sdl2::pixels::PixelFormatEnum;
-use sdl2::rect::Rect;
-use sdl2::event::Event;
-use sdl2::keyboard::Keycode;
-
 fn show_buffer_in_window(buffer: &mut [u8], size: usize) {
     let sdl_context = sdl2::init().unwrap();
     let video_subsystem = sdl_context.video().unwrap();
@@ -1138,15 +1139,7 @@ pub fn screen_y(y_canvas: i32, canvas_height: i32) -> usize {
 //    draw_line(p2, p0, color, buffer, size);
 //}
 
-use instance::Instance;
-use matrix44f::Matrix44f;
 mod rendering;
-use std::{thread, time};
-use plane::Plane;
-use uv::UV;
-
-#[macro_use] extern crate log;
-extern crate env_logger;
 
 fn main() {
     env_logger::init();

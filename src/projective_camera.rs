@@ -1,10 +1,11 @@
-use super::Point2D;
-use super::Vector3f;
-use vector4f::Vector4f;
-use matrix44f::Matrix44f;
-use plane::Plane;
-use plane::PlaneType::*;
-use vectors::cross_product;
+use crate::matrix44f::Matrix44f;
+use crate::plane::Plane;
+use crate::plane::PlaneType;
+use crate::plane::PlaneType::*;
+use crate::Point2D;
+use crate::Vector3f;
+use crate::vector4f::Vector4f;
+use crate::vectors::cross_product;
 
 #[derive(Copy, Clone)]
 pub struct ProjectiveCamera {

@@ -1,4 +1,4 @@
-use super::Vector3f;
+use crate::Vector3f;
 
 pub fn dot_product(v1: Vector3f, v2: Vector3f) -> f64 {
     v1.x * v2.x + v1.y * v2.y + v1.z * v2.z
@@ -79,15 +79,15 @@ pub fn rotation_around_y(d: f64) -> [[f64; 3]; 3] {
 
 #[test]
 fn test_length() {
-    assert!(::tests::roughly_equals(length(Vector3f { x: 6.0, y: 2.0, z: 0.0 }), 6.324555));
+    assert!(crate::tests::roughly_equals(length(Vector3f { x: 6.0, y: 2.0, z: 0.0 }), 6.324555));
 }
 
 #[test]
 fn test_normalize() {
     let v = normalize(Vector3f { x: 6.0, y: 2.0, z: 0.0 });
-    assert!(::tests::roughly_equals(v.x, 0.948683));
-    assert!(::tests::roughly_equals(v.y, 0.316227));
-    assert!(::tests::roughly_equals(v.z, 0.0));
+    assert!(crate::tests::roughly_equals(v.x, 0.948683));
+    assert!(crate::tests::roughly_equals(v.y, 0.316227));
+    assert!(crate::tests::roughly_equals(v.z, 0.0));
 }
 
 #[test]
@@ -101,7 +101,7 @@ pub fn test_multiply_vec_and_mat() {
 
     let result = multiply_vec_and_mat(vec, mat);
 
-    assert!(::tests::roughly_equals(result[0], 1.0));
-    assert!(::tests::roughly_equals(result[1], 2.0));
-    assert!(::tests::roughly_equals(result[2], 3.0));
+    assert!(crate::tests::roughly_equals(result[0], 1.0));
+    assert!(crate::tests::roughly_equals(result[1], 2.0));
+    assert!(crate::tests::roughly_equals(result[2], 3.0));
 }

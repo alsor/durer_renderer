@@ -1,16 +1,16 @@
-extern crate rand;
-
-use super::Pixel;
-use super::Color;
-use super::Vector3f;
-use super::screen_x;
-use super::screen_y;
-use super::put_pixel;
-use rendering::multiply_color;
-use ::{std, Light};
 use std::f64;
-use vectors;
-use self::rand::Rng;
+
+use rand::Rng;
+
+use crate::Color;
+use crate::Light;
+use crate::Pixel;
+use crate::put_pixel;
+use crate::rendering::multiply_color;
+use crate::screen_x;
+use crate::screen_y;
+use crate::Vector3f;
+use crate::vectors;
 
 #[derive(Copy, Clone)]
 pub struct Sphere {
@@ -37,7 +37,7 @@ pub fn render_scene_to_buffer(
         for y in -canvas_height/2..canvas_height/2 {
 //            let direction = canvas_to_viewport(x, y, canvas_width, canvas_height);
             let direction = Vector3f::from_vec(
-                vectors::multiply_vec_and_mat(
+                crate::vectors::multiply_vec_and_mat(
                     canvas_to_viewport(x, y, canvas_width, canvas_height).to_vec(),
                     rotation
                 )
@@ -98,7 +98,7 @@ fn compute_lighting(
                     shininess,
                     spheres,
                     intensity,
-                    ::vectors::difference(position, point),
+                    crate::vectors::difference(position, point),
                     1.0
                 )
             }
@@ -300,7 +300,7 @@ fn intersect_ray_with_sphere(origin: Vector3f, direction: Vector3f, sphere: Sphe
 #[test]
 fn test_canvas_to_viewport() {
     let point = canvas_to_viewport(500, 500, 1000, 1000);
-    assert!(::tests::roughly_equals(point.x, 0.5));
-    assert!(::tests::roughly_equals(point.y, 0.5));
-    assert!(::tests::roughly_equals(point.z, 1.0));
+    assert!(crate::tests::roughly_equals(point.x, 0.5));
+    assert!(crate::tests::roughly_equals(point.y, 0.5));
+    assert!(crate::tests::roughly_equals(point.z, 1.0));
 }

@@ -1,13 +1,13 @@
-extern crate rand;
-
 use std::fs::File;
-use super::Vector3f;
-use model::Model;
-use std::str::FromStr;
 use std::io::prelude::*;
-use ::{Color, Triangle};
-use self::rand::Rng;
-use triangle;
+use std::str::FromStr;
+
+use rand::Rng;
+
+use crate::{Color, Triangle};
+use crate::model::Model;
+use crate::triangle;
+use crate::Vector3f;
 
 pub fn load_model(filename: &str) -> Model {
     let mut f = File::open(filename).expect("file not found");

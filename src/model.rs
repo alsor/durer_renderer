@@ -1,6 +1,6 @@
-use ::{Vector3f, Triangle, Color};
-use texture::Texture;
-use uv::UV;
+use crate::{Color, Triangle, Vector3f};
+use crate::texture::Texture;
+use crate::uv::UV;
 
 pub struct Model<'a> {
     pub name: &'a str,

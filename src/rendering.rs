@@ -1,25 +1,27 @@
-use instance::Instance;
-use buffer_canvas::BufferCanvas;
-use projective_camera::ProjectiveCamera;
-use super::Point2D;
-use super::Vector3f;
-use super::Point;
-use super::Color;
-use matrix44f::Matrix44f;
-use vector4f::Vector4f;
-use plane::Plane;
-use vectors::dot_product;
-use vectors::difference;
-use ::{Triangle, Triangle4f, face_visible};
-use vectors::sum;
-use vectors::scale;
-use ::{Light, vectors};
-use ::{face_visible_4f, transform};
+use log::*;
 use sdl2::video::WindowPos::Positioned;
-use ::{ShadingModel, RenderingSettings};
-use Pixel;
-use texture::Texture;
-use uv::UV;
+
+use crate::{face_visible, Triangle, Triangle4f};
+use crate::{Light, vectors};
+use crate::{face_visible_4f, transform};
+use crate::{RenderingSettings, ShadingModel};
+use crate::buffer_canvas::BufferCanvas;
+use crate::Color;
+use crate::instance::Instance;
+use crate::matrix44f::Matrix44f;
+use crate::Pixel;
+use crate::plane::Plane;
+use crate::Point;
+use crate::Point2D;
+use crate::projective_camera::ProjectiveCamera;
+use crate::texture::Texture;
+use crate::uv::UV;
+use crate::Vector3f;
+use crate::vector4f::Vector4f;
+use crate::vectors::difference;
+use crate::vectors::dot_product;
+use crate::vectors::scale;
+use crate::vectors::sum;
 
 pub fn render_scene(
     instances: &Vec<Instance>,

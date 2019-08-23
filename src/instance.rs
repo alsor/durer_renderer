@@ -1,8 +1,8 @@
-use model::Model;
-use matrix44f::Matrix44f;
-use vector4f::Vector4f;
-use ::{Color, Triangle};
-use Vector3f;
+use crate::{Color, Triangle};
+use crate::matrix44f::Matrix44f;
+use crate::model::Model;
+use crate::Vector3f;
+use crate::vector4f::Vector4f;
 
 pub struct Instance<'a> {
     pub model: &'a Model<'a>,

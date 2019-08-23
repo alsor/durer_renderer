@@ -1,4 +1,4 @@
-use super::Vector3f;
+use crate::Vector3f;
 
 #[derive(Copy, Clone, Debug)]
 pub enum PlaneType { Near, Left, Right, Top, Bottom }
