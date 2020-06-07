@@ -3,6 +3,7 @@ use std::f64;
 use std::fs::File;
 use std::io::prelude::*;
 use std::str::FromStr;
+use std::time::{Duration, Instant};
 
 use image::ColorType;
 use image::png::PNGEncoder;
@@ -23,6 +24,7 @@ use ray_tracing::Sphere;
 use texture::Texture;
 use uv::UV;
 use vector4f::Vector4f;
+use starfield::Starfield;
 
 mod ray_tracing;
 mod vectors;
@@ -36,6 +38,7 @@ mod vector4f;
 mod plane;
 mod texture;
 mod uv;
+mod starfield;
 
 #[derive(Copy, Clone)]
 pub struct Vector3f { x: f64, y: f64, z: f64 }
@@ -1201,7 +1204,7 @@ fn main() {
 //    let octo_flower = ply2::load_model("resources/octa-flower.ply2");
 //    let statue = ply2::load_model("resources/statue.ply2");
 
-    let mut current_instance_index: Option<i32> = None;
+    let mut current_instance_index: Option<usize> = None;
 
     let mut instances = vec![
 //        Instance::new(
@@ -1297,6 +1300,9 @@ fn main() {
 //    canvas.present();
 //
 
+
+    let mut starfield = Starfield::new(1000, 5.0, 110000.0);
+
     let step_increase = 0.005;
     let angle_increase = 0.1;
     let mut delta_x;
@@ -1321,15 +1327,23 @@ fn main() {
     instances[0].rotation_delta.x = angle_increase * 4.5;
     instances[0].rotation_delta.y = angle_increase * 1.5;
     instances[0].rotation_delta.z = angle_increase * 6.5;
+//    instances[0].position_delta.x = -0.005;
+//    instances[0].position_delta.z = 0.03;
+//    instances[0].scale_delta = 0.008;
 
     instances[1].rotation_delta.y = angle_increase * 8.0;
     instances[1].rotation_delta.z = angle_increase * 3.0;
+    instances[1].position_delta.z = 0.01;
 
+    let mut now = Instant::now();
 
     let mut event_pump = sdl_context.event_pump().unwrap();
     'running: loop {
+        let delta = now.elapsed();
+//        println!("delta: {:?}", (delta.as_nanos() as f64) / 1000000000.0);
 
         trace!("z_position: {:.2}", z_position);
+
 
         if cfg!(feature = "smooth_animation") {
             x_position += delta_x;
@@ -1337,8 +1351,8 @@ fn main() {
             z_position += delta_z;
             angle += delta_angle;
 
-            instances[0].update_rotation();
-            instances[1].update_rotation();
+            instances[0].apply_deltas();
+            instances[1].apply_deltas();
         };
 
         let camera = ProjectiveCamera {
@@ -1349,7 +1363,9 @@ fn main() {
         };
 
         buffer_canvas.clear();
-        rendering::render_scene(&instances, &lights, &camera, &rendering_settings, &mut buffer_canvas);
+
+//        rendering::render_scene(&instances, &lights, &camera, &rendering_settings, &mut buffer_canvas);
+        starfield.update_and_render(&delta, &mut buffer_canvas);
 
         texture.update(None, &buffer_canvas.buffer, buffer_canvas.size * 3).unwrap();
         canvas.clear();
@@ -1439,6 +1455,17 @@ fn main() {
                     Event::KeyDown { keycode: Some(Keycode::F12), .. } => {
                         write_image(&mut buffer_canvas.buffer, buffer_canvas.size).
                             expect("Error writing image to file");
+                    },
+                    Event::KeyDown { keycode: Some(Keycode::Num1), .. } => {
+
+                    },
+                    Event::KeyDown {
+                        keycode,
+                        scancode,
+                        keymod,
+                        ..
+                    } => {
+                        println!("Keycode: {:?}, Scancode: {:?}, Keymode: {:?}", keycode, scancode, keymod);
                     }
                     _ => {}
                 };
@@ -1446,6 +1473,7 @@ fn main() {
             None => {}
         };
 //        thread::sleep(time::Duration::from_millis(10));
+        now = Instant::now();
     }
 
 //    let p0 = Point { x: -200, y: -250, h: 0.1 };

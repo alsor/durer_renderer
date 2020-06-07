@@ -39,10 +39,26 @@ impl<'a> Instance<'a> {
                 multiply(Matrix44f::rotation_z(self.rotation.z)))
     }
 
-    pub fn update_rotation(&mut self) {
+    pub fn apply_deltas(&mut self) {
+        self.apply_rotation_deltas();
+        self.apply_position_deltas();
+        self.apply_scale_delta();
+    }
+
+    fn apply_rotation_deltas(&mut self) {
         self.rotation.x += self.rotation_delta.x;
         self.rotation.y += self.rotation_delta.y;
         self.rotation.z += self.rotation_delta.z;
+    }
+
+    fn apply_position_deltas(&mut self) {
+        self.position.x += self.position_delta.x;
+        self.position.y += self.position_delta.y;
+        self.position.z += self.position_delta.z;
+    }
+
+    fn apply_scale_delta(&mut self) {
+        self.scale += self.scale_delta;
     }
 }
 

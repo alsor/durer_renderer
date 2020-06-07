@@ -1,3 +1,7 @@
+run with smooth animation:
+cargo run --release --features "smooth_animation"
+
+
 moving normals to model
  - as normals now stored in the model - they always need to be transformed by camera rotation
  - need to interpolate normals when clipping triangles
