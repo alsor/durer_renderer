@@ -1,5 +1,7 @@
 Software Renderer written in Rust
 
+Up to this point almost everything was based on the amazing articles "Computer Graphics from Scratch" by Gabriel Gambetta (which recently became a full fledged book but still accessble online here https://gabrielgambetta.com/computer-graphics-from-scratch/index.html). Very recommended for the complete beginners in computer graphics (like myself).
+
 What's new:
 
 Textures
