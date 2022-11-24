@@ -1227,12 +1227,12 @@ fn main() {
             Vector3f {x: 25.0, y: 20.0, z: 10.0 }
         ),
 
-//        Instance::new(
-//            &torus,
-//            Vector3f { x: 0.0, y: 0.0, z: 5.0 },
-//            0.2,
-//            Vector3f { x: 90.0, y: 0.0, z: 0.0 }
-//        ),
+    //    Instance::new(
+    //        &torus,
+    //        Vector3f { x: 0.0, y: 0.0, z: 5.0 },
+    //        0.2,
+    //        Vector3f { x: 90.0, y: 0.0, z: 0.0 }
+    //    ),
 
 //        Instance::new(
 //            &cube,
@@ -1333,7 +1333,7 @@ fn main() {
 
     instances[1].rotation_delta.y = angle_increase * 8.0;
     instances[1].rotation_delta.z = angle_increase * 3.0;
-    instances[1].position_delta.z = 0.01;
+    // instances[1].position_delta.z = 0.01;
 
     let mut now = Instant::now();
 
@@ -1364,8 +1364,8 @@ fn main() {
 
         buffer_canvas.clear();
 
-//        rendering::render_scene(&instances, &lights, &camera, &rendering_settings, &mut buffer_canvas);
-        starfield.update_and_render(&delta, &mut buffer_canvas);
+        rendering::render_scene(&instances, &lights, &camera, &rendering_settings, &mut buffer_canvas);
+//        starfield.update_and_render(&delta, &mut buffer_canvas);
 
         texture.update(None, &buffer_canvas.buffer, buffer_canvas.size * 3).unwrap();
         canvas.clear();

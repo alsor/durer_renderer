@@ -2,11 +2,9 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::str::FromStr;
 
-use rand::Rng;
 
 use crate::{Color, Triangle};
 use crate::model::Model;
-use crate::triangle;
 use crate::Vector3f;
 
 pub fn load_model(filename: &str) -> Model {
@@ -31,7 +29,7 @@ pub fn load_model(filename: &str) -> Model {
     let mut vertices = Vec::new();
     let mut faces = Vec::new();
     let mut colors = Vec::new();
-    let mut rng = rand::thread_rng();
+    let rng = rand::thread_rng();
 
     for line in contents.split("\n") {
         //        let parsed = match i32::from_str(line.trim()) {

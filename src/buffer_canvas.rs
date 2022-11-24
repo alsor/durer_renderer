@@ -3,9 +3,7 @@ use log::*;
 use crate::Color;
 use crate::Pixel;
 use crate::Point;
-use crate::Point2D;
 use crate::projective_camera::ProjectiveCamera;
-use crate::Vector3f;
 use crate::vector4f::Vector4f;
 
 pub struct BufferCanvas {
@@ -81,7 +79,7 @@ impl BufferCanvas {
 
     pub fn screen_x(&self, x_canvas: i32) -> usize {
         let canvas_width = self.size as i32;
-        let result = (canvas_width / 2 + x_canvas);
+        let result = canvas_width / 2 + x_canvas;
 
         if result == canvas_width {
             return (canvas_width - 1) as usize;
@@ -92,7 +90,7 @@ impl BufferCanvas {
 
     pub fn screen_y(&self, y_canvas: i32) -> usize {
         let canvas_height = self.size as i32;
-        let result = (canvas_height / 2 - y_canvas - 1);
+        let result = canvas_height / 2 - y_canvas - 1;
 
         if result == -1 {
             return 0;
