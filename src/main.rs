@@ -168,11 +168,17 @@ pub enum Light {
 }
 
 #[derive(Copy, Clone)]
+pub enum RenderingMode {
+    Wireframe, Filled
+}
+
+#[derive(Copy, Clone)]
 pub enum ShadingModel {
     Flat, Gouraud, Phong
 }
 
 pub struct RenderingSettings {
+    pub rendering_mode: RenderingMode,
     pub shading_model: ShadingModel,
     pub show_normals: bool,
     pub backface_culling: bool
@@ -1148,6 +1154,7 @@ fn main() {
     env_logger::init();
 
     let mut rendering_settings = RenderingSettings {
+        rendering_mode: RenderingMode::Filled,
         shading_model: ShadingModel::Phong,
         show_normals: false,
         backface_culling: true
@@ -1199,33 +1206,33 @@ fn main() {
     let wooden_cube = textured_cube(0.9, &wooden_crate);
     let brick_cube = textured_cube(1.0, &bricks);
 //    let triangle = triangle(5.0);
-    let torus = ply2::load_model("resources/torus.ply2");
-//    let twirl = ply2::load_model("resources/twirl.ply2");
+    // let torus = ply2::load_model("resources/torus.ply2");
+   let twirl = ply2::load_model("resources/twirl.ply2");
 //    let octo_flower = ply2::load_model("resources/octa-flower.ply2");
 //    let statue = ply2::load_model("resources/statue.ply2");
 
     let mut current_instance_index: Option<usize> = None;
 
     let mut instances = vec![
-//        Instance::new(
-//            &triangle,
-//            Vector3f { x: 0.0, y: 0.0, z: 10.0 },
-//            1.0,
-//            Vector3f { x: 90.0, y: 0.0, z: 0.0 }
-//        ),
+    //    Instance::new(
+    //        &triangle,   
+    //        Vector3f { x: 0.0, y: 0.0, z: 10.0 },
+    //        1.0,
+    //        Vector3f { x: 90.0, y: 0.0, z: 0.0 }
+    //    ),
 
-        Instance::new(
-            &wooden_cube,
-            Vector3f { x: 1.0, y: 1.0, z: 4.0 },
-            1.0,
-            Vector3f { x: 0.0, y: -30.0, z: -30.0 }
-        ),
-        Instance::new(
-            &brick_cube,
-            Vector3f { x: -0.3, y: -0.4, z: 3.5 },
-            1.0,
-            Vector3f {x: 25.0, y: 20.0, z: 10.0 }
-        ),
+        // Instance::new(
+        //     &wooden_cube,
+        //     Vector3f { x: 1.0, y: 1.0, z: 4.0 },
+        //     1.0,
+        //     Vector3f { x: 0.0, y: -30.0, z: -30.0 }
+        // ),
+        // Instance::new(
+        //     &brick_cube,
+        //     Vector3f { x: -0.3, y: -0.4, z: 3.5 },
+        //     1.0,
+        //     Vector3f {x: 25.0, y: 20.0, z: 10.0 }
+        // ),
 
     //    Instance::new(
     //        &torus,
@@ -1234,12 +1241,12 @@ fn main() {
     //        Vector3f { x: 90.0, y: 0.0, z: 0.0 }
     //    ),
 
-//        Instance::new(
-//            &cube,
-//            Vector3f { x: 0.0, y: 0.0, z: 4.0 },
-//            1.0,
-//            Vector3f::zero_vector()
-//        ),
+    //    Instance::new(
+    //        &cube,
+    //        Vector3f { x: 0.0, y: 0.0, z: 4.0 },
+    //        1.0,
+    //        Vector3f::zero_vector()
+    //    ),
 //        Instance::new(
 //            &cube,
 //            Vector3f { x: 2.0, y: -2.0, z: 4.5 },
@@ -1253,31 +1260,31 @@ fn main() {
 //            Vector3f::zero_vector()
 //        ),
 //
-//        Instance::new(
-//            &sphere,
-//            Vector3f { x: 0.0, y: 0.0, z: 5.0 },
-//            1.3,
-//            Vector3f { x: 0.0, y: -45.0, z: 0.0 }
-//        ),
+    //    Instance::new(
+    //        &sphere,
+    //        Vector3f { x: 0.0, y: 0.0, z: 5.0 },
+    //        1.3,
+    //        Vector3f { x: 0.0, y: -45.0, z: 0.0 }
+    //    ),
 
-//        Instance::new(
-//            &octo_flower,
-//            Vector3f { x: 0.0, y: 0.0, z: 70.0 },
-//            1.0,
-//            Vector3f::zero_vector()
-//        ),
-//        Instance::new(
-//            &twirl,
-//            Vector3f { x: 0.0, y: 0.0, z: 30.0 },
-//            1.0,
-//            Vector3f::zero_vector()
-//        ),
-//        Instance::new(
-//            &statue,
-//            Vector3f { x: 0.0, y: 0.0, z: 10.0 },
-//            1.0,
-//            Vector3f { x: 30.0, y: 135.0, z: 0.0 }
-//        ),
+    //    Instance::new(
+    //        &octo_flower,
+    //        Vector3f { x: 0.0, y: 0.0, z: 70.0 },
+    //        1.0,
+    //        Vector3f::zero_vector()
+    //    ),
+       Instance::new(
+           &twirl,
+           Vector3f { x: 0.0, y: 0.0, z: 30.0 },
+           1.0,
+           Vector3f::zero_vector()
+       ),
+    //    Instance::new(
+    //        &statue,
+    //        Vector3f { x: 0.0, y: 0.0, z: 10.0 },
+    //        1.0,
+    //        Vector3f { x: 30.0, y: 135.0, z: 0.0 }
+    //    ),
     ];
 
     let lights = vec![
@@ -1324,15 +1331,15 @@ fn main() {
     };
 
 
-    instances[0].rotation_delta.x = angle_increase * 4.5;
-    instances[0].rotation_delta.y = angle_increase * 1.5;
-    instances[0].rotation_delta.z = angle_increase * 6.5;
+    // instances[0].rotation_delta.x = angle_increase * 4.5;
+    instances[0].rotation_delta.y = angle_increase * 2.0;
+    // instances[0].rotation_delta.z = angle_increase * 6.5;
 //    instances[0].position_delta.x = -0.005;
 //    instances[0].position_delta.z = 0.03;
 //    instances[0].scale_delta = 0.008;
 
-    instances[1].rotation_delta.y = angle_increase * 8.0;
-    instances[1].rotation_delta.z = angle_increase * 3.0;
+    // instances[1].rotation_delta.y = angle_increase * 8.0;
+    // instances[1].rotation_delta.z = angle_increase * 3.0;
     // instances[1].position_delta.z = 0.01;
 
     let mut now = Instant::now();
@@ -1352,7 +1359,7 @@ fn main() {
             angle += delta_angle;
 
             instances[0].apply_deltas();
-            instances[1].apply_deltas();
+            // instances[1].apply_deltas();
         };
 
         let camera = ProjectiveCamera {
@@ -1451,6 +1458,27 @@ fn main() {
                     },
                     Event::KeyDown { keycode: Some(Keycode::F), .. } => {
                         projection_plane_z -= projection_plane_z_delta;
+                    },
+                    Event::KeyDown { keycode: Some(Keycode::F1), .. } => {
+                        rendering_settings.rendering_mode = RenderingMode::Wireframe
+                    },
+                    Event::KeyDown { keycode: Some(Keycode::F2), .. } => {
+                        rendering_settings.rendering_mode = RenderingMode::Filled
+                    },
+                    Event::KeyDown { keycode: Some(Keycode::F3), .. } => {
+                        rendering_settings.shading_model = ShadingModel::Flat
+                    },
+                    Event::KeyDown { keycode: Some(Keycode::F4), .. } => {
+                        rendering_settings.shading_model = ShadingModel::Gouraud
+                    },
+                    Event::KeyDown { keycode: Some(Keycode::F5), .. } => {
+                        rendering_settings.shading_model = ShadingModel::Phong
+                    },
+                    Event::KeyDown { keycode: Some(Keycode::F8), .. } => {
+                        rendering_settings.backface_culling = !rendering_settings.backface_culling
+                    },
+                    Event::KeyDown { keycode: Some(Keycode::F9), .. } => {
+                        rendering_settings.show_normals = !rendering_settings.show_normals
                     },
                     Event::KeyDown { keycode: Some(Keycode::F12), .. } => {
                         write_image(&mut buffer_canvas.buffer, buffer_canvas.size).

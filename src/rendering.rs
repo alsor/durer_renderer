@@ -1,7 +1,7 @@
 use log::*;
 use sdl2::video::WindowPos::Positioned;
 
-use crate::{face_visible, Triangle, Triangle4f};
+use crate::{face_visible, RenderingMode, Triangle, Triangle4f};
 use crate::{Light, vectors};
 use crate::{face_visible_4f, transform};
 use crate::{RenderingSettings, ShadingModel};
@@ -118,34 +118,41 @@ fn render_instance(
             );
 
             for triangle in triangles {
-                match &instance.model.textures {
-                    None => {
-                        render_filled_triangle(
-                            triangle,
-                            None,
-                            None,
-                            camera,
-                            canvas,
-                            &transformed_lights,
-                            rendering_settings
-                        );
-                    },
-                    Some(textures) => {
-                        let uvs = instance.model.uvs.as_ref().unwrap();
+                match rendering_settings.rendering_mode {
+                    RenderingMode::Filled => {
+                        match &instance.model.textures {
+                            None => {
+                                render_filled_triangle(
+                                    triangle,
+                                    None,
+                                    None,
+                                    camera,
+                                    canvas,
+                                    &transformed_lights,
+                                    rendering_settings
+                                );
+                            },
+                            Some(textures) => {
+                                let uvs = instance.model.uvs.as_ref().unwrap();
 
-                        render_filled_triangle(
-                            triangle,
-                            Some(textures[i]),
-                            Some(uvs[i]),
-                            camera,
-                            canvas,
-                            &transformed_lights,
-                            rendering_settings
-                        );
+                                render_filled_triangle(
+                                    triangle,
+                                    Some(textures[i]),
+                                    Some(uvs[i]),
+                                    camera,
+                                    canvas,
+                                    &transformed_lights,
+                                    rendering_settings
+                                );
+                            },
+                        };
                     },
-                };
+                    RenderingMode::Wireframe => {
+                        render_wireframe_triangle(triangle, camera, canvas);
+                    },
+                }
 
-//                render_wireframe_triangle(triangle, camera, canvas);
+
             }
         }
         i += 1;
