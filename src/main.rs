@@ -935,11 +935,12 @@ fn rotating_cube_window(buffer: &mut [u8], size: usize) {
 
 fn three_spheres_window(buffer: &mut [u8], size: usize) {
     let mut x_position = 0.0;
-    let mut z_position = 0.0;
+    let mut y_position = 1.0;
+    let mut z_position = -3.0;
 
     let mut angle = 0.0;
 
-    let origin = Vector3f { x: x_position, y: 0.0, z: z_position };
+    let origin = Vector3f { x: x_position, y: y_position, z: z_position };
     let rotation = vectors::rotation_around_y(angle);
 
     let spheres = vec![
@@ -951,14 +952,14 @@ fn three_spheres_window(buffer: &mut [u8], size: usize) {
             reflective: 0.0
         },
         Sphere {
-            center: Vector3f { x: -2.0, y: 0.0, z: 4.0 },
+            center: Vector3f { x: -2.0, y: 0.5, z: 4.0 },
             radius: 1.0,
             color: Color { r: 150, g: 150, b: 150 },
             specular: 200,
             reflective: 0.5
         },
         Sphere {
-            center: Vector3f { x: 2.0, y: 0.0, z: 4.0 },
+            center: Vector3f { x: 2.0, y: 1.0, z: 3.0 },
             radius: 1.0,
             color: Color { r: 0, g: 0, b: 255 },
             specular: 200,
@@ -974,11 +975,12 @@ fn three_spheres_window(buffer: &mut [u8], size: usize) {
     ];
 
     let lights = vec![
-        Light::Ambient { intensity: 0.2 },
+        Light::Ambient { intensity: 0.3 },
+        // Light::Point { intensity: 0.8, position: Vector3f { x: x_position, y: y_position, z: z_position } }
         Light::Directional {
             intensity: 0.8,
             direction: Vector3f { x: 1.0, y: 4.0, z: 4.0 }
-        }
+        },
     ];
 
     ray_tracing::render_scene_to_buffer(
@@ -1055,12 +1057,26 @@ fn three_spheres_window(buffer: &mut [u8], size: usize) {
                 Event::KeyDown { keycode: Some(Keycode::S), .. } => {
                     z_position -= 0.5;
                 },
+                Event::KeyDown { keycode: Some(Keycode::R), .. } => {
+                    y_position += 0.5;
+                },
+                Event::KeyDown { keycode: Some(Keycode::F), .. } => {
+                    y_position -= 0.5;
+                },
                 _ => {}
             }
 
             let mut buffer = vec![0u8; size as usize * size as usize * 3];
-            let origin = Vector3f { x: x_position, y: 0.0, z: z_position };
+            let origin = Vector3f { x: x_position, y: y_position, z: z_position };
             let rotation = vectors::rotation_around_y(angle);
+
+            // let lights = vec![
+            //     Light::Ambient { intensity: 0.1 },
+            //     Light::Point { 
+            //         intensity: 0.8,
+            //         position: Vector3f { x: x_position, y: y_position, z: z_position }
+            //     },
+            // ];
 
             ray_tracing::render_scene_to_buffer(
                 &spheres,
@@ -1153,13 +1169,22 @@ mod rendering;
 fn main() {
     env_logger::init();
 
+    // For ray tracer
+    let size = 900;
+    let mut buffer = vec![0u8; size as usize * size as usize * 3];
+    three_spheres_window(&mut buffer, size);
+
+    return;
+
+    // For rasterizer
+
     let mut rendering_settings = RenderingSettings {
         rendering_mode: RenderingMode::Filled,
         shading_model: ShadingModel::Phong,
         show_normals: false,
         backface_culling: true
     };
-    let mut buffer_canvas = BufferCanvas::new(750);
+    let mut buffer_canvas = BufferCanvas::new(900);
 
     let sdl_context = sdl2::init().unwrap();
     let video_subsystem = sdl_context.video().unwrap();
@@ -1206,8 +1231,8 @@ fn main() {
     let wooden_cube = textured_cube(0.9, &wooden_crate);
     let brick_cube = textured_cube(1.0, &bricks);
 //    let triangle = triangle(5.0);
-    // let torus = ply2::load_model("resources/torus.ply2");
-   let twirl = ply2::load_model("resources/twirl.ply2");
+    let torus = ply2::load_model("resources/torus.ply2");
+//    let twirl = ply2::load_model("resources/twirl.ply2");
 //    let octo_flower = ply2::load_model("resources/octa-flower.ply2");
 //    let statue = ply2::load_model("resources/statue.ply2");
 
@@ -1253,19 +1278,19 @@ fn main() {
 //            1.0,
 //            Vector3f { x: 0.0, y: -30.0, z: -30.0 }
 //        ),
-//        Instance::new(
-//            &torus,
-//            Vector3f { x: 0.0, y: 0.0, z: 0.0 },
-//            0.1,
-//            Vector3f::zero_vector()
-//        ),
-//
     //    Instance::new(
-    //        &sphere,
-    //        Vector3f { x: 0.0, y: 0.0, z: 5.0 },
-    //        1.3,
-    //        Vector3f { x: 0.0, y: -45.0, z: 0.0 }
+    //        &torus,
+    //        Vector3f { x: 0.0, y: 0.0, z: 10.0 },
+    //        0.1,
+    //        Vector3f { x: 90.0, y: 0.0, z: 0.0 }
     //    ),
+//
+       Instance::new(
+           &sphere,
+           Vector3f { x: 0.0, y: 0.0, z: 5.0 },
+           1.3,
+           Vector3f { x: 0.0, y: -45.0, z: 0.0 }
+       ),
 
     //    Instance::new(
     //        &octo_flower,
@@ -1273,12 +1298,12 @@ fn main() {
     //        1.0,
     //        Vector3f::zero_vector()
     //    ),
-       Instance::new(
-           &twirl,
-           Vector3f { x: 0.0, y: 0.0, z: 30.0 },
-           1.0,
-           Vector3f::zero_vector()
-       ),
+    //    Instance::new(
+    //        &twirl,
+    //        Vector3f { x: 0.0, y: 0.0, z: 30.0 },
+    //        1.0,
+    //        Vector3f::zero_vector()
+    //    ),
     //    Instance::new(
     //        &statue,
     //        Vector3f { x: 0.0, y: 0.0, z: 10.0 },
@@ -1372,7 +1397,7 @@ fn main() {
         buffer_canvas.clear();
 
         rendering::render_scene(&instances, &lights, &camera, &rendering_settings, &mut buffer_canvas);
-//        starfield.update_and_render(&delta, &mut buffer_canvas);
+    //    starfield.update_and_render(&delta, &mut buffer_canvas);
 
         texture.update(None, &buffer_canvas.buffer, buffer_canvas.size * 3).unwrap();
         canvas.clear();
@@ -1510,8 +1535,6 @@ fn main() {
 //
 //    draw_filled_triangle(p0, p1, p2, green, &mut buffer_canvas);
 //    draw_wireframe_triangle(p0, p1, p2, white, &mut buffer_canvas);
-
-//    three_spheres_window(&mut buffer, size);
 
 //    let half = 0.8;
 //    let frame = Frame { x_min: -half, x_max: half, y_min: -half, y_max: half };
