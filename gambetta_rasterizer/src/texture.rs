@@ -1,12 +1,10 @@
-use image::DynamicImage;
-use image::GenericImageView;
-
-use crate::Color;
+use common::Color;
+use image::{DynamicImage, GenericImageView};
 
 pub struct Texture {
     img: DynamicImage,
     width: u32,
-    height: u32
+    height: u32,
 }
 
 impl Texture {
@@ -15,7 +13,11 @@ impl Texture {
         let y = (((self.height - 1) as f64) * v) as u32;
         let pixel = self.img.get_pixel(x, y);
 
-        Color { r: pixel[0], g: pixel[1], b: pixel[2] }
+        Color {
+            r: pixel[0],
+            g: pixel[1],
+            b: pixel[2],
+        }
     }
 }
 

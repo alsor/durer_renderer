@@ -1,8 +1,8 @@
-use crate::{Color, Triangle};
 use crate::matrix44f::Matrix44f;
-use crate::model::Model;
-use crate::Vector3f;
+use crate::model::{Model, Triangle};
 use crate::vector4f::Vector4f;
+use crate::Vector3f;
+use common::Color;
 
 pub struct Instance<'a> {
     pub model: &'a Model<'a>,
@@ -18,7 +18,7 @@ impl<'a> Instance<'a> {
     pub fn new(model: &'a Model, position: Vector3f, scale: f64, rotation: Vector3f) -> Self {
         Self {
             model,
-            position: position.to_vector4f(),
+            position: position.into(),
             scale,
             rotation,
             position_delta: Vector3f::zero_vector(),
@@ -28,15 +28,14 @@ impl<'a> Instance<'a> {
     }
 
     pub fn transform(&self) -> Matrix44f {
-        self.rotation_transform().
-            multiply(Matrix44f::uniform_scale(self.scale)).
-            multiply(Matrix44f::translation(self.position))
+        self.rotation_transform()
+            .multiply(Matrix44f::uniform_scale(self.scale))
+            .multiply(Matrix44f::translation(self.position))
     }
 
     pub fn rotation_transform(&self) -> Matrix44f {
-        Matrix44f::rotation_x(self.rotation.x).
-            multiply(Matrix44f::rotation_y(self.rotation.y).
-                multiply(Matrix44f::rotation_z(self.rotation.z)))
+        Matrix44f::rotation_x(self.rotation.x)
+            .multiply(Matrix44f::rotation_y(self.rotation.y).multiply(Matrix44f::rotation_z(self.rotation.z)))
     }
 
     pub fn apply_deltas(&mut self) {
@@ -77,15 +76,10 @@ fn test_new() {
         triangles,
         colors: vec![Color { r: 0, g: 0, b: 0 }],
         textures: None,
-        uvs: None
+        uvs: None,
     };
 
-    let instance = Instance::new(
-        &model,
-        Vector3f::zero_vector(),
-        1.0,
-        Vector3f::zero_vector()
-    );
+    let instance = Instance::new(&model, Vector3f::zero_vector(), 1.0, Vector3f::zero_vector());
     for vertex in &instance.model.vertices {
         println!("{:.2} {:.2} {:.2}", vertex.x, vertex.y, vertex.z);
     }
@@ -106,14 +100,14 @@ fn test_new_with_position() {
         triangles,
         colors: vec![Color { r: 0, g: 0, b: 0 }],
         textures: None,
-        uvs: None
+        uvs: None,
     };
 
     let instance = Instance::new(
         &model,
         Vector3f { x: 1.0, y: 1.0, z: 1.0 },
         1.0,
-        Vector3f::zero_vector()
+        Vector3f::zero_vector(),
     );
     for vertex in &instance.model.vertices {
         println!("{:.2} {:.2} {:.2}", vertex.x, vertex.y, vertex.z);
@@ -135,15 +129,10 @@ fn test_new_with_scale() {
         triangles,
         colors: vec![Color { r: 0, g: 0, b: 0 }],
         textures: None,
-        uvs: None
+        uvs: None,
     };
 
-    let instance = Instance::new(
-        &model,
-        Vector3f::zero_vector(),
-        2.0,
-        Vector3f::zero_vector()
-    );
+    let instance = Instance::new(&model, Vector3f::zero_vector(), 2.0, Vector3f::zero_vector());
     for vertex in &instance.model.vertices {
         println!("{:.2} {:.2} {:.2}", vertex.x, vertex.y, vertex.z);
     }
@@ -164,14 +153,14 @@ fn test_new_with_rotation() {
         triangles,
         colors: vec![Color { r: 0, g: 0, b: 0 }],
         textures: None,
-        uvs: None
+        uvs: None,
     };
 
     let instance = Instance::new(
         &model,
         Vector3f::zero_vector(),
         1.0,
-        Vector3f { x: 0.0, y: 30.0, z: 0.0 }
+        Vector3f { x: 0.0, y: 30.0, z: 0.0 },
     );
     for vertex in &instance.model.vertices {
         println!("{:.2} {:.2} {:.2}", vertex.x, vertex.y, vertex.z);

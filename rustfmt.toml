@@ -1,0 +1,4 @@
+max_width = 110
+struct_lit_width = 50
+array_width = 80
+chain_width = 90

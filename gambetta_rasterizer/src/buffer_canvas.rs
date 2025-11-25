@@ -1,15 +1,12 @@
-use log::*;
-
-use crate::Color;
-use crate::Pixel;
-use crate::Point;
 use crate::projective_camera::ProjectiveCamera;
 use crate::vector4f::Vector4f;
+use crate::Point;
+use common::{Color, Pixel};
 
 pub struct BufferCanvas {
     pub size: usize,
     pub buffer: Vec<u8>,
-    pub depth_buffer: Vec<f64>
+    pub depth_buffer: Vec<f64>,
 }
 
 impl BufferCanvas {
@@ -17,28 +14,30 @@ impl BufferCanvas {
         Self {
             size,
             buffer: vec![0u8; size * size * 3],
-            depth_buffer: vec![0.0; size * size]
+            depth_buffer: vec![0.0; size * size],
         }
     }
 
     pub fn clear(&mut self) {
-//        self.buffer = vec![0u8; self.size * self.size * 3];
-        unsafe {
-            libc::memset(
-                self.buffer.as_mut_ptr() as _,
-                0,
-                self.buffer.len() * std::mem::size_of::<u8>()
-            );
-        }
+        self.buffer.fill(0);
+        // self.buffer = vec![0u8; self.size * self.size * 3];
+        // unsafe {
+        //     libc::memset(
+        //         self.buffer.as_mut_ptr() as _,
+        //         0,
+        //         self.buffer.len() * std::mem::size_of::<u8>(),
+        //     );
+        // }
 
-//        self.depth_buffer = vec![0.0; self.size * self.size];
-        unsafe {
-            libc::memset(
-                self.depth_buffer.as_mut_ptr() as _,
-                0,
-                self.depth_buffer.len() * std::mem::size_of::<f64>()
-            )
-        };
+        self.depth_buffer.fill(0.0);
+        // self.depth_buffer = vec![0.0; self.size * self.size];
+        // unsafe {
+        //     libc::memset(
+        //         self.depth_buffer.as_mut_ptr() as _,
+        //         0,
+        //         self.depth_buffer.len() * std::mem::size_of::<f64>(),
+        //     )
+        // };
     }
 
     pub fn viewport_to_canvas(&self, vertex: Vector4f, camera: &ProjectiveCamera) -> Point {
@@ -48,22 +47,18 @@ impl BufferCanvas {
             x: (point.x * canvas_size / camera.viewport_size) as i32,
             y: (point.y * canvas_size / camera.viewport_size) as i32,
             h: 1.0,
-            z: vertex.z
+            z: vertex.z,
         }
     }
 
     pub fn put_pixel(&mut self, pixel: Pixel) {
-        trace!("pixel.y: {}, self.size: {}, pixel.x: {}", pixel.y, self.size, pixel.x);
-        let offset = pixel.y * self.size * 3 + pixel.x * 3;
-//        if offset >= self.buffer.len() {
-//            println!("was going to draw pixel {} {} with buffer offset {}",
-//                     pixel.x, pixel.y, offset);
-//            return;
-//        }
-
-        self.buffer[offset] = pixel.color.r;
-        self.buffer[offset + 1] = pixel.color.g;
-        self.buffer[offset + 2] = pixel.color.b;
+        log::trace!(
+            "pixel.y: {}, self.size: {}, pixel.x: {}",
+            pixel.y,
+            self.size,
+            pixel.x
+        );
+        common::put_pixel_to_buffer(&mut self.buffer, self.size, pixel);
     }
 
     pub fn update_depth_buffer_if_closer(&mut self, screen_x: usize, screen_y: usize, iz: f64) -> bool {
@@ -104,14 +99,16 @@ impl BufferCanvas {
     }
 
     pub fn draw_line(&mut self, start: Point, end: Point, color: Color) {
-        trace!("drawing line [{},{}] - [{},{}]", start.x, start.y, end.x, end.y);
+        log::trace!("drawing line [{},{}] - [{},{}]", start.x, start.y, end.x, end.y);
         let start_pixel = self.point_to_pixel(start.x, start.y, color);
         let end_pixel = self.point_to_pixel(end.x, end.y, color);
-        trace!(
+        log::trace!(
             "drawing line pixels [{},{}] - [{},{}]",
-            start_pixel.x, start_pixel.y, end_pixel.x, end_pixel.y
+            start_pixel.x,
+            start_pixel.y,
+            end_pixel.x,
+            end_pixel.y
         );
-
 
         self.rasterize_line(start_pixel, end_pixel);
     }
@@ -124,16 +121,8 @@ impl BufferCanvas {
 
         let dx = (x2 - x1).abs();
         let dy = (y2 - y1).abs();
-        let sx = if x2 >= x1 {
-            1
-        } else {
-            -1
-        };
-        let sy = if y2 >= y1 {
-            1
-        } else {
-            -1
-        };
+        let sx = if x2 >= x1 { 1 } else { -1 };
+        let sy = if y2 >= y1 { 1 } else { -1 };
 
         if dy <= dx {
             let mut d = (dy << 1) - dx;
@@ -144,7 +133,7 @@ impl BufferCanvas {
 
             let mut x = x1 + sx;
             let mut y = y1;
-            for i in 1..dx {
+            for _ in 1..dx {
                 if d > 0 {
                     d = d + d2;
                     y = y + sy;
@@ -165,7 +154,7 @@ impl BufferCanvas {
 
             let mut x = x1;
             let mut y = y1 + sy;
-            for i in 1..dy {
+            for _ in 1..dy {
                 if d > 0 {
                     d = d + d2;
                     x = x + sx;

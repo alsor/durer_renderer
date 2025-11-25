@@ -1,0 +1,12 @@
+[package]
+name = "gambetta_rasterizer"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+common = { path = "../common" }
+log = "0.4"
+image = "0.22.0"
+
+[dev-dependencies]
+test_utils = { path = "../test_utils" }

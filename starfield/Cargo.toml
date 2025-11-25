@@ -1,0 +1,9 @@
+[package]
+name = "starfield"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+common = { path = "../common" }
+rand = "0.4"
+sdl2 = "0.31.0"

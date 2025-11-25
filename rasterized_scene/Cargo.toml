@@ -1,0 +1,15 @@
+[package]
+name = "rasterized_scene"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+common = { path = "../common" }
+gambetta_rasterizer = { path = "../gambetta_rasterizer" }
+sdl2 = "0.31.0"
+log = "0.4"
+env_logger = "0.5.10"
+image = "0.22.0"
+
+[features]
+smooth_animation = []

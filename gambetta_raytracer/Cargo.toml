@@ -1,0 +1,10 @@
+[package]
+name = "gambetta_raytracer"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+common = { path = "../common" }
+
+[dev-dependencies]
+test_utils = { path = "../test_utils" }

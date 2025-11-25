@@ -1,32 +1,28 @@
 use crate::matrix44f::Matrix44f;
-use crate::plane::Plane;
-use crate::plane::PlaneType;
-use crate::plane::PlaneType::*;
-use crate::Point2D;
-use crate::Vector3f;
 use crate::vector4f::Vector4f;
-use crate::vectors::cross_product;
+use crate::{Plane, PlaneType, Point2D, Vector3f};
+use common::vectors;
 
 #[derive(Copy, Clone)]
 pub struct ProjectiveCamera {
     pub viewport_size: f64,
     pub projection_plane_z: f64,
     pub position: Vector4f,
-    pub rotation: Matrix44f
+    pub rotation: Matrix44f,
 }
 
 impl ProjectiveCamera {
     pub fn project(&self, point: Vector3f) -> Point2D {
         Point2D {
             x: point.x * self.projection_plane_z / point.z,
-            y: point.y * self.projection_plane_z / point.z
+            y: point.y * self.projection_plane_z / point.z,
         }
     }
 
     pub fn project_vertex(&self, vertex: Vector4f) -> Point2D {
         Point2D {
             x: vertex.x * self.projection_plane_z / vertex.z,
-            y: vertex.y * self.projection_plane_z / vertex.z
+            y: vertex.y * self.projection_plane_z / vertex.z,
         }
     }
 
@@ -40,30 +36,54 @@ impl ProjectiveCamera {
 
         vec![
             Plane {
-                plane_type: Near,
-                normal: Vector3f { x: 0.0, y: 0.0, z: 1.0 },
-                point: Vector3f { x: 0.0, y: 0.0, z: self.projection_plane_z }
+                plane_type: PlaneType::Near,
+                normal: Vector3f {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 1.0,
+                },
+                point: Vector3f {
+                    x: 0.0,
+                    y: 0.0,
+                    z: self.projection_plane_z,
+                },
             },
             Plane {
-                plane_type: Left,
+                plane_type: PlaneType::Left,
                 normal: self.left_plane_normal(half_viewport_size),
-                point: Vector3f { x: 0.0, y: 0.0, z: 0.0 }
+                point: Vector3f {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 0.0,
+                },
             },
             Plane {
-                plane_type: Right,
+                plane_type: PlaneType::Right,
                 normal: self.right_plane_normal(half_viewport_size),
-                point: Vector3f { x: 0.0, y: 0.0, z: 0.0 }
+                point: Vector3f {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 0.0,
+                },
             },
             Plane {
-                plane_type: Top,
+                plane_type: PlaneType::Top,
                 normal: self.top_plane_normal(half_viewport_size),
-                point: Vector3f { x: 0.0, y: 0.0, z: 0.0 }
+                point: Vector3f {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 0.0,
+                },
             },
             Plane {
-                plane_type: Bottom,
+                plane_type: PlaneType::Bottom,
                 normal: self.bottom_plane_normal(half_viewport_size),
-                point: Vector3f { x: 0.0, y: 0.0, z: 0.0 }
-            }
+                point: Vector3f {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 0.0,
+                },
+            },
         ]
     }
 
@@ -76,10 +96,10 @@ impl ProjectiveCamera {
         let v2 = Vector3f {
             x: half_viewport_size,
             y: half_viewport_size,
-            z: self.projection_plane_z
+            z: self.projection_plane_z,
         };
 
-        cross_product(v1, v2)
+        vectors::cross_product(v1, v2)
     }
 
     fn top_plane_normal(&self, half_viewport_size: f64) -> Vector3f {
@@ -91,10 +111,10 @@ impl ProjectiveCamera {
         let v2 = Vector3f {
             x: -half_viewport_size,
             y: half_viewport_size,
-            z: self.projection_plane_z
+            z: self.projection_plane_z,
         };
 
-        cross_product(v1, v2)
+        vectors::cross_product(v1, v2)
     }
 
     fn left_plane_normal(&self, half_viewport_size: f64) -> Vector3f {
@@ -106,10 +126,10 @@ impl ProjectiveCamera {
         let v2 = Vector3f {
             x: -half_viewport_size,
             y: -half_viewport_size,
-            z: self.projection_plane_z
+            z: self.projection_plane_z,
         };
 
-        cross_product(v1, v2)
+        vectors::cross_product(v1, v2)
     }
 
     fn bottom_plane_normal(&self, half_viewport_size: f64) -> Vector3f {
@@ -121,9 +141,9 @@ impl ProjectiveCamera {
         let v2 = Vector3f {
             x: half_viewport_size,
             y: -half_viewport_size,
-            z: self.projection_plane_z
+            z: self.projection_plane_z,
         };
 
-        cross_product(v1, v2)
+        vectors::cross_product(v1, v2)
     }
 }
