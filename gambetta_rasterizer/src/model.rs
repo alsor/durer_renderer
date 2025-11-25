@@ -148,7 +148,7 @@ pub fn cube<'a>(size: f64) -> Model<'a> {
     }
 }
 
-pub fn textured_cube(size: f64, texture: &Texture) -> Model {
+pub fn textured_cube<'a>(size: f64, texture: &'a Texture) -> Model<'a> {
     let half_size = size / 2.0;
 
     let vertices = vec![

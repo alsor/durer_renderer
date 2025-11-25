@@ -1,8 +1,7 @@
 use crate::matrix44f::Matrix44f;
-use crate::model::{Model, Triangle};
+use crate::model::Model;
 use crate::vector4f::Vector4f;
 use crate::Vector3f;
-use common::Color;
 
 pub struct Instance<'a> {
     pub model: &'a Model<'a>,
@@ -69,12 +68,12 @@ fn test_new() {
         Vector3f { x: 0.0, y: 1.0, z: 0.0 },
         Vector3f { x: 0.0, y: 0.0, z: 1.0 },
     ];
-    let triangles = vec![Triangle::new_with_calculated_normals(&vertices, [0, 1, 2])];
+    let triangles = vec![crate::Triangle::new_with_calculated_normals(&vertices, [0, 1, 2])];
     let model = Model {
         name: "test_model",
         vertices,
         triangles,
-        colors: vec![Color { r: 0, g: 0, b: 0 }],
+        colors: vec![common::Color { r: 0, g: 0, b: 0 }],
         textures: None,
         uvs: None,
     };
@@ -93,12 +92,12 @@ fn test_new_with_position() {
         Vector3f { x: 0.0, y: 1.0, z: 0.0 },
         Vector3f { x: 0.0, y: 0.0, z: 1.0 },
     ];
-    let triangles = vec![Triangle::new_with_calculated_normals(&vertices, [0, 1, 2])];
+    let triangles = vec![crate::Triangle::new_with_calculated_normals(&vertices, [0, 1, 2])];
     let model = Model {
         name: "test_model",
         vertices,
         triangles,
-        colors: vec![Color { r: 0, g: 0, b: 0 }],
+        colors: vec![common::Color { r: 0, g: 0, b: 0 }],
         textures: None,
         uvs: None,
     };
@@ -122,12 +121,12 @@ fn test_new_with_scale() {
         Vector3f { x: 0.0, y: 1.0, z: 0.0 },
         Vector3f { x: 0.0, y: 0.0, z: 1.0 },
     ];
-    let triangles = vec![Triangle::new_with_calculated_normals(&vertices, [0, 1, 2])];
+    let triangles = vec![crate::Triangle::new_with_calculated_normals(&vertices, [0, 1, 2])];
     let model = Model {
         name: "test_model",
         vertices,
         triangles,
-        colors: vec![Color { r: 0, g: 0, b: 0 }],
+        colors: vec![common::Color { r: 0, g: 0, b: 0 }],
         textures: None,
         uvs: None,
     };
@@ -146,12 +145,12 @@ fn test_new_with_rotation() {
         Vector3f { x: 0.0, y: 1.0, z: 0.0 },
         Vector3f { x: 0.0, y: 0.0, z: 1.0 },
     ];
-    let triangles = vec![Triangle::new_with_calculated_normals(&vertices, [0, 1, 2])];
+    let triangles = vec![crate::Triangle::new_with_calculated_normals(&vertices, [0, 1, 2])];
     let model = Model {
         name: "test_model",
         vertices,
         triangles,
-        colors: vec![Color { r: 0, g: 0, b: 0 }],
+        colors: vec![common::Color { r: 0, g: 0, b: 0 }],
         textures: None,
         uvs: None,
     };
