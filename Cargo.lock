@@ -535,6 +535,13 @@ name = "test_utils"
 version = "0.1.0"
 
 [[package]]
+name = "thebennybox_rasterizer"
+version = "0.1.0"
+dependencies = [
+ "sdl2",
+]
+
+[[package]]
 name = "tiff"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

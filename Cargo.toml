@@ -3,6 +3,7 @@ members = [
     "common",
     "gambetta_raytracer",
     "gambetta_rasterizer",
+    "thebennybox_rasterizer",
     "raytraced_spheres",
     "rasterized_scene",
     "starfield",
