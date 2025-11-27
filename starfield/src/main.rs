@@ -37,7 +37,7 @@ impl Starfield {
         let half_size = (size as f64) / 2.0;
 
         for i in 0..self.num_stars {
-            let new_z = self.star_z[i] - ((delta.as_nanos() as f64) / 1000000000.0) * self.speed;
+            let new_z = self.star_z[i] - delta.as_secs_f64() * self.speed;
 
             if new_z <= 0.0 {
                 self.new_star(i);
@@ -97,7 +97,7 @@ fn test_init_star() {
 fn main() {
     let size = 900;
     let mut buffer = vec![0u8; size * size * 3];
-    let mut starfield = Starfield::new(1000, 5.0, 110000.0);
+    let mut starfield = Starfield::new(1000, 5.0, 1.3);
 
     let sdl_context = sdl2::init().unwrap();
     let video_subsystem = sdl_context.video().unwrap();
@@ -115,20 +115,24 @@ fn main() {
         .create_texture_static(PixelFormatEnum::RGB24, size as u32, size as u32)
         .unwrap();
 
-    let mut now = Instant::now();
-
     let mut event_pump = sdl_context.event_pump().unwrap();
+
+    let mut previous_time = Instant::now();
     'running: loop {
-        let delta = now.elapsed();
+        let current_time = Instant::now();
+        let delta = current_time - previous_time;
+        previous_time = current_time;
 
         buffer.fill(0);
         starfield.update_and_render(&delta, &mut buffer, size);
 
+        
         texture.update(None, &buffer, size * 3).unwrap();
         canvas.clear();
         canvas.copy(&texture, None, None).unwrap();
         canvas.present();
-
+        
+        
         match event_pump.poll_event() {
             Some(event) => {
                 match event {
@@ -141,6 +145,5 @@ fn main() {
             None => {}
         };
 
-        now = Instant::now();
     }
 }
