@@ -4,16 +4,16 @@
 use sdl2::{event::Event, keyboard::Keycode, pixels::PixelFormatEnum};
 
 struct BitMap {
-    width: u32,
-    height: u32,
+    width: usize,
+    height: usize,
     buffer: Vec<u8>,
 }
 
 impl BitMap {
     fn new(width: u32, height: u32) -> Self {
         Self {
-            width,
-            height,
+            width: width as usize,
+            height: height as usize,
             buffer: vec![0; (width * height * 3) as usize],
         }
     }
@@ -22,8 +22,8 @@ impl BitMap {
         self.buffer.fill(shade);
     }
 
-    fn draw_pixel(&mut self, x: u32, y: u32, r: u8, g: u8, b: u8) {
-        let index = ((y * self.width + x) * 3) as usize;
+    fn draw_pixel(&mut self, x: usize, y: usize, r: u8, g: u8, b: u8) {
+        let index = (y * self.width + x) * 3;
         self.buffer[index] = r;
         self.buffer[index + 1] = g;
         self.buffer[index + 2] = b;
@@ -31,8 +31,9 @@ impl BitMap {
 }
 
 fn main() {
-    let size = 900;
-    let mut bitmap = BitMap::new(size, size);
+    let width = 900;
+    let height = 900;
+    let mut bitmap = BitMap::new(width, height);
     bitmap.clear(0x80);
     for x in 100..150 {
         for y in 100..150 {
@@ -44,7 +45,7 @@ fn main() {
     let video_subsystem = sdl_context.video().unwrap();
 
     let window = video_subsystem
-        .window("Software Rendering", size, size)
+        .window("Software Rendering", width, height)
         .position_centered()
         .build()
         .unwrap();
@@ -52,9 +53,9 @@ fn main() {
     let mut canvas = window.into_canvas().build().unwrap();
     let texture_creator = canvas.texture_creator();
     let mut texture = texture_creator
-        .create_texture_static(PixelFormatEnum::RGB24, bitmap.width, bitmap.height)
+        .create_texture_static(PixelFormatEnum::RGB24, width, height)
         .unwrap();
-    texture.update(None, &bitmap.buffer, (bitmap.width * 3) as usize).unwrap();
+    texture.update(None, &bitmap.buffer, bitmap.width * 3).unwrap();
     canvas.clear();
     canvas.copy(&texture, None, None).unwrap();
     canvas.present();

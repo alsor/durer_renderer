@@ -35,6 +35,8 @@ impl Starfield {
 
     fn update_and_render(&mut self, delta: &Duration, buffer: &mut Vec<u8>, size: usize) {
         let half_size = (size as f64) / 2.0;
+        let fov: f64 = 80.0;
+        let tan_half_fov: f64 = (fov / 2.0).tan();
 
         for i in 0..self.num_stars {
             let new_z = self.star_z[i] - delta.as_secs_f64() * self.speed;
@@ -45,8 +47,10 @@ impl Starfield {
                 self.star_z[i] = new_z;
             }
 
-            let screen_x = ((self.star_x[i] / self.star_z[i]) * half_size + half_size) as usize;
-            let screen_y = ((self.star_y[i] / self.star_z[i]) * half_size + half_size) as usize;
+            let screen_x =
+                ((self.star_x[i] / (self.star_z[i] * tan_half_fov)) * half_size + half_size) as usize;
+            let screen_y =
+                ((self.star_y[i] / (self.star_z[i] * tan_half_fov)) * half_size + half_size) as usize;
 
             if screen_x >= size || screen_y >= size {
                 self.new_star(i);
@@ -126,13 +130,11 @@ fn main() {
         buffer.fill(0);
         starfield.update_and_render(&delta, &mut buffer, size);
 
-        
         texture.update(None, &buffer, size * 3).unwrap();
         canvas.clear();
         canvas.copy(&texture, None, None).unwrap();
         canvas.present();
-        
-        
+
         match event_pump.poll_event() {
             Some(event) => {
                 match event {
@@ -144,6 +146,5 @@ fn main() {
             }
             None => {}
         };
-
     }
 }
