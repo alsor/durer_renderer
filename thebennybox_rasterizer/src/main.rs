@@ -53,23 +53,22 @@ impl BitMap {
     }
 
     fn scan_convert_line(&mut self, min_y: Vertex, max_y: Vertex, which_side: usize) {
-        let y_start = min_y.y() as usize;
-        let y_end = max_y.y() as usize;
-        let x_start = min_y.x() as usize;
-        let x_end = max_y.x() as usize;
+        let y_start = min_y.y().ceil() as usize;
+        let y_end = max_y.y().ceil() as usize;
 
-        let y_dist = y_end - y_start;
-        let x_dist = x_end as i32 - x_start as i32;
+        let y_dist = max_y.y() - min_y.y();
+        let x_dist = max_y.x() - min_y.x();
 
-        if y_dist == 0 {
+        if y_dist <= 0.0 {
             return;
         }
 
-        let x_step: f64 = x_dist as f64 / y_dist as f64;
-        let mut cur_x: f64 = x_start as f64;
+        let x_step = x_dist / y_dist;
+        let y_prestep = y_start as f64 - min_y.y();
+        let mut cur_x = min_y.x() + y_prestep * x_step;
 
         for j in y_start..y_end {
-            self.scan_buffer[j * 2 + which_side] = cur_x as usize;
+            self.scan_buffer[j * 2 + which_side] = cur_x.ceil() as usize;
             cur_x += x_step;
         }
     }
@@ -103,7 +102,7 @@ impl BitMap {
         let handedness = if area >= 0.0 { 1 } else { 0 };
 
         self.scan_convert_triangle(min_y, mid_y, max_y, handedness);
-        self.fill_shape(min_y.y() as usize, max_y.y() as usize);
+        self.fill_shape(min_y.y().ceil() as usize, max_y.y().ceil() as usize);
     }
 }
 
