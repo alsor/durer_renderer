@@ -69,7 +69,9 @@ fn main() {
     let bricks = texture::load_from_file("resources/textures/bricks.jpg");
 
     //    let cube = two_unit_cube();
-    let sphere = model::sphere(50);
+    // let sphere = model::sphere(50);
+    let random_cubes = model::random_cubes_scene(50, 25.0);
+    println!("{random_cubes}");
     // let cube = model::cube(0.9);
     // let wooden_cube = model::textured_cube(0.9, &wooden_crate);
     // let brick_cube = model::textured_cube(1.0, &bricks);
@@ -82,6 +84,12 @@ fn main() {
     let mut current_instance_index: Option<usize> = None;
 
     let mut instances = vec![
+        Instance::new(
+            &random_cubes,
+            Vector3f { x: 0.0, y: 0.0, z: 20.0 },
+            1.0,
+            Vector3f::zero_vector(),
+        ),
         //    Instance::new(
         //        &triangle,
         //        Vector3f { x: 0.0, y: 0.0, z: 10.0 },
@@ -125,12 +133,12 @@ fn main() {
         //        Vector3f { x: 90.0, y: 0.0, z: 0.0 }
         //    ),
         //
-        Instance::new(
-            &sphere,
-            Vector3f { x: 0.0, y: 0.0, z: 5.0 },
-            1.3,
-            Vector3f { x: 0.0, y: -45.0, z: 0.0 },
-        ),
+        // Instance::new(
+        //     &sphere,
+        //     Vector3f { x: 0.0, y: 0.0, z: 5.0 },
+        //     1.3,
+        //     Vector3f { x: 0.0, y: -45.0, z: 0.0 },
+        // ),
         //    Instance::new(
         //        &octo_flower,
         //        Vector3f { x: 0.0, y: 0.0, z: 70.0 },
@@ -153,10 +161,10 @@ fn main() {
 
     let lights = vec![
         Light::Ambient { intensity: 0.15 },
-        //        Light::Directional {
-        //            intensity: 0.7,
-        //            direction: Vector3f { x: 1.0, y: 0.0, z: -0.5 }
-        //        },
+        Light::Directional {
+            intensity: 0.7,
+            direction: Vector3f { x: 1.0, y: 0.0, z: -0.5 },
+        },
         Light::Point {
             intensity: 0.85,
             position: Vector3f { x: 0.0, y: 1.0, z: 0.0 },
@@ -191,7 +199,7 @@ fn main() {
     };
 
     // instances[0].rotation_delta.x = angle_increase * 4.5;
-    instances[0].rotation_delta.y = angle_increase * 2.0;
+    // instances[0].rotation_delta.y = angle_increase * 2.0;
     // instances[0].rotation_delta.z = angle_increase * 6.5;
     //    instances[0].position_delta.x = -0.005;
     //    instances[0].position_delta.z = 0.03;

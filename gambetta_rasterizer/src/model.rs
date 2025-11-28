@@ -11,6 +11,58 @@ pub struct Model<'a> {
     pub uvs: Option<Vec<[UV; 3]>>,
 }
 
+use std::fmt;
+
+impl<'a> fmt::Display for Model<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let vertex_count = self.vertices.len();
+        let triangle_count = self.triangles.len();
+        let color_count = self.colors.len();
+        let texture_count = self.textures.as_ref().map_or(0, |ts| ts.len());
+        let uv_count = self.uvs.as_ref().map_or(0, |uvs| uvs.len());
+
+        write!(
+            f,
+            "Model '{}' {{\n\
+             \tVertices: {}\n\
+             \tTriangles: {}\n\
+             \tColors: {}\n\
+             \tTextures: {}\n\
+             \tUVs: {}\n\
+             \tConnected: {}",
+            self.name,
+            vertex_count,
+            triangle_count,
+            color_count,
+            texture_count,
+            uv_count,
+            if triangle_count == color_count
+                && (texture_count == 0 || texture_count == triangle_count)
+                && (uv_count == 0 || uv_count == triangle_count)
+            {
+                "✅ (consistent)"
+            } else {
+                "⚠️ (mismatched counts)"
+            }
+        )?;
+
+        // Optional: show first few vertices
+        if vertex_count > 0 {
+            writeln!(f)?;
+            for i in 0..(3.min(vertex_count)) {
+                let v = &self.vertices[i];
+                writeln!(f, "\tVertex[{}]: ({:.2}, {:.2}, {:.2})", i, v.x, v.y, v.z)?;
+            }
+            if vertex_count > 3 {
+                writeln!(f, "\t... and {} more", vertex_count - 3)?;
+            }
+        }
+
+        write!(f, "}}")
+    }
+}
+
+
 #[derive(Copy, Clone)]
 pub struct Triangle {
     pub indexes: [usize; 3],
@@ -323,3 +375,142 @@ pub fn sphere<'a>(divs: i32) -> Model<'a> {
 pub fn two_unit_cube<'a>() -> Model<'a> {
     cube(2.0)
 }
+use rand::Rng;
+
+/// Axis-aligned bounding box for collision detection (X and Z only)
+#[derive(Clone, Copy)]
+struct AABB {
+    min: Vector3f,
+    max: Vector3f,
+}
+
+impl AABB {
+    fn new(center: Vector3f, size: f64) -> Self {
+        let half = size / 2.0;
+        Self {
+            min: Vector3f {
+                x: center.x - half,
+                y: center.y,
+                z: center.z - half,
+            },
+            max: Vector3f {
+                x: center.x + half,
+                y: center.y + size,
+                z: center.z + half,
+            },
+        }
+    }
+
+    fn intersects(&self, other: &Self) -> bool {
+        self.min.x < other.max.x
+            && self.max.x > other.min.x
+            && self.min.z < other.max.z
+            && self.max.z > other.min.z
+    }
+}
+
+/// Generates exactly `count` non-overlapping cubes by adjusting size if needed.
+pub fn random_cubes_scene<'a>(count: usize, max_size: f64) -> Model<'a> {
+    let mut rng = rand::thread_rng();
+    let mut all_vertices = Vec::new();
+    let mut all_triangles = Vec::new();
+    let mut all_colors = Vec::new();
+
+    let base_cube = cube(1.0);
+    let area_size = 20.0;
+    let min_size = 0.2;
+    let mut aabbs = Vec::new();
+    let mut placed_count = 0;
+    let max_attempts_per_cube = 1000; // Увеличено для надёжности
+
+    // Уменьшаем max_size, если он слишком велик
+    let effective_max_size = (max_size).max(min_size + 0.1).min(area_size / 3.0);
+
+    while placed_count < count {
+        let mut size = rng.gen_range(min_size..effective_max_size);
+        let mut attempts = 0;
+        let mut placed = false;
+
+        while attempts < max_attempts_per_cube && !placed {
+            attempts += 1;
+
+            let half_size = size / 2.0;
+            let spawn_range = area_size / 2.0 - half_size;
+            if spawn_range <= 0.0 {
+                size *= 0.9; // Уменьшаем, если не влезает
+                continue;
+            }
+
+            let x = rng.gen_range(-spawn_range..spawn_range);
+            let z = rng.gen_range(-spawn_range..spawn_range);
+            let pos = Vector3f { x, y: 0.0, z };
+
+            let aabb = AABB::new(pos, size);
+
+            if !aabbs.iter().any(|other| aabb.intersects(other)) {
+                aabbs.push(aabb);
+
+                // === Добавляем геометрию куба ===
+                let half = size / 2.0;
+                let vertex_offset = all_vertices.len();
+
+                for v in &base_cube.vertices {
+                    let scaled = Vector3f {
+                        x: v.x * half,
+                        y: v.y * half,
+                        z: v.z * half,
+                    };
+                    let translated = Vector3f {
+                        x: pos.x + scaled.x,
+                        y: pos.y + scaled.y,
+                        z: pos.z + scaled.z,
+                    };
+                    all_vertices.push(translated);
+                }
+
+                for tri in &base_cube.triangles {
+                    let new_indices = [
+                        tri.indexes[0] + vertex_offset,
+                        tri.indexes[1] + vertex_offset,
+                        tri.indexes[2] + vertex_offset,
+                    ];
+                    all_triangles.push(Triangle::new_with_calculated_normals(&all_vertices, new_indices));
+                }
+
+                let color = Color {
+                    r: rng.gen_range(50..=255),
+                    g: rng.gen_range(50..=255),
+                    b: rng.gen_range(50..=255),
+                };
+                for _ in 0..base_cube.triangles.len() {
+                    all_colors.push(color);
+                }
+
+                placed = true;
+                placed_count += 1;
+            } else {
+                // Уменьшаем размер при неудаче
+                size *= 0.95;
+                if size < min_size {
+                    break;
+                }
+            }
+        }
+
+        // Если совсем не получается — принудительно уменьшаем область
+        if !placed && placed_count < count && attempts >= max_attempts_per_cube / 2 {
+            // Сбросить и попробовать меньший размер
+            continue;
+        }
+    }
+
+    Model {
+        name: "random_cubes_scene",
+        vertices: all_vertices,
+        triangles: all_triangles,
+        colors: all_colors,
+        textures: None,
+        uvs: None,
+    }
+}
+
