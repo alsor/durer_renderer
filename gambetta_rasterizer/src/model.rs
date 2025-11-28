@@ -223,53 +223,92 @@ pub fn textured_cube<'a>(size: f64, texture: &'a Texture) -> Model<'a> {
 }
 
 pub fn sphere<'a>(divs: i32) -> Model<'a> {
-    let mut vertices = Vec::<Vector3f>::new();
-    let mut triangles = Vec::<Triangle>::new();
-    let mut colors = Vec::<Color>::new();
+    if divs < 3 {
+        panic!("Sphere division must be at least 3");
+    }
 
-    let delta_angle = 2.0 * std::f64::consts::PI / (divs as f64);
+    let mut vertices = Vec::new();
+    let mut triangles = Vec::new();
 
-    // generate vertices
-    for d in 0..(divs + 1) {
-        let y = (2.0 / (divs as f64)) * ((d as f64) - (divs as f64) / 2.0);
-        let radius = (1.0 - y * y).sqrt();
+    let num_lon = divs as usize;        // количество сегментов по долготе
+    let num_lat = (divs / 2) as usize;  // в 2 раза меньше по широте → меньше геометрии у полюсов
 
-        for i in 0..divs {
-            let x = radius * ((i as f64) * delta_angle).cos();
-            let z = radius * ((i as f64) * delta_angle).sin();
+    // 1. Добавляем полюса
+    let north_pole = Vector3f { x: 0.0, y: 1.0, z: 0.0 };
+    let south_pole = Vector3f { x: 0.0, y: -1.0, z: 0.0 };
+    vertices.push(north_pole);
+    vertices.push(south_pole);
+
+    let d_theta = std::f64::consts::PI / (num_lat + 1) as f64;  // от полюса до полюса
+    let d_phi = 2.0 * std::f64::consts::PI / num_lon as f64;
+
+    // 2. Генерируем кольца (исключая полюса)
+    for lat in 1..=num_lat {
+        let theta = lat as f64 * d_theta;
+        let sin_theta = theta.sin();
+        let cos_theta = theta.cos();
+
+        let y = cos_theta;
+        let r = sin_theta;
+
+        for lon in 0..num_lon {
+            let phi = lon as f64 * d_phi;
+            let x = r * phi.cos();
+            let z = r * phi.sin();
             vertices.push(Vector3f { x, y, z });
-            // println!("generated vertex: {:.2}, {:.2}, {:.2}", x, y, z)
         }
     }
 
-    // generate triangles
-    for d in 0..divs {
-        for i in 0..(divs - 1) {
-            let i0 = d * divs + i;
+    // 3. Северный полюс → первое кольцо
+    let np_idx = 0;
+    for i in 0..num_lon {
+        let next_i = (i + 1) % num_lon;
+        let a = 2 + i;
+        let b = 2 + next_i;
+        triangles.push(Triangle::new_with_provided_normals(
+            &vertices,
+            [np_idx, a, b],
+            [north_pole, vertices[a], vertices[b]],
+        ));
+    }
 
-            triangles.push(Triangle::new_with_provided_normals(
-                &vertices,
-                [i0 as usize, (i0 + divs + 1) as usize, (i0 + 1) as usize],
-                [
-                    vertices[i0 as usize],
-                    vertices[(i0 + divs + 1) as usize],
-                    vertices[(i0 + 1) as usize],
-                ],
-            ));
-            colors.push(Color { r: 119, g: 136, b: 153 });
+    // 4. Средние кольца
+    for lat in 0..(num_lat - 1) {
+        let curr = 2 + lat * num_lon;
+        let next = 2 + (lat + 1) * num_lon;
 
-            triangles.push(Triangle::new_with_provided_normals(
-                &vertices,
-                [i0 as usize, (i0 + divs) as usize, (i0 + divs + 1) as usize],
-                [
-                    vertices[i0 as usize],
-                    vertices[(i0 + divs) as usize],
-                    vertices[(i0 + divs + 1) as usize],
-                ],
-            ));
-            colors.push(Color { r: 119, g: 136, b: 153 });
+        for i in 0..num_lon {
+            let next_i = (i + 1) % num_lon;
+            let a = curr + i;
+            let b = curr + next_i;
+            let c = next + next_i;
+            let d = next + i;
+
+            triangles.push(Triangle::new_with_provided_normals(&vertices, [a, b, c], [
+                vertices[a], vertices[b], vertices[c],
+            ]));
+            triangles.push(Triangle::new_with_provided_normals(&vertices, [a, c, d], [
+                vertices[a], vertices[c], vertices[d],
+            ]));
         }
     }
+
+    // 5. Южный полюс ← последнее кольцо
+    let sp_idx = 1;
+    let last_ring = 2 + (num_lat - 1) * num_lon;
+    for i in 0..num_lon {
+        let next_i = (i + 1) % num_lon;
+        let a = last_ring + i;
+        let b = last_ring + next_i;
+        triangles.push(Triangle::new_with_provided_normals(
+            &vertices,
+            [sp_idx, b, a],
+            [south_pole, vertices[b], vertices[a]],
+        ));
+    }
+
+    let color = Color { r: 119, g: 136, b: 153 };
+    let colors = vec![color; triangles.len()];
 
     Model {
         name: "sphere",
