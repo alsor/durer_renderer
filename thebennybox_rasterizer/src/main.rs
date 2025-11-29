@@ -5,7 +5,7 @@ mod matrix4f;
 mod vector4f;
 
 use matrix4f::Matrix4f;
-use sdl2::{event::Event, keyboard::Keycode, pixels::PixelFormatEnum};
+use sdl3::{event::Event, keyboard::Keycode, pixels::PixelFormat};
 use std::time::{Duration, Instant};
 use vector4f::Vector4f;
 
@@ -168,7 +168,7 @@ fn main() {
         1000.0,
     );
 
-    let sdl_context = sdl2::init().unwrap();
+    let sdl_context = sdl3::init().unwrap();
     let video_subsystem = sdl_context.video().unwrap();
 
     let window = video_subsystem
@@ -177,9 +177,9 @@ fn main() {
         .build()
         .unwrap();
 
-    let mut canvas = window.into_canvas().build().unwrap();
+    let mut canvas = window.into_canvas();
     let texture_creator = canvas.texture_creator();
-    let mut texture = texture_creator.create_texture_static(PixelFormatEnum::RGB24, width, height).unwrap();
+    let mut texture = texture_creator.create_texture_static(PixelFormat::RGB24, width, height).unwrap();
     texture.update(None, &bitmap.buffer, bitmap.width * 3).unwrap();
     canvas.clear();
     canvas.copy(&texture, None, None).unwrap();

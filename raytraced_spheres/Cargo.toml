@@ -6,4 +6,4 @@ edition = "2021"
 [dependencies]
 common = { path = "../common" }
 gambetta_raytracer = { path = "../gambetta_raytracer" }
-sdl2 = "0.31.0"
+sdl3 = "0.16.2"

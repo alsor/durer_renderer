@@ -10,9 +10,9 @@ use gambetta_rasterizer::{
 };
 use image::png::PNGEncoder;
 use image::ColorType;
-use sdl2::event::Event;
-use sdl2::keyboard::Keycode;
-use sdl2::pixels::PixelFormatEnum;
+use sdl3::event::Event;
+use sdl3::keyboard::Keycode;
+use sdl3::pixels::PixelFormat;
 use std::fs::File;
 use std::time::Instant;
 
@@ -27,7 +27,7 @@ fn main() {
     };
     let mut buffer_canvas = BufferCanvas::new(900);
 
-    let sdl_context = sdl2::init().unwrap();
+    let sdl_context = sdl3::init().unwrap();
     let video_subsystem = sdl_context.video().unwrap();
 
     let window = video_subsystem
@@ -36,11 +36,11 @@ fn main() {
         .build()
         .unwrap();
 
-    let mut canvas = window.into_canvas().build().unwrap();
+    let mut canvas = window.into_canvas();
     let texture_creator = canvas.texture_creator();
     let mut texture = texture_creator
         .create_texture_static(
-            PixelFormatEnum::RGB24,
+            PixelFormat::RGB24,
             buffer_canvas.size as u32,
             buffer_canvas.size as u32,
         )
@@ -359,7 +359,6 @@ fn main() {
                         write_image(&mut buffer_canvas.buffer, buffer_canvas.size)
                             .expect("Error writing image to file");
                     }
-                    Event::KeyDown { keycode: Some(Keycode::Num1), .. } => {}
                     Event::KeyDown { keycode, scancode, keymod, .. } => {
                         println!(
                             "Keycode: {:?}, Scancode: {:?}, Keymode: {:?}",
