@@ -211,6 +211,9 @@ fn main() {
 
     let mut event_pump = sdl_context.event_pump().unwrap();
     let mut last_frame_time = Instant::now();
+    let mut last_fps_time = Instant::now();
+    let mut frame_count = 0;
+    let mut total_frame_time = 0.0;
     'running: loop {
         let current_time = Instant::now();
         let delta_time = current_time.duration_since(last_frame_time).as_secs_f64();
@@ -218,6 +221,22 @@ fn main() {
         
         log::trace!("z_position: {:.2}", z_position);
         log::trace!("delta_time: {:.6}s", delta_time);
+
+        // Update FPS counter
+        frame_count += 1;
+        total_frame_time += delta_time;
+        
+        // Print FPS and average frame time every second
+        if current_time.duration_since(last_fps_time).as_secs_f64() >= 1.0 {
+            let fps = frame_count as f64 / current_time.duration_since(last_fps_time).as_secs_f64();
+            let avg_frame_time_ms = (total_frame_time / frame_count as f64) * 1000.0;
+            println!("FPS: {:.2}, Avg. frame time: {:.2}ms", fps, avg_frame_time_ms);
+            
+            // Reset counters
+            frame_count = 0;
+            total_frame_time = 0.0;
+            last_fps_time = current_time;
+        }
 
         if cfg!(feature = "smooth_animation") {
             x_position += delta_x;
