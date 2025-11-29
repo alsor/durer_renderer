@@ -70,11 +70,11 @@ fn main() {
 
     //    let cube = two_unit_cube();
     // let sphere = model::sphere(50);
-    let random_cubes = model::random_cubes_scene(50, 25.0);
-    println!("{random_cubes}");
+    // let random_cubes = model::random_cubes_scene(50, 25.0);
+    // println!("{random_cubes}");
     // let cube = model::cube(0.9);
-    // let wooden_cube = model::textured_cube(0.9, &wooden_crate);
-    // let brick_cube = model::textured_cube(1.0, &bricks);
+    let wooden_cube = model::textured_cube(0.9, &wooden_crate);
+    let brick_cube = model::textured_cube(1.0, &bricks);
     //    let triangle = triangle(5.0);
     // let torus = ply2::load_model("resources/torus.ply2");
     //    let twirl = ply2::load_model("resources/twirl.ply2");
@@ -84,30 +84,30 @@ fn main() {
     let mut current_instance_index: Option<usize> = None;
 
     let mut instances = vec![
-        Instance::new(
-            &random_cubes,
-            Vector3f { x: 0.0, y: 0.0, z: 20.0 },
-            1.0,
-            Vector3f::zero_vector(),
-        ),
+        // Instance::new(
+        //     &random_cubes,
+        //     Vector3f { x: 0.0, y: 0.0, z: 20.0 },
+        //     1.0,
+        //     Vector3f::zero_vector(),
+        // ),
         //    Instance::new(
         //        &triangle,
         //        Vector3f { x: 0.0, y: 0.0, z: 10.0 },
         //        1.0,
         //        Vector3f { x: 90.0, y: 0.0, z: 0.0 }
         //    ),
-        // Instance::new(
-        //     &wooden_cube,
-        //     Vector3f { x: 1.0, y: 1.0, z: 4.0 },
-        //     1.0,
-        //     Vector3f { x: 0.0, y: -30.0, z: -30.0 },
-        // ),
-        // Instance::new(
-        //     &brick_cube,
-        //     Vector3f { x: -0.3, y: -0.4, z: 3.5 },
-        //     1.0,
-        //     Vector3f { x: 25.0, y: 20.0, z: 10.0 },
-        // ),
+        Instance::new(
+            &wooden_cube,
+            Vector3f { x: 1.0, y: 1.0, z: 4.0 },
+            1.0,
+            Vector3f { x: 0.0, y: -30.0, z: -30.0 },
+        ),
+        Instance::new(
+            &brick_cube,
+            Vector3f { x: -0.3, y: -0.4, z: 3.5 },
+            1.0,
+            Vector3f { x: 25.0, y: 20.0, z: 10.0 },
+        ),
         //    Instance::new(
         //        &torus,
         //        Vector3f { x: 0.0, y: 0.0, z: 5.0 },
@@ -198,16 +198,16 @@ fn main() {
         delta_angle = 1.0;
     };
 
-    // instances[0].rotation_delta.x = angle_increase * 4.5;
-    // instances[0].rotation_delta.y = angle_increase * 2.0;
-    // instances[0].rotation_delta.z = angle_increase * 6.5;
+    instances[0].rotation_delta.x = angle_increase * 4.5;
+    instances[0].rotation_delta.y = angle_increase * 2.0;
+    instances[0].rotation_delta.z = angle_increase * 6.5;
     //    instances[0].position_delta.x = -0.005;
     //    instances[0].position_delta.z = 0.03;
     //    instances[0].scale_delta = 0.008;
 
-    // instances[1].rotation_delta.y = angle_increase * 8.0;
-    // instances[1].rotation_delta.z = angle_increase * 3.0;
-    // instances[1].position_delta.z = 0.01;
+    instances[1].rotation_delta.y = angle_increase * 8.0;
+    instances[1].rotation_delta.z = angle_increase * 3.0;
+    instances[1].position_delta.z = 0.01;
 
     let mut now = Instant::now();
 
@@ -225,7 +225,7 @@ fn main() {
             angle += delta_angle;
 
             instances[0].apply_deltas();
-            // instances[1].apply_deltas();
+            instances[1].apply_deltas();
         };
 
         let camera = ProjectiveCamera {
