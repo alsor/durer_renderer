@@ -406,7 +406,7 @@ fn main() {
 }
 
 fn write_image(buffer: &[u8], size: usize) -> Result<(), std::io::Error> {
-    let output = File::create("target/result.png")?;
+    let output = File::create("screenshot.png")?;
 
     let encoder = PNGEncoder::new(output);
     encoder.encode(&buffer, size as u32, size as u32, ColorType::RGB(8))?;
