@@ -1,0 +1,5 @@
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-L", "native=sdl3-local/SDL3-3.2.26/lib/x64"]
+
+[target.'cfg(windows)']
+rustflags = ["-L", "native=sdl3-local/SDL3-3.2.26/lib/x64"]

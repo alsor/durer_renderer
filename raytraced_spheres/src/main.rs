@@ -3,7 +3,7 @@
 use common::vectors;
 use common::{Color, Light, Vector3f};
 use gambetta_raytracer::Sphere;
-use sdl2::{event::Event, keyboard::Keycode, pixels::PixelFormatEnum};
+use sdl3::{event::Event, keyboard::Keycode, pixels::PixelFormat};
 
 fn main() {
     let size = 900;
@@ -60,7 +60,7 @@ fn main() {
 
     gambetta_raytracer::render_scene_to_buffer(&spheres, &lights, &mut buffer, size, origin, rotation);
 
-    let sdl_context = sdl2::init().unwrap();
+    let sdl_context = sdl3::init().unwrap();
     let video_subsystem = sdl_context.video().unwrap();
 
     let window = video_subsystem
@@ -69,7 +69,7 @@ fn main() {
         .build()
         .unwrap();
 
-    let mut canvas = window.into_canvas().build().unwrap();
+    let mut canvas = window.into_canvas();
     let texture_creator = canvas.texture_creator();
 
     //    let mut texture = texture_creator.create_texture_streaming(
@@ -88,7 +88,7 @@ fn main() {
     //    }).unwrap();
 
     let mut texture = texture_creator
-        .create_texture_static(PixelFormatEnum::RGB24, size as u32, size as u32)
+        .create_texture_static(PixelFormat::RGB24, size as u32, size as u32)
         .unwrap();
 
     texture.update(None, &buffer, size * 3).unwrap();
