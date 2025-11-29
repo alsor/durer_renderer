@@ -209,14 +209,15 @@ fn main() {
     instances[1].rotation_delta.z = angle_increase * 3.0;
     instances[1].position_delta.z = 0.01;
 
-    let mut now = Instant::now();
-
     let mut event_pump = sdl_context.event_pump().unwrap();
+    let mut last_frame_time = Instant::now();
     'running: loop {
-        let delta = now.elapsed();
-        //        println!("delta: {:?}", (delta.as_nanos() as f64) / 1000000000.0);
-
+        let current_time = Instant::now();
+        let delta_time = current_time.duration_since(last_frame_time).as_secs_f64();
+        last_frame_time = current_time;
+        
         log::trace!("z_position: {:.2}", z_position);
+        log::trace!("delta_time: {:.6}s", delta_time);
 
         if cfg!(feature = "smooth_animation") {
             x_position += delta_x;
@@ -371,7 +372,6 @@ fn main() {
             None => {}
         };
         //        thread::sleep(time::Duration::from_millis(10));
-        now = Instant::now();
     }
 
     //    let p0 = Point { x: -200, y: -250, h: 0.1 };
