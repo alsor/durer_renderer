@@ -10,9 +10,7 @@ use gambetta_rasterizer::{
 };
 use image::png::PNGEncoder;
 use image::ColorType;
-use sdl2::event::Event;
-use sdl2::keyboard::Keycode;
-use sdl2::pixels::PixelFormatEnum;
+use minifb::{Key, Window, WindowOptions};
 use std::fs::File;
 use std::time::Instant;
 
@@ -27,29 +25,19 @@ fn main() {
     };
     let mut buffer_canvas = BufferCanvas::new(900);
 
-    let sdl_context = sdl2::init().unwrap();
-    let video_subsystem = sdl_context.video().unwrap();
+    // Create window with minifb
+    let mut window = Window::new(
+        "Durer",
+        buffer_canvas.size,
+        buffer_canvas.size,
+        WindowOptions::default(),
+    )
+    .unwrap_or_else(|e| {
+        panic!("{}", e);
+    });
 
-    let window = video_subsystem
-        .window("Durer", buffer_canvas.size as u32, buffer_canvas.size as u32)
-        .position_centered()
-        .build()
-        .unwrap();
-
-    let mut canvas = window.into_canvas().build().unwrap();
-    let texture_creator = canvas.texture_creator();
-    let mut texture = texture_creator
-        .create_texture_static(
-            PixelFormatEnum::RGB24,
-            buffer_canvas.size as u32,
-            buffer_canvas.size as u32,
-        )
-        .unwrap();
-
-    texture.update(None, &buffer_canvas.buffer, buffer_canvas.size * 3).unwrap();
-    canvas.clear();
-    canvas.copy(&texture, None, None).unwrap();
-    canvas.present();
+    // Limit to max ~60 fps update rate
+    window.limit_update_rate(Some(std::time::Duration::from_micros(16600)));
 
     let viewport_size_delta = 0.1;
     let mut viewport_size = 1.0;
@@ -172,10 +160,7 @@ fn main() {
     ];
 
     //    rendering::render_scene(&scene, &camera, &mut buffer_canvas, &clipping_planes);
-    //    texture.update(None, &buffer_canvas.buffer, buffer_canvas.size * 3).unwrap();
-    //    canvas.clear();
-    //    canvas.copy(&texture, None, None).unwrap();
-    //    canvas.present();
+    //    window.update_with_buffer(&buffer_canvas.buffer, buffer_canvas.size, buffer_canvas.size).unwrap();
     //
 
     let step_increase = 0.005;
@@ -211,8 +196,8 @@ fn main() {
 
     let mut now = Instant::now();
 
-    let mut event_pump = sdl_context.event_pump().unwrap();
-    'running: loop {
+    // Main loop
+    while window.is_open() && !window.is_key_down(Key::Escape) {
         let delta = now.elapsed();
         //        println!("delta: {:?}", (delta.as_nanos() as f64) / 1000000000.0);
 
@@ -250,127 +235,118 @@ fn main() {
             &mut buffer_canvas,
         );
 
-        texture.update(None, &buffer_canvas.buffer, buffer_canvas.size * 3).unwrap();
-        canvas.clear();
-        canvas.copy(&texture, None, None).unwrap();
-        canvas.present();
+        // Convert RGB buffer to u32 buffer for minifb
+        let mut buffer_u32 = vec![0u32; buffer_canvas.size * buffer_canvas.size];
+        for i in 0..buffer_canvas.size * buffer_canvas.size {
+            let r = buffer_canvas.buffer[i * 3] as u32;
+            let g = buffer_canvas.buffer[i * 3 + 1] as u32;
+            let b = buffer_canvas.buffer[i * 3 + 2] as u32;
+            buffer_u32[i] = (r << 16) | (g << 8) | b;
+        }
 
-        match if cfg!(feature = "smooth_animation") {
-            event_pump.poll_event()
-        } else {
-            Some(event_pump.wait_event())
-        } {
-            Some(event) => {
-                log::trace!("event happened");
-                match event {
-                    Event::Quit { .. } | Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
-                        break 'running;
-                    }
-                    Event::KeyDown { keycode: Some(Keycode::E), .. } => {
-                        if cfg!(feature = "smooth_animation") {
-                            delta_angle += angle_increase;
-                        } else {
-                            angle += delta_angle;
-                        };
-                    }
-                    Event::KeyDown { keycode: Some(Keycode::Q), .. } => {
-                        if cfg!(feature = "smooth_animation") {
-                            delta_angle -= angle_increase;
-                        } else {
-                            angle -= delta_angle;
-                        };
-                    }
-                    Event::KeyDown { keycode: Some(Keycode::D), .. } => {
-                        if cfg!(feature = "smooth_animation") {
-                            delta_x += step_increase;
-                        } else {
-                            x_position += delta_x;
-                        };
-                    }
-                    Event::KeyDown { keycode: Some(Keycode::A), .. } => {
-                        if cfg!(feature = "smooth_animation") {
-                            delta_x -= step_increase;
-                        } else {
-                            x_position -= delta_x;
-                        };
-                    }
-                    Event::KeyDown { keycode: Some(Keycode::W), .. } => {
-                        if cfg!(feature = "smooth_animation") {
-                            delta_z += step_increase;
-                        } else {
-                            z_position += delta_z;
-                        };
-                    }
-                    Event::KeyDown { keycode: Some(Keycode::S), .. } => {
-                        if cfg!(feature = "smooth_animation") {
-                            delta_z -= step_increase;
-                        } else {
-                            z_position -= delta_z;
-                        };
-                    }
-                    Event::KeyDown { keycode: Some(Keycode::T), .. } => {
-                        if cfg!(feature = "smooth_animation") {
-                            delta_y += step_increase;
-                        } else {
-                            y_position += delta_y;
-                        };
-                    }
-                    Event::KeyDown { keycode: Some(Keycode::G), .. } => {
-                        if cfg!(feature = "smooth_animation") {
-                            delta_y -= step_increase;
-                        } else {
-                            y_position -= delta_y;
-                        };
-                    }
-                    Event::KeyDown { keycode: Some(Keycode::X), .. } => {
-                        viewport_size += viewport_size_delta;
-                    }
-                    Event::KeyDown { keycode: Some(Keycode::Z), .. } => {
-                        viewport_size -= viewport_size_delta;
-                    }
-                    Event::KeyDown { keycode: Some(Keycode::R), .. } => {
-                        projection_plane_z += projection_plane_z_delta;
-                    }
-                    Event::KeyDown { keycode: Some(Keycode::F), .. } => {
-                        projection_plane_z -= projection_plane_z_delta;
-                    }
-                    Event::KeyDown { keycode: Some(Keycode::F1), .. } => {
-                        rendering_settings.rendering_mode = RenderingMode::Wireframe
-                    }
-                    Event::KeyDown { keycode: Some(Keycode::F2), .. } => {
-                        rendering_settings.rendering_mode = RenderingMode::Filled
-                    }
-                    Event::KeyDown { keycode: Some(Keycode::F3), .. } => {
-                        rendering_settings.shading_model = ShadingModel::Flat
-                    }
-                    Event::KeyDown { keycode: Some(Keycode::F4), .. } => {
-                        rendering_settings.shading_model = ShadingModel::Gouraud
-                    }
-                    Event::KeyDown { keycode: Some(Keycode::F5), .. } => {
-                        rendering_settings.shading_model = ShadingModel::Phong
-                    }
-                    Event::KeyDown { keycode: Some(Keycode::F8), .. } => {
-                        rendering_settings.backface_culling = !rendering_settings.backface_culling
-                    }
-                    Event::KeyDown { keycode: Some(Keycode::F9), .. } => {
-                        rendering_settings.show_normals = !rendering_settings.show_normals
-                    }
-                    Event::KeyDown { keycode: Some(Keycode::F12), .. } => {
-                        write_image(&mut buffer_canvas.buffer, buffer_canvas.size)
-                            .expect("Error writing image to file");
-                    }
-                    Event::KeyDown { keycode: Some(Keycode::Num1), .. } => {}
-                    Event::KeyDown { keycode, scancode, keymod, .. } => {
-                        println!(
-                            "Keycode: {:?}, Scancode: {:?}, Keymode: {:?}",
-                            keycode, scancode, keymod
-                        );
-                    }
-                    _ => {}
-                };
-            }
-            None => {}
-        };
+        // Update window with new buffer
+        window
+            .update_with_buffer(&buffer_u32, buffer_canvas.size, buffer_canvas.size)
+            .unwrap();
+
+        // Handle keyboard input
+        if window.is_key_down(Key::E) {
+            if cfg!(feature = "smooth_animation") {
+                delta_angle += angle_increase;
+            } else {
+                angle += delta_angle;
+            };
+        }
+        if window.is_key_down(Key::Q) {
+            if cfg!(feature = "smooth_animation") {
+                delta_angle -= angle_increase;
+            } else {
+                angle -= delta_angle;
+            };
+        }
+        if window.is_key_down(Key::D) {
+            if cfg!(feature = "smooth_animation") {
+                delta_x += step_increase;
+            } else {
+                x_position += delta_x;
+            };
+        }
+        if window.is_key_down(Key::A) {
+            if cfg!(feature = "smooth_animation") {
+                delta_x -= step_increase;
+            } else {
+                x_position -= delta_x;
+            };
+        }
+        if window.is_key_down(Key::W) {
+            if cfg!(feature = "smooth_animation") {
+                delta_z += step_increase;
+            } else {
+                z_position += delta_z;
+            };
+        }
+        if window.is_key_down(Key::S) {
+            if cfg!(feature = "smooth_animation") {
+                delta_z -= step_increase;
+            } else {
+                z_position -= delta_z;
+            };
+        }
+        if window.is_key_down(Key::T) {
+            if cfg!(feature = "smooth_animation") {
+                delta_y += step_increase;
+            } else {
+                y_position += delta_y;
+            };
+        }
+        if window.is_key_down(Key::G) {
+            if cfg!(feature = "smooth_animation") {
+                delta_y -= step_increase;
+            } else {
+                y_position -= delta_y;
+            };
+        }
+        if window.is_key_down(Key::X) {
+            viewport_size += viewport_size_delta;
+        }
+        if window.is_key_down(Key::Z) {
+            viewport_size -= viewport_size_delta;
+        }
+        if window.is_key_down(Key::R) {
+            projection_plane_z += projection_plane_z_delta;
+        }
+        if window.is_key_down(Key::F) {
+            projection_plane_z -= projection_plane_z_delta;
+        }
+        if window.is_key_down(Key::F1) {
+            rendering_settings.rendering_mode = RenderingMode::Wireframe;
+        }
+        if window.is_key_down(Key::F2) {
+            rendering_settings.rendering_mode = RenderingMode::Filled;
+        }
+        if window.is_key_down(Key::F3) {
+            rendering_settings.shading_model = ShadingModel::Flat;
+        }
+        if window.is_key_down(Key::F4) {
+            rendering_settings.shading_model = ShadingModel::Gouraud;
+        }
+        if window.is_key_down(Key::F5) {
+            rendering_settings.shading_model = ShadingModel::Phong;
+        }
+        if window.is_key_down(Key::F8) {
+            rendering_settings.backface_culling = !rendering_settings.backface_culling;
+        }
+        if window.is_key_down(Key::F9) {
+            rendering_settings.show_normals = !rendering_settings.show_normals;
+        }
+        if window.is_key_down(Key::F12) {
+            write_image(&mut buffer_canvas.buffer, buffer_canvas.size)
+                .expect("Error writing image to file");
+        }
+
+        // Reset key states for next frame
+        window.update();
+
         //        thread::sleep(time::Duration::from_millis(10));
         now = Instant::now();
     }
