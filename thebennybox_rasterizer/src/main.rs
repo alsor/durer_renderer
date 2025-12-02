@@ -6,6 +6,7 @@ mod vector4f;
 
 use matrix4f::Matrix4f;
 use sdl3::{event::Event, keyboard::Keycode, pixels::PixelFormat};
+use std::fmt;
 use std::time::{Duration, Instant};
 use vector4f::Vector4f;
 
@@ -13,7 +14,6 @@ struct BitMap {
     width: usize,
     height: usize,
     buffer: Vec<u8>,
-    scan_buffer: Vec<usize>,
 }
 
 impl BitMap {
@@ -22,7 +22,6 @@ impl BitMap {
             width: width as usize,
             height: height as usize,
             buffer: vec![0; (width * height * 3) as usize],
-            scan_buffer: vec![0; (height * 2) as usize],
         }
     }
 
@@ -35,74 +34,6 @@ impl BitMap {
         self.buffer[index] = r;
         self.buffer[index + 1] = g;
         self.buffer[index + 2] = b;
-    }
-
-    fn draw_scan_buffer(&mut self, y: usize, x_min: usize, x_max: usize) {
-        self.scan_buffer[y * 2] = x_min;
-        self.scan_buffer[y * 2 + 1] = x_max;
-    }
-
-    fn fill_shape(&mut self, y_min: usize, y_max: usize) {
-        for j in y_min..y_max {
-            let x_min = self.scan_buffer[j * 2];
-            let x_max = self.scan_buffer[j * 2 + 1];
-            for i in x_min..x_max {
-                self.draw_pixel(i, j, 0xFF, 0xFF, 0xFF);
-            }
-        }
-    }
-
-    fn scan_convert_line(&mut self, min_y: Vertex, max_y: Vertex, which_side: usize) {
-        let y_start = min_y.y().ceil() as usize;
-        let y_end = max_y.y().ceil() as usize;
-
-        let y_dist = max_y.y() - min_y.y();
-        let x_dist = max_y.x() - min_y.x();
-
-        if y_dist <= 0.0 {
-            return;
-        }
-
-        let x_step = x_dist / y_dist;
-        let y_prestep = y_start as f64 - min_y.y();
-        let mut cur_x = min_y.x() + y_prestep * x_step;
-
-        for j in y_start..y_end {
-            self.scan_buffer[j * 2 + which_side] = cur_x.ceil() as usize;
-            cur_x += x_step;
-        }
-    }
-
-    fn scan_convert_triangle(&mut self, min_y: Vertex, mid_y: Vertex, max_y: Vertex, handedness: usize) {
-        self.scan_convert_line(min_y, max_y, 0 + handedness);
-        self.scan_convert_line(min_y, mid_y, 1 - handedness);
-        self.scan_convert_line(mid_y, max_y, 1 - handedness);
-    }
-
-    fn fill_triangle(&mut self, v1: Vertex, v2: Vertex, v3: Vertex) {
-        let screen_space_transform =
-            Matrix4f::init_screen_space_transform((self.width as f64) / 2.0, (self.height as f64) / 2.0);
-        let mut min_y = v1.transform(screen_space_transform).perspective_divide();
-        let mut mid_y = v2.transform(screen_space_transform).perspective_divide();
-        let mut max_y = v3.transform(screen_space_transform).perspective_divide();
-
-        if max_y.y() < mid_y.y() {
-            std::mem::swap(&mut max_y, &mut mid_y);
-        }
-
-        if mid_y.y() < min_y.y() {
-            std::mem::swap(&mut mid_y, &mut min_y);
-        }
-
-        if max_y.y() < mid_y.y() {
-            std::mem::swap(&mut max_y, &mut mid_y);
-        }
-
-        let area = min_y.triangle_area_times_two(max_y, mid_y);
-        let handedness = if area >= 0.0 { 1 } else { 0 };
-
-        self.scan_convert_triangle(min_y, mid_y, max_y, handedness);
-        self.fill_shape(min_y.y().ceil() as usize, max_y.y().ceil() as usize);
     }
 }
 
@@ -147,6 +78,115 @@ impl Vertex {
                 w: self.pos.w,
             },
         }
+    }
+}
+
+impl fmt::Display for Vertex {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "Vertex(x: {:.2}, y: {:.2}, z: {:.2})",
+            self.pos.x, self.pos.y, self.pos.z
+        )
+    }
+}
+
+struct Edge {
+    x: f64,
+    x_step: f64,
+    y_start: usize,
+    y_end: usize,
+}
+
+impl Edge {
+    fn new(start: Vertex, end: Vertex) -> Self {
+        let y_start = start.y().ceil() as usize;
+        let y_end = end.y().ceil() as usize;
+
+        let x_dist = end.x() - start.x();
+        let y_dist = end.y() - start.y();
+
+        let y_prestep = y_start as f64 - start.y();
+        let x_step = x_dist / y_dist;
+        let x = start.x() + y_prestep * x_step;
+        Self { x, x_step, y_start, y_end }
+    }
+
+    fn step(&mut self) {
+        self.x += self.x_step;
+    }
+}
+
+impl fmt::Display for Edge {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "Edge(x: {:.2}, x_step: {:.4}, y_start: {}, y_end: {})",
+            self.x, self.x_step, self.y_start, self.y_end
+        )
+    }
+}
+
+fn fill_triangle(bitmap: &mut BitMap, v1: Vertex, v2: Vertex, v3: Vertex) {
+    let screen_space_transform =
+        Matrix4f::init_screen_space_transform((bitmap.width as f64) / 2.0, (bitmap.height as f64) / 2.0);
+    let mut min_y = v1.transform(screen_space_transform).perspective_divide();
+    let mut mid_y = v2.transform(screen_space_transform).perspective_divide();
+    let mut max_y = v3.transform(screen_space_transform).perspective_divide();
+
+    if max_y.y() < mid_y.y() {
+        std::mem::swap(&mut max_y, &mut mid_y);
+    }
+
+    if mid_y.y() < min_y.y() {
+        std::mem::swap(&mut mid_y, &mut min_y);
+    }
+
+    if max_y.y() < mid_y.y() {
+        std::mem::swap(&mut max_y, &mut mid_y);
+    }
+
+    let short_is_left = min_y.triangle_area_times_two(max_y, mid_y) >= 0.0;
+    scan_triangle(bitmap, min_y, mid_y, max_y, short_is_left);
+}
+
+fn scan_triangle(bitmap: &mut BitMap, min_y: Vertex, mid_y: Vertex, max_y: Vertex, short_is_left: bool) {
+    let mut top_to_bottom = Edge::new(min_y, max_y);
+    let mut top_to_middle = Edge::new(min_y, mid_y);
+    let mut middle_to_bottom = Edge::new(mid_y, max_y);
+
+    scan_edges(bitmap, &mut top_to_bottom, &mut top_to_middle, short_is_left);
+    scan_edges(bitmap, &mut top_to_bottom, &mut middle_to_bottom, short_is_left);
+}
+
+fn scan_edges(bitmap: &mut BitMap, long: &mut Edge, short: &mut Edge, short_if_left: bool) {
+    let y_start = short.y_start;
+    let y_end = short.y_end;
+
+    let left;
+    let right;
+
+    if short_if_left {
+        left = short;
+        right = long;
+    } else {
+        left = long;
+        right = short;
+    }
+
+    for j in y_start..y_end {
+        draw_scan_line(bitmap, left, right, j);
+        left.step();
+        right.step();
+    }
+}
+
+fn draw_scan_line(bitmap: &mut BitMap, left: &mut Edge, right: &Edge, j: usize) {
+    let x_min = left.x.ceil() as usize;
+    let x_max = right.x.ceil() as usize;
+
+    for i in x_min..x_max {
+        bitmap.draw_pixel(i, j, 0xFF, 0xFF, 0xFF);
     }
 }
 
@@ -211,12 +251,12 @@ fn main() {
         let transform = projection.mul(translation.mul(rotation));
 
         bitmap.clear(0);
-        bitmap.fill_triangle(
+        fill_triangle(
+            &mut bitmap,
             max_y.transform(transform),
             min_y.transform(transform),
             mid_y.transform(transform),
         );
-        // bitmap.fill_triangle(max_y, min_y, mid_y);
 
         texture.update(None, &bitmap.buffer, bitmap.width * 3).unwrap();
         canvas.clear();
@@ -261,6 +301,18 @@ fn main() {
             }
         }
 
+        // Ожидаем событие (блокирующий вызов)
+        // for event in event_pump.wait_iter() {
+        //     match event {
+        //         Event::Quit { .. } => break 'running,
+        //         Event::KeyDown { keycode: Some(Keycode::Escape), .. } => break 'running,
+        //         Event::KeyDown { keycode: Some(Keycode::Space), .. } => {
+        //             // Реагируем на нажатие Пробела
+        //             break;
+        //         }
+        //         _ => continue,
+        //     }
+        // }
         // Handle events
         match event_pump.poll_event() {
             Some(Event::Quit { .. }) | Some(Event::KeyDown { keycode: Some(Keycode::Escape), .. }) => {
