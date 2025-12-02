@@ -197,9 +197,9 @@ fn main() {
 
     bitmap.clear(0x80);
 
-    let min_y = Vertex::new(-1.0, -1.0, 0.0);
-    let mid_y = Vertex::new(0.0, 1.0, 0.0);
-    let max_y = Vertex::new(1.0, -1.0, 0.0);
+    let v1 = Vertex::new(-1.0, -1.0, 0.0);
+    let v2 = Vertex::new(0.0, 1.0, 0.0);
+    let v3 = Vertex::new(1.0, -1.0, 0.0);
 
     let projection = Matrix4f::init_perspective(
         70.0_f64.to_radians(),
@@ -253,9 +253,9 @@ fn main() {
         bitmap.clear(0);
         fill_triangle(
             &mut bitmap,
-            max_y.transform(transform),
-            min_y.transform(transform),
-            mid_y.transform(transform),
+            v1.transform(transform),
+            v2.transform(transform),
+            v3.transform(transform),
         );
 
         texture.update(None, &bitmap.buffer, bitmap.width * 3).unwrap();
