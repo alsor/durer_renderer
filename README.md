@@ -1,8 +1,17 @@
 Software Renderer written in Rust
 
+What's new:
+
+I’m currently in the middle of implementing another software rasterizer, following the fantastic tutorial series by thebennybox on YouTube (https://www.youtube.com/playlist?list=PLEETnX-uPtBUbVOok816vTl1K9vV1GgH5). This approach is more practical compared to Computer Graphics from Scratch by Gabriel Gambetta. What I mean is that it uses algorithms and techniques closely resembling those found in real graphics APIs and GPU pipelines—such as scan conversion, fill conventions, projection matrices, and so on (though everything is still implemented in software).
+
+As a result, the rendered output looks slightly cleaner (no fuzzy or “hairy” textures and edges) and the implementation is more optimized. However, the tutorial sometimes skips over detailed explanations of certain steps. For that reason, I’d personally recommend attempting it only after watching some solid introductory lectures on computer graphics - like the excellent “Computer Graphics, Fall 2009” course from UC Davis.
+
+Progress for now: THE CLASSIC - colored rotating triangle:
+
+![Rotating colored triangle](https://i.imgur.com/VSWbNn2.png)
+
 Up to this point almost everything was based on the amazing articles "Computer Graphics from Scratch" by Gabriel Gambetta (which recently became a full fledged book but still accessble online here https://gabrielgambetta.com/computer-graphics-from-scratch/index.html). Very recommended for the complete beginners in computer graphics (like myself).
 
-What's new:
 
 Textures
 

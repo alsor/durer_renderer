@@ -4,3 +4,4 @@ durer.iml
 **/*.rs.bk
 launch.json
 sdl3-local
+.DS_Store
