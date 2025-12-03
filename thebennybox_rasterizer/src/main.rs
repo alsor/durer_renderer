@@ -40,13 +40,10 @@ impl BitMap {
 #[derive(Clone, Copy)]
 struct Vertex {
     pos: Vector4f,
+    color: Vector4f,
 }
 
 impl Vertex {
-    fn new(x: f64, y: f64, z: f64) -> Self {
-        Self { pos: Vector4f { x, y, z, w: 1.0 } }
-    }
-
     fn x(&self) -> f64 {
         self.pos.x
     }
@@ -66,7 +63,7 @@ impl Vertex {
     }
 
     fn transform(&self, matrix: Matrix4f) -> Self {
-        Vertex { pos: matrix.transform(self.pos) }
+        Vertex { pos: matrix.transform(self.pos), color: self.color }
     }
 
     fn perspective_divide(&self) -> Self {
@@ -77,6 +74,7 @@ impl Vertex {
                 z: self.pos.z / self.pos.w,
                 w: self.pos.w,
             },
+            color: self.color,
         }
     }
 }
@@ -96,10 +94,12 @@ struct Edge {
     x_step: f64,
     y_start: usize,
     y_end: usize,
+    color: Vector4f,
+    color_step: Vector4f,
 }
 
 impl Edge {
-    fn new(start: Vertex, end: Vertex) -> Self {
+    fn new(gradients: Gradients, start: Vertex, end: Vertex, start_index: usize) -> Self {
         let y_start = start.y().ceil() as usize;
         let y_end = end.y().ceil() as usize;
 
@@ -109,11 +109,20 @@ impl Edge {
         let y_prestep = y_start as f64 - start.y();
         let x_step = x_dist / y_dist;
         let x = start.x() + y_prestep * x_step;
-        Self { x, x_step, y_start, y_end }
+        let x_prestep = x - start.x();
+
+        let color = gradients.colors[start_index]
+            .add(gradients.color_y_step * y_prestep)
+            .add(gradients.color_x_step * x_prestep);
+
+        let color_step = gradients.color_y_step + gradients.color_x_step * x_step;
+
+        Self { x, x_step, y_start, y_end, color, color_step }
     }
 
     fn step(&mut self) {
         self.x += self.x_step;
+        self.color = self.color.add(self.color_step);
     }
 }
 
@@ -151,15 +160,35 @@ fn fill_triangle(bitmap: &mut BitMap, v1: Vertex, v2: Vertex, v3: Vertex) {
 }
 
 fn scan_triangle(bitmap: &mut BitMap, min_y: Vertex, mid_y: Vertex, max_y: Vertex, short_is_left: bool) {
-    let mut top_to_bottom = Edge::new(min_y, max_y);
-    let mut top_to_middle = Edge::new(min_y, mid_y);
-    let mut middle_to_bottom = Edge::new(mid_y, max_y);
+    let gradients = Gradients::new(min_y, mid_y, max_y);
 
-    scan_edges(bitmap, &mut top_to_bottom, &mut top_to_middle, short_is_left);
-    scan_edges(bitmap, &mut top_to_bottom, &mut middle_to_bottom, short_is_left);
+    let mut top_to_bottom = Edge::new(gradients, min_y, max_y, 0);
+    let mut top_to_middle = Edge::new(gradients, min_y, mid_y, 0);
+    let mut middle_to_bottom = Edge::new(gradients, mid_y, max_y, 1);
+
+    scan_edges(
+        bitmap,
+        gradients,
+        &mut top_to_bottom,
+        &mut top_to_middle,
+        short_is_left,
+    );
+    scan_edges(
+        bitmap,
+        gradients,
+        &mut top_to_bottom,
+        &mut middle_to_bottom,
+        short_is_left,
+    );
 }
 
-fn scan_edges(bitmap: &mut BitMap, long: &mut Edge, short: &mut Edge, short_if_left: bool) {
+fn scan_edges(
+    bitmap: &mut BitMap,
+    gradients: Gradients,
+    long: &mut Edge,
+    short: &mut Edge,
+    short_if_left: bool,
+) {
     let y_start = short.y_start;
     let y_end = short.y_end;
 
@@ -175,18 +204,75 @@ fn scan_edges(bitmap: &mut BitMap, long: &mut Edge, short: &mut Edge, short_if_l
     }
 
     for j in y_start..y_end {
-        draw_scan_line(bitmap, left, right, j);
+        draw_scan_line(bitmap, gradients, left, right, j);
         left.step();
         right.step();
     }
 }
 
-fn draw_scan_line(bitmap: &mut BitMap, left: &mut Edge, right: &Edge, j: usize) {
+fn draw_scan_line(bitmap: &mut BitMap, gradients: Gradients, left: &mut Edge, right: &Edge, j: usize) {
     let x_min = left.x.ceil() as usize;
     let x_max = right.x.ceil() as usize;
+    let x_prestep = x_min as f64 - left.x;
+
+    let min_color = left.color.add(gradients.color_x_step.mul_scalar(x_prestep));
+    let max_color = right.color.add(gradients.color_y_step.mul_scalar(x_prestep));
+
+    let mut lerp_amount = 0.0;
+    let lerp_step = 1.0 / (x_max as f64 - x_min as f64);
 
     for i in x_min..x_max {
-        bitmap.draw_pixel(i, j, 0xFF, 0xFF, 0xFF);
+        let color = min_color.lerp(max_color, lerp_amount);
+
+        let r = (color.x * 255.0 + 0.5) as u8;
+        let g = (color.y * 255.0 + 0.5) as u8;
+        let b = (color.z * 255.0 + 0.5) as u8;
+
+        bitmap.draw_pixel(i, j, r, g, b);
+        lerp_amount += lerp_step;
+    }
+}
+
+#[derive(Copy, Clone)]
+struct Gradients {
+    colors: [Vector4f; 3], // [minY, midY, maxY]
+    color_x_step: Vector4f,
+    color_y_step: Vector4f,
+}
+
+impl Gradients {
+    /// Создаёт градиенты по трём вершинам (отсортированным по Y)
+    fn new(min_y: Vertex, mid_y: Vertex, max_y: Vertex) -> Self {
+        let c0 = min_y.color;
+        let c1 = mid_y.color;
+        let c2 = max_y.color;
+
+        let dx1 = mid_y.x() - max_y.x();
+        let dy1 = min_y.y() - max_y.y();
+        let dx2 = min_y.x() - max_y.x();
+        let dy2 = mid_y.y() - max_y.y();
+
+        let det = dx1 * dy1 - dx2 * dy2;
+
+        let inv_dx = if det.abs() > f64::EPSILON { 1.0 / det } else { 0.0 };
+        let inv_dy = -inv_dx;
+
+        let color_x_step = (c1.sub(c2).mul_scalar(dy1)).sub(c0.sub(c2).mul_scalar(dy2)).mul_scalar(inv_dx);
+        let color_y_step = (c1.sub(c2).mul_scalar(dx2)).sub(c0.sub(c2).mul_scalar(dx1)).mul_scalar(inv_dy);
+
+        Self { colors: [c0, c1, c2], color_x_step, color_y_step }
+    }
+}
+
+impl fmt::Display for Gradients {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f, "Gradients {{")?;
+        writeln!(f, "  colors[0]: {}", self.colors[0])?;
+        writeln!(f, "  colors[1]: {}", self.colors[1])?;
+        writeln!(f, "  colors[2]: {}", self.colors[2])?;
+        writeln!(f, "  color_x_step: {}", self.color_x_step)?;
+        writeln!(f, "  color_y_step: {}", self.color_y_step)?;
+        write!(f, "}}")
     }
 }
 
@@ -197,9 +283,18 @@ fn main() {
 
     bitmap.clear(0x80);
 
-    let v1 = Vertex::new(-1.0, -1.0, 0.0);
-    let v2 = Vertex::new(0.0, 1.0, 0.0);
-    let v3 = Vertex::new(1.0, -1.0, 0.0);
+    let v1 = Vertex {
+        pos: Vector4f::new(-1.0, -1.0, 0.0, 1.0),
+        color: Vector4f::new(1.0, 0.0, 0.0, 0.0),
+    };
+    let v2 = Vertex {
+        pos: Vector4f::new(0.0, 1.0, 0.0, 1.0),
+        color: Vector4f::new(0.0, 1.0, 0.0, 0.0),
+    };
+    let v3 = Vertex {
+        pos: Vector4f::new(1.0, -1.0, 0.0, 1.0),
+        color: Vector4f::new(0.0, 0.0, 1.0, 0.0),
+    };
 
     let projection = Matrix4f::init_perspective(
         70.0_f64.to_radians(),
