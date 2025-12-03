@@ -4,6 +4,7 @@
 mod matrix4f;
 mod vector4f;
 
+use image::RgbImage;
 use matrix4f::Matrix4f;
 use sdl3::{event::Event, keyboard::Keycode, pixels::PixelFormat};
 use std::fmt;
@@ -408,12 +409,25 @@ fn main() {
         //         _ => continue,
         //     }
         // }
-        // Handle events
-        match event_pump.poll_event() {
-            Some(Event::Quit { .. }) | Some(Event::KeyDown { keycode: Some(Keycode::Escape), .. }) => {
-                break 'running;
+
+        // Обработка событий
+        for event in event_pump.poll_iter() {
+            match event {
+                Event::Quit { .. } => break 'running,
+                Event::KeyDown { keycode: Some(Keycode::Escape), .. } => break 'running,
+                Event::KeyDown { keycode: Some(Keycode::F12), .. } => {
+                    // Сохраняем скриншот
+                    let img = RgbImage::from_raw(width as u32, height as u32, bitmap.buffer.clone())
+                        .expect("Невозможно создать изображение из буфера");
+
+                    if let Err(e) = img.save("screenshot.png") {
+                        eprintln!("Ошибка при сохранении скриншота: {}", e);
+                    } else {
+                        println!("Скриншот сохранён как screenshot.png");
+                    }
+                }
+                _ => {}
             }
-            _ => {}
         }
     }
 }
