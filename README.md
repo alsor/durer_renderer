@@ -10,7 +10,9 @@ Progress for now: THE CLASSIC - colored rotating triangle:
 
 ![Rotating colored triangle](https://i.imgur.com/VSWbNn2.png)
 
-Up to this point almost everything was based on the amazing articles "Computer Graphics from Scratch" by Gabriel Gambetta (which recently became a full fledged book but still accessble online here https://gabrielgambetta.com/computer-graphics-from-scratch/index.html). Very recommended for the complete beginners in computer graphics (like myself).
+---
+
+[16.11.2022] Up to this point almost everything was based on the amazing articles "Computer Graphics from Scratch" by Gabriel Gambetta (which recently became a full fledged book but still accessble online here https://gabrielgambetta.com/computer-graphics-from-scratch/index.html). Very recommended for the complete beginners in computer graphics (like myself).
 
 
 [27.07.2019] Textures
