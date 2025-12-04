@@ -1253,6 +1253,7 @@ name = "thebennybox_rasterizer"
 version = "0.1.0"
 dependencies = [
  "image 0.25.9",
+ "rand 0.8.5",
  "sdl3",
 ]
 

@@ -6,18 +6,19 @@ mod vector4f;
 
 use image::RgbImage;
 use matrix4f::Matrix4f;
+use rand::Rng;
 use sdl3::{event::Event, keyboard::Keycode, pixels::PixelFormat};
 use std::fmt;
 use std::time::{Duration, Instant};
 use vector4f::Vector4f;
 
-struct BitMap {
+struct Bitmap {
     width: usize,
     height: usize,
     buffer: Vec<u8>,
 }
 
-impl BitMap {
+impl Bitmap {
     fn new(width: u32, height: u32) -> Self {
         Self {
             width: width as usize,
@@ -36,12 +37,20 @@ impl BitMap {
         self.buffer[index + 1] = g;
         self.buffer[index + 2] = b;
     }
+
+    fn copy_pixels(&mut self, dest_x: usize, dest_y: usize, src_x: usize, src_y: usize, src: &Bitmap) {
+        let dest_index = (dest_y * self.width + dest_x) * 3;
+        let src_index = (src_y * src.width + src_x) * 3;
+        self.buffer[dest_index] = src.buffer[src_index];
+        self.buffer[dest_index + 1] = src.buffer[src_index + 1];
+        self.buffer[dest_index + 2] = src.buffer[src_index + 2];
+    }
 }
 
 #[derive(Clone, Copy)]
 struct Vertex {
     pos: Vector4f,
-    color: Vector4f,
+    tex_coords: Vector4f,
 }
 
 impl Vertex {
@@ -64,7 +73,10 @@ impl Vertex {
     }
 
     fn transform(&self, matrix: Matrix4f) -> Self {
-        Vertex { pos: matrix.transform(self.pos), color: self.color }
+        Vertex {
+            pos: matrix.transform(self.pos),
+            tex_coords: self.tex_coords,
+        }
     }
 
     fn perspective_divide(&self) -> Self {
@@ -75,7 +87,7 @@ impl Vertex {
                 z: self.pos.z / self.pos.w,
                 w: self.pos.w,
             },
-            color: self.color,
+            tex_coords: self.tex_coords,
         }
     }
 }
@@ -95,8 +107,10 @@ struct Edge {
     x_step: f64,
     y_start: usize,
     y_end: usize,
-    color: Vector4f,
-    color_step: Vector4f,
+    tex_coord_x: f64,
+    tex_coord_x_step: f64,
+    tex_coord_y: f64,
+    tex_coord_y_step: f64,
 }
 
 impl Edge {
@@ -112,18 +126,32 @@ impl Edge {
         let x = start.x() + y_prestep * x_step;
         let x_prestep = x - start.x();
 
-        let color = gradients.colors[start_index]
-            .add(gradients.color_y_step * y_prestep)
-            .add(gradients.color_x_step * x_prestep);
+        let tex_coord_x = gradients.tex_coord_x[start_index]
+            + gradients.tex_coord_x_x_step * x_prestep
+            + gradients.tex_coord_x_y_step * y_prestep;
+        let tex_coord_x_step = gradients.tex_coord_x_y_step + gradients.tex_coord_x_x_step * x_step;
 
-        let color_step = gradients.color_y_step + gradients.color_x_step * x_step;
+        let tex_coord_y = gradients.tex_coord_y[start_index]
+            + gradients.tex_coord_y_x_step * x_prestep
+            + gradients.tex_coord_y_y_step * y_prestep;
+        let tex_coord_y_step = gradients.tex_coord_y_y_step + gradients.tex_coord_y_x_step * x_step;
 
-        Self { x, x_step, y_start, y_end, color, color_step }
+        Self {
+            x,
+            x_step,
+            y_start,
+            y_end,
+            tex_coord_x,
+            tex_coord_x_step,
+            tex_coord_y,
+            tex_coord_y_step,
+        }
     }
 
     fn step(&mut self) {
         self.x += self.x_step;
-        self.color = self.color.add(self.color_step);
+        self.tex_coord_x += self.tex_coord_x_step;
+        self.tex_coord_y += self.tex_coord_y_step;
     }
 }
 
@@ -137,7 +165,7 @@ impl fmt::Display for Edge {
     }
 }
 
-fn fill_triangle(bitmap: &mut BitMap, v1: Vertex, v2: Vertex, v3: Vertex) {
+fn fill_triangle(bitmap: &mut Bitmap, v1: Vertex, v2: Vertex, v3: Vertex, texture: &Bitmap) {
     let screen_space_transform =
         Matrix4f::init_screen_space_transform((bitmap.width as f64) / 2.0, (bitmap.height as f64) / 2.0);
     let mut min_y = v1.transform(screen_space_transform).perspective_divide();
@@ -157,10 +185,17 @@ fn fill_triangle(bitmap: &mut BitMap, v1: Vertex, v2: Vertex, v3: Vertex) {
     }
 
     let short_is_left = min_y.triangle_area_times_two(max_y, mid_y) >= 0.0;
-    scan_triangle(bitmap, min_y, mid_y, max_y, short_is_left);
+    scan_triangle(bitmap, min_y, mid_y, max_y, short_is_left, texture);
 }
 
-fn scan_triangle(bitmap: &mut BitMap, min_y: Vertex, mid_y: Vertex, max_y: Vertex, short_is_left: bool) {
+fn scan_triangle(
+    bitmap: &mut Bitmap,
+    min_y: Vertex,
+    mid_y: Vertex,
+    max_y: Vertex,
+    short_is_left: bool,
+    texture: &Bitmap,
+) {
     let gradients = Gradients::new(min_y, mid_y, max_y);
 
     let mut top_to_bottom = Edge::new(gradients, min_y, max_y, 0);
@@ -173,6 +208,7 @@ fn scan_triangle(bitmap: &mut BitMap, min_y: Vertex, mid_y: Vertex, max_y: Verte
         &mut top_to_bottom,
         &mut top_to_middle,
         short_is_left,
+        texture,
     );
     scan_edges(
         bitmap,
@@ -180,15 +216,17 @@ fn scan_triangle(bitmap: &mut BitMap, min_y: Vertex, mid_y: Vertex, max_y: Verte
         &mut top_to_bottom,
         &mut middle_to_bottom,
         short_is_left,
+        texture,
     );
 }
 
 fn scan_edges(
-    bitmap: &mut BitMap,
+    bitmap: &mut Bitmap,
     gradients: Gradients,
     long: &mut Edge,
     short: &mut Edge,
     short_if_left: bool,
+    texture: &Bitmap,
 ) {
     let y_start = short.y_start;
     let y_end = short.y_end;
@@ -205,48 +243,58 @@ fn scan_edges(
     }
 
     for j in y_start..y_end {
-        draw_scan_line(bitmap, gradients, left, right, j);
+        draw_scan_line(bitmap, gradients, left, right, j, texture);
         left.step();
         right.step();
     }
 }
 
-fn draw_scan_line(bitmap: &mut BitMap, gradients: Gradients, left: &mut Edge, right: &Edge, j: usize) {
+fn draw_scan_line(
+    bitmap: &mut Bitmap,
+    gradients: Gradients,
+    left: &mut Edge,
+    right: &Edge,
+    j: usize,
+    texture: &Bitmap,
+) {
     let x_min = left.x.ceil() as usize;
     let x_max = right.x.ceil() as usize;
     let x_prestep = x_min as f64 - left.x;
 
-    let min_color = left.color.add(gradients.color_x_step.mul_scalar(x_prestep));
-    let max_color = right.color.add(gradients.color_y_step.mul_scalar(x_prestep));
-
-    let mut lerp_amount = 0.0;
-    let lerp_step = 1.0 / (x_max as f64 - x_min as f64);
+    let mut tex_coord_x = left.tex_coord_x + gradients.tex_coord_x_x_step * x_prestep;
+    let mut tex_coord_y = left.tex_coord_y + gradients.tex_coord_y_x_step * x_prestep;
 
     for i in x_min..x_max {
-        let color = min_color.lerp(max_color, lerp_amount);
+        let src_x = ((tex_coord_x * (texture.width - 1) as f64) + 0.5) as usize;
+        let src_y = ((tex_coord_y * (texture.height - 1) as f64) + 0.5) as usize;
 
-        let r = (color.x * 255.0 + 0.5) as u8;
-        let g = (color.y * 255.0 + 0.5) as u8;
-        let b = (color.z * 255.0 + 0.5) as u8;
+        bitmap.copy_pixels(i, j, src_x, src_y, texture);
 
-        bitmap.draw_pixel(i, j, r, g, b);
-        lerp_amount += lerp_step;
+        tex_coord_x += gradients.tex_coord_x_x_step;
+        tex_coord_y += gradients.tex_coord_y_x_step;
     }
 }
 
 #[derive(Copy, Clone)]
 struct Gradients {
-    colors: [Vector4f; 3], // [minY, midY, maxY]
-    color_x_step: Vector4f,
-    color_y_step: Vector4f,
+    tex_coord_x: [f64; 3],
+    tex_coord_x_x_step: f64,
+    tex_coord_x_y_step: f64,
+    tex_coord_y: [f64; 3],
+    tex_coord_y_x_step: f64,
+    tex_coord_y_y_step: f64,
 }
 
 impl Gradients {
     /// Создаёт градиенты по трём вершинам (отсортированным по Y)
     fn new(min_y: Vertex, mid_y: Vertex, max_y: Vertex) -> Self {
-        let c0 = min_y.color;
-        let c1 = mid_y.color;
-        let c2 = max_y.color;
+        let x0 = min_y.tex_coords.x;
+        let x1 = mid_y.tex_coords.x;
+        let x2 = max_y.tex_coords.x;
+
+        let y0 = min_y.tex_coords.y;
+        let y1 = mid_y.tex_coords.y;
+        let y2 = max_y.tex_coords.y;
 
         let dx1 = mid_y.x() - max_y.x();
         let dy1 = min_y.y() - max_y.y();
@@ -258,43 +306,58 @@ impl Gradients {
         let inv_dx = if det.abs() > f64::EPSILON { 1.0 / det } else { 0.0 };
         let inv_dy = -inv_dx;
 
-        let color_x_step = (c1.sub(c2).mul_scalar(dy1)).sub(c0.sub(c2).mul_scalar(dy2)).mul_scalar(inv_dx);
-        let color_y_step = (c1.sub(c2).mul_scalar(dx2)).sub(c0.sub(c2).mul_scalar(dx1)).mul_scalar(inv_dy);
+        let tex_coord_x_x_step = (((x1 - x2) * dy1) - ((x0 - x2) * dy2)) * inv_dx;
+        let tex_coord_x_y_step = (((x1 - x2) * dx2) - ((x0 - x2) * dx1)) * inv_dy;
+        
+        let tex_coord_y_x_step = (((y1 - y2) * dy1) - ((y0 - y2) * dy2)) * inv_dx;
+        let tex_coord_y_y_step = (((y1 - y2) * dx2) - ((y0 - y2) * dx1)) * inv_dy;
 
-        Self { colors: [c0, c1, c2], color_x_step, color_y_step }
+        Self {
+            tex_coord_x: [x0, x1, x2],
+            tex_coord_y: [y0, y1, y2],
+            tex_coord_x_x_step,
+            tex_coord_x_y_step,
+            tex_coord_y_x_step,
+            tex_coord_y_y_step,
+        }
     }
 }
 
-impl fmt::Display for Gradients {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(f, "Gradients {{")?;
-        writeln!(f, "  colors[0]: {}", self.colors[0])?;
-        writeln!(f, "  colors[1]: {}", self.colors[1])?;
-        writeln!(f, "  colors[2]: {}", self.colors[2])?;
-        writeln!(f, "  color_x_step: {}", self.color_x_step)?;
-        writeln!(f, "  color_y_step: {}", self.color_y_step)?;
-        write!(f, "}}")
+fn create_random_texture(width: u32, height: u32) -> Bitmap {
+    let mut rng = rand::thread_rng();
+    let mut texture = Bitmap::new(width, height);
+
+    for j in 0..height as usize {
+        for i in 0..width as usize {
+            let r = rng.gen_range(0..=255);
+            let g = rng.gen_range(0..=255);
+            let b = rng.gen_range(0..=255);
+            // В вашем `BitMap` используется RGB (3 байта), а не RGBA
+            texture.draw_pixel(i, j, r, g, b);
+        }
     }
+
+    texture
 }
 
 fn main() {
     let width: u32 = 900;
     let height: u32 = 900;
-    let mut bitmap = BitMap::new(width, height);
+    let mut bitmap = Bitmap::new(width, height);
 
-    bitmap.clear(0x80);
+    let texture = create_random_texture(32, 32);
 
     let v1 = Vertex {
         pos: Vector4f::new(-1.0, -1.0, 0.0, 1.0),
-        color: Vector4f::new(1.0, 0.0, 0.0, 0.0),
+        tex_coords: Vector4f::new(0.0, 0.0, 0.0, 0.0), // UV: (0,0)
     };
     let v2 = Vertex {
         pos: Vector4f::new(0.0, 1.0, 0.0, 1.0),
-        color: Vector4f::new(0.0, 1.0, 0.0, 0.0),
+        tex_coords: Vector4f::new(0.5, 1.0, 0.0, 0.0), // UV: (0.5,1)
     };
     let v3 = Vertex {
         pos: Vector4f::new(1.0, -1.0, 0.0, 1.0),
-        color: Vector4f::new(0.0, 0.0, 1.0, 0.0),
+        tex_coords: Vector4f::new(1.0, 0.0, 0.0, 0.0), // UV: (1,0)
     };
 
     let projection = Matrix4f::init_perspective(
@@ -315,10 +378,11 @@ fn main() {
 
     let mut canvas = window.into_canvas();
     let texture_creator = canvas.texture_creator();
-    let mut texture = texture_creator.create_texture_static(PixelFormat::RGB24, width, height).unwrap();
-    texture.update(None, &bitmap.buffer, bitmap.width * 3).unwrap();
+    let mut screen_texture =
+        texture_creator.create_texture_static(PixelFormat::RGB24, width, height).unwrap();
+    screen_texture.update(None, &bitmap.buffer, bitmap.width * 3).unwrap();
     canvas.clear();
-    canvas.copy(&texture, None, None).unwrap();
+    canvas.copy(&screen_texture, None, None).unwrap();
     canvas.present();
 
     let mut event_pump = sdl_context.event_pump().unwrap();
@@ -352,11 +416,12 @@ fn main() {
             v1.transform(transform),
             v2.transform(transform),
             v3.transform(transform),
+            &texture,
         );
 
-        texture.update(None, &bitmap.buffer, bitmap.width * 3).unwrap();
+        screen_texture.update(None, &bitmap.buffer, bitmap.width * 3).unwrap();
         canvas.clear();
-        canvas.copy(&texture, None, None).unwrap();
+        canvas.copy(&screen_texture, None, None).unwrap();
         canvas.present();
 
         // 📏 Frame processing time (render + update + SDL)
