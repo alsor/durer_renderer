@@ -111,6 +111,8 @@ struct Edge {
     tex_coord_x_step: f64,
     tex_coord_y: f64,
     tex_coord_y_step: f64,
+    inv_z: f64,
+    inv_z_step: f64,
 }
 
 impl Edge {
@@ -136,6 +138,11 @@ impl Edge {
             + gradients.tex_coord_y_y_step * y_prestep;
         let tex_coord_y_step = gradients.tex_coord_y_y_step + gradients.tex_coord_y_x_step * x_step;
 
+        let inv_z = gradients.inv_z[start_index]
+            + gradients.inv_z_x_step * x_prestep
+            + gradients.inv_z_y_step * y_prestep;
+        let inv_z_step = gradients.inv_z_y_step + gradients.inv_z_x_step * x_step;
+
         Self {
             x,
             x_step,
@@ -145,6 +152,8 @@ impl Edge {
             tex_coord_x_step,
             tex_coord_y,
             tex_coord_y_step,
+            inv_z,
+            inv_z_step,
         }
     }
 
@@ -152,6 +161,7 @@ impl Edge {
         self.x += self.x_step;
         self.tex_coord_x += self.tex_coord_x_step;
         self.tex_coord_y += self.tex_coord_y_step;
+        self.inv_z += self.inv_z_step;
     }
 }
 
@@ -204,7 +214,6 @@ fn scan_triangle(
 
     scan_edges(
         bitmap,
-        gradients,
         &mut top_to_bottom,
         &mut top_to_middle,
         short_is_left,
@@ -212,7 +221,6 @@ fn scan_triangle(
     );
     scan_edges(
         bitmap,
-        gradients,
         &mut top_to_bottom,
         &mut middle_to_bottom,
         short_is_left,
@@ -220,14 +228,7 @@ fn scan_triangle(
     );
 }
 
-fn scan_edges(
-    bitmap: &mut Bitmap,
-    gradients: Gradients,
-    long: &mut Edge,
-    short: &mut Edge,
-    short_if_left: bool,
-    texture: &Bitmap,
-) {
+fn scan_edges(bitmap: &mut Bitmap, long: &mut Edge, short: &mut Edge, short_if_left: bool, texture: &Bitmap) {
     let y_start = short.y_start;
     let y_end = short.y_end;
 
@@ -243,35 +244,48 @@ fn scan_edges(
     }
 
     for j in y_start..y_end {
-        draw_scan_line(bitmap, gradients, left, right, j, texture);
+        draw_scan_line(bitmap, left, right, j, texture);
         left.step();
         right.step();
     }
 }
 
-fn draw_scan_line(
-    bitmap: &mut Bitmap,
-    gradients: Gradients,
-    left: &mut Edge,
-    right: &Edge,
-    j: usize,
-    texture: &Bitmap,
-) {
+fn draw_scan_line(bitmap: &mut Bitmap, left: &mut Edge, right: &Edge, j: usize, texture: &Bitmap) {
     let x_min = left.x.ceil() as usize;
     let x_max = right.x.ceil() as usize;
     let x_prestep = x_min as f64 - left.x;
 
-    let mut tex_coord_x = left.tex_coord_x + gradients.tex_coord_x_x_step * x_prestep;
-    let mut tex_coord_y = left.tex_coord_y + gradients.tex_coord_y_x_step * x_prestep;
+    let x_dist = right.x - left.x;
+    let tex_coord_x_x_step = if x_dist.abs() > f64::EPSILON {
+        (right.tex_coord_x - left.tex_coord_x) / x_dist
+    } else {
+        0.0
+    };
+    let tex_coord_y_x_step = if x_dist.abs() > f64::EPSILON {
+        (right.tex_coord_y - left.tex_coord_y) / x_dist
+    } else {
+        0.0
+    };
+    let inv_z_x_step = if x_dist.abs() > f64::EPSILON {
+        (right.inv_z - left.inv_z) / x_dist
+    } else {
+        0.0
+    };
+
+    let mut tex_coord_x = left.tex_coord_x + tex_coord_x_x_step * x_prestep;
+    let mut tex_coord_y = left.tex_coord_y + tex_coord_y_x_step * x_prestep;
+    let mut inv_z = left.inv_z + inv_z_x_step * x_prestep;
 
     for i in x_min..x_max {
-        let src_x = ((tex_coord_x * (texture.width - 1) as f64) + 0.5) as usize;
-        let src_y = ((tex_coord_y * (texture.height - 1) as f64) + 0.5) as usize;
+        let z = 1.0 / inv_z;
+        let src_x = (((tex_coord_x * z) * (texture.width - 1) as f64) + 0.5) as usize;
+        let src_y = (((tex_coord_y * z) * (texture.height - 1) as f64) + 0.5) as usize;
 
         bitmap.copy_pixels(i, j, src_x, src_y, texture);
 
-        tex_coord_x += gradients.tex_coord_x_x_step;
-        tex_coord_y += gradients.tex_coord_y_x_step;
+        tex_coord_x += tex_coord_x_x_step;
+        tex_coord_y += tex_coord_y_x_step;
+        inv_z += inv_z_x_step;
     }
 }
 
@@ -283,18 +297,25 @@ struct Gradients {
     tex_coord_y: [f64; 3],
     tex_coord_y_x_step: f64,
     tex_coord_y_y_step: f64,
+    inv_z: [f64; 3],
+    inv_z_x_step: f64,
+    inv_z_y_step: f64,
 }
 
 impl Gradients {
     /// Создаёт градиенты по трём вершинам (отсортированным по Y)
     fn new(min_y: Vertex, mid_y: Vertex, max_y: Vertex) -> Self {
-        let x0 = min_y.tex_coords.x;
-        let x1 = mid_y.tex_coords.x;
-        let x2 = max_y.tex_coords.x;
+        let z0 = 1.0 / min_y.pos.w;
+        let z1 = 1.0 / mid_y.pos.w;
+        let z2 = 1.0 / max_y.pos.w;
 
-        let y0 = min_y.tex_coords.y;
-        let y1 = mid_y.tex_coords.y;
-        let y2 = max_y.tex_coords.y;
+        let x0 = min_y.tex_coords.x * z0;
+        let x1 = mid_y.tex_coords.x * z1;
+        let x2 = max_y.tex_coords.x * z2;
+
+        let y0 = min_y.tex_coords.y * z0;
+        let y1 = mid_y.tex_coords.y * z1;
+        let y2 = max_y.tex_coords.y * z2;
 
         let dx1 = mid_y.x() - max_y.x();
         let dy1 = min_y.y() - max_y.y();
@@ -306,11 +327,14 @@ impl Gradients {
         let inv_dx = if det.abs() > f64::EPSILON { 1.0 / det } else { 0.0 };
         let inv_dy = -inv_dx;
 
-        let tex_coord_x_x_step = (((x1 - x2) * dy1) - ((x0 - x2) * dy2)) * inv_dx;
-        let tex_coord_x_y_step = (((x1 - x2) * dx2) - ((x0 - x2) * dx1)) * inv_dy;
-        
-        let tex_coord_y_x_step = (((y1 - y2) * dy1) - ((y0 - y2) * dy2)) * inv_dx;
-        let tex_coord_y_y_step = (((y1 - y2) * dx2) - ((y0 - y2) * dx1)) * inv_dy;
+        let tex_coord_x_x_step = Self::calc_step_x(x0, x1, x2, dy1, dy2, inv_dx);
+        let tex_coord_x_y_step = Self::calc_step_y(x0, x1, x2, dx2, dx1, inv_dy);
+
+        let tex_coord_y_x_step = Self::calc_step_x(y0, y1, y2, dy1, dy2, inv_dx);
+        let tex_coord_y_y_step = Self::calc_step_y(y0, y1, y2, dx2, dx1, inv_dy);
+
+        let inv_z_x_step = Self::calc_step_x(z0, z1, z2, dy1, dy2, inv_dx);
+        let inv_z_y_step = Self::calc_step_y(z0, z1, z2, dx2, dx1, inv_dy);
 
         Self {
             tex_coord_x: [x0, x1, x2],
@@ -319,7 +343,22 @@ impl Gradients {
             tex_coord_x_y_step,
             tex_coord_y_x_step,
             tex_coord_y_y_step,
+            inv_z: [z0, z1, z2],
+            inv_z_x_step,
+            inv_z_y_step,
         }
+    }
+
+    /// Вычисляет градиент изменения величины вдоль оси X (по dy)
+    /// Используется для шага по X: ∂/∂x
+    fn calc_step_x(a0: f64, a1: f64, a2: f64, dy1: f64, dy2: f64, inv_dx: f64) -> f64 {
+        (((a1 - a2) * dy1) - ((a0 - a2) * dy2)) * inv_dx
+    }
+
+    /// Вычисляет градиент изменения величины вдоль оси Y (по dx)
+    /// Используется для шага по Y: ∂/∂y
+    fn calc_step_y(a0: f64, a1: f64, a2: f64, dx2: f64, dx1: f64, inv_dy: f64) -> f64 {
+        (((a1 - a2) * dx2) - ((a0 - a2) * dx1)) * inv_dy
     }
 }
 
@@ -407,7 +446,7 @@ fn main() {
         // Update and render
         rotation_counter += delta.as_secs_f64(); // Adjust rotation speed
         let translation = Matrix4f::init_translation(0.0, 0.0, 3.0);
-        let rotation = Matrix4f::init_rotation_euler(0.0, rotation_counter, 0.0);
+        let rotation = Matrix4f::init_rotation_euler(rotation_counter, rotation_counter, rotation_counter);
         let transform = projection.mul(translation.mul(rotation));
 
         bitmap.clear(0);
