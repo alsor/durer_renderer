@@ -1,7 +1,9 @@
 //! Software rasterizer based on the amazing tutorial by 'thebennybox'
 //! at https://www.youtube.com/playlist?list=PLEETnX-uPtBUbVOok816vTl1K9vV1GgH5
 
+mod indexed_model;
 mod matrix4f;
+mod obj_model;
 mod vector4f;
 
 use image::RgbImage;
@@ -181,6 +183,10 @@ fn fill_triangle(bitmap: &mut Bitmap, v1: Vertex, v2: Vertex, v3: Vertex, textur
     let mut min_y = v1.transform(screen_space_transform).perspective_divide();
     let mut mid_y = v2.transform(screen_space_transform).perspective_divide();
     let mut max_y = v3.transform(screen_space_transform).perspective_divide();
+
+    if min_y.triangle_area_times_two(max_y, mid_y) >= 0.0 {
+        return;
+    }
 
     if max_y.y() < mid_y.y() {
         std::mem::swap(&mut max_y, &mut mid_y);
@@ -379,12 +385,65 @@ fn create_random_texture(width: u32, height: u32) -> Bitmap {
     texture
 }
 
+fn load_texture_from_file<P>(file_path: P) -> Bitmap
+where
+    P: AsRef<std::path::Path>,
+{
+    let path = file_path.as_ref();
+    let image = image::open(path).expect(&format!("Cannot load texture from file: {}", path.display()));
+
+    let width = image.width() as usize;
+    let height = image.height() as usize;
+
+    let rgb_image = image.into_rgb8();
+    let buffer = rgb_image.into_raw();
+
+    Bitmap { width, height, buffer }
+}
+
+struct Mesh {
+    vertices: Vec<Vertex>,
+    indices: Vec<usize>,
+}
+
+impl Mesh {
+    fn new<P: AsRef<std::path::Path>>(file_name: P) -> Self {
+        let model = obj_model::OBJModel::new(file_name).unwrap().to_indexed_model();
+
+        let mut vertices: Vec<Vertex> = Vec::with_capacity(model.positions.len());
+        for i in 0..model.positions.len() {
+            vertices.push(Vertex {
+                pos: model.positions[i],
+                tex_coords: model.tex_coords[i],
+            });
+        }
+        let indices = model.indices;
+
+        Self { vertices, indices }
+    }
+}
+
+fn draw_mesh(mesh: &Mesh, texture: &Bitmap, transform: Matrix4f, screen: &mut Bitmap) {
+    for chunk in mesh.indices.chunks(3) {
+        fill_triangle(
+            screen,
+            mesh.vertices[chunk[0]].transform(transform),
+            mesh.vertices[chunk[1]].transform(transform),
+            mesh.vertices[chunk[2]].transform(transform),
+            texture,
+        );
+    }
+}
+
 fn main() {
     let width: u32 = 900;
     let height: u32 = 900;
     let mut bitmap = Bitmap::new(width, height);
 
-    let texture = create_random_texture(32, 32);
+    // let texture = create_random_texture(32, 32);
+    let texture = load_texture_from_file("resources/bricks.jpg");
+    // let texture = load_texture_from_file("resources/simpbricks.png");
+    let mesh = Mesh::new("resources/icosphere.obj");
 
     let v1 = Vertex {
         pos: Vector4f::new(-1.0, -1.0, 0.0, 1.0),
@@ -450,13 +509,14 @@ fn main() {
         let transform = projection.mul(translation.mul(rotation));
 
         bitmap.clear(0);
-        fill_triangle(
-            &mut bitmap,
-            v1.transform(transform),
-            v2.transform(transform),
-            v3.transform(transform),
-            &texture,
-        );
+        draw_mesh(&mesh, &texture, transform, &mut bitmap);
+        // fill_triangle(
+        //     &mut bitmap,
+        //     v1.transform(transform),
+        //     v2.transform(transform),
+        //     v3.transform(transform),
+        //     &texture,
+        // );
 
         screen_texture.update(None, &bitmap.buffer, bitmap.width * 3).unwrap();
         canvas.clear();
