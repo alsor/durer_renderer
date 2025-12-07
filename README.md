@@ -2,6 +2,10 @@ Software Renderer written in Rust
 
 What's new:
 
+[07.12.2025] Mesh rendering and ability to render text with simplest font
+
+![Textured mesh](https://i.imgur.com/FqO1n4j.png)
+
 [05.12.2025] Textured triangle
 
 ![Textured triangle](https://i.imgur.com/Vr9KEl5.png)
