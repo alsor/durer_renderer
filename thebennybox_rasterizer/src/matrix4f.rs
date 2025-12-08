@@ -26,9 +26,9 @@ impl Matrix4f {
     pub fn init_screen_space_transform(half_width: f64, half_height: f64) -> Self {
         let mut m = Self::new();
         m.m[0][0] = half_width;
-        m.m[0][3] = half_width;
+        m.m[0][3] = half_width - 0.5;
         m.m[1][1] = -half_height;
-        m.m[1][3] = half_height;
+        m.m[1][3] = half_height - 0.5;
         m.m[2][2] = 1.0;
         m.m[3][3] = 1.0;
         m

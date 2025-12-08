@@ -92,6 +92,34 @@ impl Vertex {
             tex_coords: self.tex_coords,
         }
     }
+
+    #[must_use]
+    fn lerp(self, other: Vertex, lerp_amount: f64) -> Self {
+        Vertex {
+            pos: self.pos.lerp(other.pos, lerp_amount),
+            tex_coords: self.tex_coords.lerp(other.tex_coords, lerp_amount),
+        }
+    }
+
+    fn get(self, index: usize) -> f64 {
+        match index {
+            0 => self.pos.x,
+            1 => self.pos.y,
+            2 => self.pos.z,
+            3 => self.pos.w,
+            _ => panic!("Invalid index"),
+        }
+    }
+
+    fn is_inside_view_frustum(&self) -> bool {
+        self.pos.w > 0.0
+            && self.pos.x >= -self.pos.w
+            && self.pos.x <= self.pos.w
+            && self.pos.y >= -self.pos.w
+            && self.pos.y <= self.pos.w
+            && self.pos.z >= -self.pos.w
+            && self.pos.z <= self.pos.w
+    }
 }
 
 impl fmt::Display for Vertex {
@@ -219,6 +247,44 @@ fn fill_triangle(
 
     let short_is_left = min_y.triangle_area_times_two(max_y, mid_y) >= 0.0;
     scan_triangle(bitmap, min_y, mid_y, max_y, short_is_left, texture, z_buffer);
+}
+
+fn draw_triangle(
+    bitmap: &mut Bitmap,
+    v1: Vertex,
+    v2: Vertex,
+    v3: Vertex,
+    texture: &Bitmap,
+    z_buffer: &mut Vec<f64>,
+) {
+    if v1.is_inside_view_frustum() && v2.is_inside_view_frustum() && v3.is_inside_view_frustum() {
+        fill_triangle(bitmap, v1, v2, v3, texture, z_buffer);
+        return;
+    }
+
+    let mut vertices = vec![v1, v2, v3];
+    let mut auxillary_vec: Vec<Vertex> = Vec::new();
+
+    if clip_polygon_axis(&mut vertices, &mut auxillary_vec, 0)
+        && clip_polygon_axis(&mut vertices, &mut auxillary_vec, 1)
+        && clip_polygon_axis(&mut vertices, &mut auxillary_vec, 2)
+    {
+        if vertices.len() < 3 {
+            return;
+        }
+
+        let initial_vertex = vertices[0];
+        for i in 1..vertices.len() - 1 {
+            fill_triangle(
+                bitmap,
+                initial_vertex,
+                vertices[i],
+                vertices[i + 1],
+                texture,
+                z_buffer,
+            );
+        }
+    }
 }
 
 fn scan_triangle(
@@ -489,7 +555,7 @@ fn draw_mesh(
     z_buffer: &mut Vec<f64>,
 ) {
     for chunk in mesh.indices.chunks(3) {
-        fill_triangle(
+        draw_triangle(
             screen,
             mesh.vertices[chunk[0]].transform(transform),
             mesh.vertices[chunk[1]].transform(transform),
@@ -633,6 +699,61 @@ fn draw_string(bitmap: &mut Bitmap, text: &str, x: usize, y: usize, r: u8, g: u8
     }
 }
 
+fn clip_polygon_component(
+    vertices: &Vec<Vertex>,
+    component_index: usize,
+    component_factor: f64,
+    result: &mut Vec<Vertex>,
+) {
+    let mut previous_vertex = vertices[vertices.len() - 1];
+    let mut previous_component = previous_vertex.get(component_index) * component_factor;
+    let mut previous_inside = previous_component <= previous_vertex.pos.w;
+
+    for vertex in vertices {
+        let current_vertex = *vertex;
+        let current_component = current_vertex.get(component_index) * component_factor;
+        let current_inside = current_component <= current_vertex.pos.w;
+
+        if current_inside ^ previous_inside {
+            let a = previous_vertex.pos.w - previous_component;
+            let b = current_vertex.pos.w - current_component;
+            let denom = a - b;
+            let lerp_amount = if denom.abs() > f64::EPSILON {
+                (a / denom).clamp(0.0, 1.0)
+            } else {
+                0.0
+            };
+            result.push(previous_vertex.lerp(current_vertex, lerp_amount));
+        }
+
+        if current_inside {
+            result.push(current_vertex);
+        }
+
+        previous_vertex = current_vertex;
+        previous_component = current_component;
+        previous_inside = current_inside;
+    }
+}
+
+fn clip_polygon_axis(
+    vertices: &mut Vec<Vertex>,
+    auxillary_vec: &mut Vec<Vertex>,
+    component_index: usize,
+) -> bool {
+    clip_polygon_component(vertices, component_index, 1.0, auxillary_vec);
+    vertices.clear();
+
+    if auxillary_vec.is_empty() {
+        return false;
+    }
+
+    clip_polygon_component(auxillary_vec, component_index, -1.0, vertices);
+    auxillary_vec.clear();
+
+    !vertices.is_empty()
+}
+
 fn main() {
     let width: u32 = 900;
     let height: u32 = 900;
@@ -697,7 +818,7 @@ fn main() {
     let mut frame_times_ms = Vec::with_capacity(100); // For averaging frame time
 
     // 🔧 FPS limit setting: use `None` for unlimited
-    const MAX_FPS: Option<u32> = None; // Or `None` to disable limit
+    const MAX_FPS: Option<u32> = Some(90); // Or `None` to disable limit
     let frame_duration = MAX_FPS.map(|fps| Duration::from_secs_f64(1.0 / fps as f64));
 
     let mut rotation_counter: f64 = 0.0;
@@ -710,8 +831,8 @@ fn main() {
 
         // Update and render
         rotation_counter += delta.as_secs_f64(); // Adjust rotation speed
-        let translation = Matrix4f::init_translation(0.0, 0.0, 3.0);
-        let rotation = Matrix4f::init_rotation_euler(0.0, rotation_counter, 0.0);
+        let translation = Matrix4f::init_translation(0.0, 0.0, 3.0 - 3.0 * rotation_counter.sin());
+        let rotation = Matrix4f::init_rotation_euler(rotation_counter, 0.0, rotation_counter);
         let transform = projection.mul(translation.mul(rotation));
 
         bitmap.clear(0);
