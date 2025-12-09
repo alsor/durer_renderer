@@ -2,6 +2,10 @@ Software Renderer written in Rust
 
 What's new:
 
+[09.12.2025] Lighting
+
+![Lighting on mesh](https://i.imgur.com/5JTeZGr.png)
+
 [07.12.2025] Mesh rendering and ability to render text with simplest font
 
 ![Textured mesh](https://i.imgur.com/FqO1n4j.png)

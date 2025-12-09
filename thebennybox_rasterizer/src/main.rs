@@ -40,12 +40,20 @@ impl Bitmap {
         self.buffer[index + 2] = b;
     }
 
-    fn copy_pixels(&mut self, dest_x: usize, dest_y: usize, src_x: usize, src_y: usize, src: &Bitmap) {
+    fn copy_pixels(
+        &mut self,
+        dest_x: usize,
+        dest_y: usize,
+        src_x: usize,
+        src_y: usize,
+        src: &Bitmap,
+        light_amount: f64,
+    ) {
         let dest_index = (dest_y * self.width + dest_x) * 3;
         let src_index = (src_y * src.width + src_x) * 3;
-        self.buffer[dest_index] = src.buffer[src_index];
-        self.buffer[dest_index + 1] = src.buffer[src_index + 1];
-        self.buffer[dest_index + 2] = src.buffer[src_index + 2];
+        self.buffer[dest_index] = ((src.buffer[src_index] as f64) * light_amount) as u8;
+        self.buffer[dest_index + 1] = ((src.buffer[src_index + 1] as f64) * light_amount) as u8;
+        self.buffer[dest_index + 2] = ((src.buffer[src_index + 2] as f64) * light_amount) as u8;
     }
 }
 
@@ -53,6 +61,7 @@ impl Bitmap {
 struct Vertex {
     pos: Vector4f,
     tex_coords: Vector4f,
+    normal: Vector4f,
 }
 
 impl Vertex {
@@ -74,10 +83,11 @@ impl Vertex {
         x1 * y2 - x2 * y1
     }
 
-    fn transform(&self, matrix: Matrix4f) -> Self {
+    fn transform(&self, transform: Matrix4f, normal_transform: Matrix4f) -> Self {
         Vertex {
-            pos: matrix.transform(self.pos),
+            pos: transform.transform(self.pos),
             tex_coords: self.tex_coords,
+            normal: normal_transform.transform(self.normal),
         }
     }
 
@@ -90,6 +100,7 @@ impl Vertex {
                 w: self.pos.w,
             },
             tex_coords: self.tex_coords,
+            normal: self.normal,
         }
     }
 
@@ -98,6 +109,7 @@ impl Vertex {
         Vertex {
             pos: self.pos.lerp(other.pos, lerp_amount),
             tex_coords: self.tex_coords.lerp(other.tex_coords, lerp_amount),
+            normal: self.normal.lerp(other.normal, lerp_amount),
         }
     }
 
@@ -145,6 +157,8 @@ struct Edge {
     inv_z_step: f64,
     depth: f64,
     depth_step: f64,
+    light_amount: f64,
+    light_amount_step: f64,
 }
 
 impl Edge {
@@ -180,6 +194,11 @@ impl Edge {
             + gradients.depth_y_step * y_prestep;
         let depth_step = gradients.depth_y_step + gradients.depth_x_step * x_step;
 
+        let light_amount = gradients.light_amount[start_index]
+            + gradients.light_amount_x_step * x_prestep
+            + gradients.light_amount_y_step * y_prestep;
+        let light_amount_step = gradients.light_amount_y_step + gradients.light_amount_x_step * x_step;
+
         Self {
             x,
             x_step,
@@ -193,6 +212,8 @@ impl Edge {
             inv_z_step,
             depth,
             depth_step,
+            light_amount,
+            light_amount_step,
         }
     }
 
@@ -202,6 +223,7 @@ impl Edge {
         self.tex_coord_y += self.tex_coord_y_step;
         self.inv_z += self.inv_z_step;
         self.depth += self.depth_step;
+        self.light_amount += self.light_amount_step;
     }
 }
 
@@ -225,9 +247,10 @@ fn fill_triangle(
 ) {
     let screen_space_transform =
         Matrix4f::init_screen_space_transform((bitmap.width as f64) / 2.0, (bitmap.height as f64) / 2.0);
-    let mut min_y = v1.transform(screen_space_transform).perspective_divide();
-    let mut mid_y = v2.transform(screen_space_transform).perspective_divide();
-    let mut max_y = v3.transform(screen_space_transform).perspective_divide();
+    let identity = Matrix4f::init_identity();
+    let mut min_y = v1.transform(screen_space_transform, identity).perspective_divide();
+    let mut mid_y = v2.transform(screen_space_transform, identity).perspective_divide();
+    let mut max_y = v3.transform(screen_space_transform, identity).perspective_divide();
 
     if min_y.triangle_area_times_two(max_y, mid_y) >= 0.0 {
         return;
@@ -382,11 +405,17 @@ fn draw_scan_line(
     } else {
         0.0
     };
+    let light_amount_x_step = if x_dist.abs() > f64::EPSILON {
+        (right.light_amount - left.light_amount) / x_dist
+    } else {
+        0.0
+    };
 
     let mut tex_coord_x = left.tex_coord_x + tex_coord_x_x_step * x_prestep;
     let mut tex_coord_y = left.tex_coord_y + tex_coord_y_x_step * x_prestep;
     let mut inv_z = left.inv_z + inv_z_x_step * x_prestep;
     let mut depth = left.depth + depth_x_step * x_prestep;
+    let mut light_amount = left.light_amount + light_amount_x_step * x_prestep;
 
     for i in x_min..x_max {
         let index = i + j * bitmap.width;
@@ -396,13 +425,15 @@ fn draw_scan_line(
             let z = 1.0 / inv_z;
             let src_x = (((tex_coord_x * z) * (texture.width - 1) as f64) + 0.5) as usize;
             let src_y = (((tex_coord_y * z) * (texture.height - 1) as f64) + 0.5) as usize;
-            bitmap.copy_pixels(i, j, src_x, src_y, texture);
+
+            bitmap.copy_pixels(i, j, src_x, src_y, texture, light_amount);
         }
 
         tex_coord_x += tex_coord_x_x_step;
         tex_coord_y += tex_coord_y_x_step;
         inv_z += inv_z_x_step;
         depth += depth_x_step;
+        light_amount += light_amount_x_step;
     }
 }
 
@@ -420,6 +451,9 @@ struct Gradients {
     depth: [f64; 3],
     depth_x_step: f64,
     depth_y_step: f64,
+    light_amount: [f64; 3],
+    light_amount_x_step: f64,
+    light_amount_y_step: f64,
 }
 
 impl Gradients {
@@ -440,6 +474,11 @@ impl Gradients {
         let depth0 = min_y.pos.z;
         let depth1 = mid_y.pos.z;
         let depth2 = max_y.pos.z;
+
+        let light_direction = Vector4f::new(1.0, 0.0, 0.0, 0.0);
+        let light_amount0 = min_y.normal.dot(light_direction).clamp(0.0, 1.0) * 0.9 + 0.1;
+        let light_amount1 = mid_y.normal.dot(light_direction).clamp(0.0, 1.0) * 0.9 + 0.1;
+        let light_amount2 = max_y.normal.dot(light_direction).clamp(0.0, 1.0) * 0.9 + 0.1;
 
         let dx1 = mid_y.x() - max_y.x();
         let dy1 = min_y.y() - max_y.y();
@@ -463,6 +502,11 @@ impl Gradients {
         let depth_x_step = Self::calc_step_x(depth0, depth1, depth2, dy1, dy2, inv_dx);
         let depth_y_step = Self::calc_step_y(depth0, depth1, depth2, dx2, dx1, inv_dy);
 
+        let light_amount_x_step =
+            Self::calc_step_x(light_amount0, light_amount1, light_amount2, dy1, dy2, inv_dx);
+        let light_amount_y_step =
+            Self::calc_step_y(light_amount0, light_amount1, light_amount2, dx2, dx1, inv_dy);
+
         Self {
             tex_coord_x: [x0, x1, x2],
             tex_coord_y: [y0, y1, y2],
@@ -476,6 +520,9 @@ impl Gradients {
             depth: [depth0, depth1, depth2],
             depth_x_step,
             depth_y_step,
+            light_amount: [light_amount0, light_amount1, light_amount2],
+            light_amount_x_step,
+            light_amount_y_step,
         }
     }
 
@@ -539,6 +586,7 @@ impl Mesh {
             vertices.push(Vertex {
                 pos: model.positions[i],
                 tex_coords: model.tex_coords[i],
+                normal: model.normals[i],
             });
         }
         let indices = model.indices;
@@ -550,16 +598,19 @@ impl Mesh {
 fn draw_mesh(
     mesh: &Mesh,
     texture: &Bitmap,
+    view_projection: Matrix4f,
     transform: Matrix4f,
     screen: &mut Bitmap,
     z_buffer: &mut Vec<f64>,
 ) {
+    let mvp = view_projection.mul(transform);
+
     for chunk in mesh.indices.chunks(3) {
         draw_triangle(
             screen,
-            mesh.vertices[chunk[0]].transform(transform),
-            mesh.vertices[chunk[1]].transform(transform),
-            mesh.vertices[chunk[2]].transform(transform),
+            mesh.vertices[chunk[0]].transform(mvp, transform),
+            mesh.vertices[chunk[1]].transform(mvp, transform),
+            mesh.vertices[chunk[2]].transform(mvp, transform),
             texture,
             z_buffer,
         );
@@ -763,27 +814,29 @@ fn main() {
 
     // let texture = create_random_texture(32, 32);
     // let texture = load_texture_from_file("resources/bricks.jpg");
-    let texture = load_texture_from_file("resources/simpbricks.png");
+    // let texture = load_texture_from_file("resources/simpbricks.png");
+    let texture = load_texture_from_file("resources/bricks2.jpg");
     // let mesh = Mesh::new("resources/icosphere.obj");
-    let mesh = Mesh::new("resources/monkey2.obj");
+    // let mesh = Mesh::new("resources/monkey2.obj");
+    let mesh = Mesh::new("resources/smoothMonkey2.obj");
     println!(
         "Vertices: {}, polygons: {}",
         mesh.vertices.len(),
         mesh.indices.len() / 3
     );
 
-    let v1 = Vertex {
-        pos: Vector4f::new(-1.0, -1.0, 0.0, 1.0),
-        tex_coords: Vector4f::new(0.0, 0.0, 0.0, 0.0), // UV: (0,0)
-    };
-    let v2 = Vertex {
-        pos: Vector4f::new(0.0, 1.0, 0.0, 1.0),
-        tex_coords: Vector4f::new(0.5, 1.0, 0.0, 0.0), // UV: (0.5,1)
-    };
-    let v3 = Vertex {
-        pos: Vector4f::new(1.0, -1.0, 0.0, 1.0),
-        tex_coords: Vector4f::new(1.0, 0.0, 0.0, 0.0), // UV: (1,0)
-    };
+    // let v1 = Vertex {
+    //     pos: Vector4f::new(-1.0, -1.0, 0.0, 1.0),
+    //     tex_coords: Vector4f::new(0.0, 0.0, 0.0, 0.0), // UV: (0,0)
+    // };
+    // let v2 = Vertex {
+    //     pos: Vector4f::new(0.0, 1.0, 0.0, 1.0),
+    //     tex_coords: Vector4f::new(0.5, 1.0, 0.0, 0.0), // UV: (0.5,1)
+    // };
+    // let v3 = Vertex {
+    //     pos: Vector4f::new(1.0, -1.0, 0.0, 1.0),
+    //     tex_coords: Vector4f::new(1.0, 0.0, 0.0, 0.0), // UV: (1,0)
+    // };
 
     let projection = Matrix4f::init_perspective(
         70.0_f64.to_radians(),
@@ -833,12 +886,12 @@ fn main() {
         rotation_counter += delta.as_secs_f64(); // Adjust rotation speed
         let translation = Matrix4f::init_translation(0.0, 0.0, 3.0 - 3.0 * rotation_counter.sin());
         let rotation = Matrix4f::init_rotation_euler(rotation_counter, 0.0, rotation_counter);
-        let transform = projection.mul(translation.mul(rotation));
+        let transform = translation.mul(rotation);
 
         bitmap.clear(0);
         z_buffer.fill(std::f64::MAX);
 
-        draw_mesh(&mesh, &texture, transform, &mut bitmap, &mut z_buffer);
+        draw_mesh(&mesh, &texture, projection, transform, &mut bitmap, &mut z_buffer);
         // fill_triangle(
         //     &mut bitmap,
         //     v1.transform(transform),
