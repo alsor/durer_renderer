@@ -2,6 +2,10 @@ Software Renderer written in Rust
 
 What's new:
 
+[13.12.2025] Wireframe mode and pause
+
+![Wireframe mode](https://i.imgur.com/54jcfhk.png)
+
 [09.12.2025] Lighting
 
 ![Lighting on mesh](https://i.imgur.com/5JTeZGr.png)
