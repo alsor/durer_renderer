@@ -244,6 +244,7 @@ fn fill_triangle(
     v3: Vertex,
     texture: &Bitmap,
     z_buffer: &mut Vec<f64>,
+    wireframe_mode: bool,
 ) {
     let screen_space_transform =
         Matrix4f::init_screen_space_transform((bitmap.width as f64) / 2.0, (bitmap.height as f64) / 2.0);
@@ -269,7 +270,16 @@ fn fill_triangle(
     }
 
     let short_is_left = min_y.triangle_area_times_two(max_y, mid_y) >= 0.0;
-    scan_triangle(bitmap, min_y, mid_y, max_y, short_is_left, texture, z_buffer);
+    scan_triangle(
+        bitmap,
+        min_y,
+        mid_y,
+        max_y,
+        short_is_left,
+        texture,
+        z_buffer,
+        wireframe_mode,
+    );
 }
 
 fn draw_triangle(
@@ -279,9 +289,10 @@ fn draw_triangle(
     v3: Vertex,
     texture: &Bitmap,
     z_buffer: &mut Vec<f64>,
+    wireframe_mode: bool,
 ) {
     if v1.is_inside_view_frustum() && v2.is_inside_view_frustum() && v3.is_inside_view_frustum() {
-        fill_triangle(bitmap, v1, v2, v3, texture, z_buffer);
+        fill_triangle(bitmap, v1, v2, v3, texture, z_buffer, wireframe_mode);
         return;
     }
 
@@ -305,6 +316,7 @@ fn draw_triangle(
                 vertices[i + 1],
                 texture,
                 z_buffer,
+                wireframe_mode,
             );
         }
     }
@@ -318,6 +330,7 @@ fn scan_triangle(
     short_is_left: bool,
     texture: &Bitmap,
     z_buffer: &mut Vec<f64>,
+    wireframe_mode: bool,
 ) {
     let gradients = Gradients::new(min_y, mid_y, max_y);
 
@@ -332,6 +345,7 @@ fn scan_triangle(
         short_is_left,
         texture,
         z_buffer,
+        wireframe_mode,
     );
     scan_edges(
         bitmap,
@@ -340,6 +354,7 @@ fn scan_triangle(
         short_is_left,
         texture,
         z_buffer,
+        wireframe_mode,
     );
 }
 
@@ -350,6 +365,7 @@ fn scan_edges(
     short_if_left: bool,
     texture: &Bitmap,
     z_buffer: &mut Vec<f64>,
+    wireframe_mode: bool,
 ) {
     let y_start = short.y_start;
     let y_end = short.y_end;
@@ -366,7 +382,7 @@ fn scan_edges(
     }
 
     for j in y_start..y_end {
-        draw_scan_line(bitmap, left, right, j, texture, z_buffer);
+        draw_scan_line(bitmap, left, right, j, texture, z_buffer, wireframe_mode);
         left.step();
         right.step();
     }
@@ -379,6 +395,7 @@ fn draw_scan_line(
     j: usize,
     texture: &Bitmap,
     z_buffer: &mut Vec<f64>,
+    wireframe_mode: bool,
 ) {
     let x_min = left.x.ceil() as usize;
     let x_max = right.x.ceil() as usize;
@@ -416,6 +433,15 @@ fn draw_scan_line(
     let mut inv_z = left.inv_z + inv_z_x_step * x_prestep;
     let mut depth = left.depth + depth_x_step * x_prestep;
     let mut light_amount = left.light_amount + light_amount_x_step * x_prestep;
+
+    if wireframe_mode {
+        if x_min == x_max {
+            return;
+        }
+        bitmap.draw_pixel(x_min, j, 200, 200, 255);
+        bitmap.draw_pixel(x_max - 1, j, 200, 200, 255);
+        return;
+    }
 
     for i in x_min..x_max {
         let index = i + j * bitmap.width;
@@ -602,6 +628,7 @@ fn draw_mesh(
     transform: Matrix4f,
     screen: &mut Bitmap,
     z_buffer: &mut Vec<f64>,
+    wireframe_mode: bool,
 ) {
     let mvp = view_projection.mul(transform);
 
@@ -613,6 +640,7 @@ fn draw_mesh(
             mesh.vertices[chunk[2]].transform(mvp, transform),
             texture,
             z_buffer,
+            wireframe_mode,
         );
     }
 }
@@ -806,6 +834,8 @@ fn clip_polygon_axis(
 }
 
 fn main() {
+    let mut wireframe_mode = false;
+
     let width: u32 = 900;
     let height: u32 = 900;
     let mut bitmap = Bitmap::new(width, height);
@@ -891,7 +921,15 @@ fn main() {
         bitmap.clear(0);
         z_buffer.fill(std::f64::MAX);
 
-        draw_mesh(&mesh, &texture, projection, transform, &mut bitmap, &mut z_buffer);
+        draw_mesh(
+            &mesh,
+            &texture,
+            projection,
+            transform,
+            &mut bitmap,
+            &mut z_buffer,
+            wireframe_mode,
+        );
         // fill_triangle(
         //     &mut bitmap,
         //     v1.transform(transform),
@@ -901,9 +939,10 @@ fn main() {
         // );
 
         draw_string(&mut bitmap, "THEBENNYBOX SOFTWARE RASTERIZER", 10, 10, 0, 255, 0); // Зелёный
+        draw_string(&mut bitmap, "W - TOGGLE WIREFRAME MODE ON/OFF", 10, 30, 200, 200, 255);
 
         let fps_text = format!("FPS: {}", fps);
-        draw_string(&mut bitmap, &fps_text, 10, 30, 255, 255, 255); // Белый текст
+        draw_string(&mut bitmap, &fps_text, 10, 50, 255, 255, 255); // Белый текст
 
         screen_texture.update(None, &bitmap.buffer, bitmap.width * 3).unwrap();
         canvas.clear();
@@ -977,6 +1016,10 @@ fn main() {
                     } else {
                         println!("Скриншот сохранён как screenshot.png");
                     }
+                }
+                Event::KeyDown { keycode: Some(Keycode::W), .. } => {
+                    wireframe_mode = !wireframe_mode;
+                    println!("Wireframe mode: {}", wireframe_mode);
                 }
                 _ => {}
             }
