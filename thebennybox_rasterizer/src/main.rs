@@ -835,6 +835,7 @@ fn clip_polygon_axis(
 
 fn main() {
     let mut wireframe_mode = false;
+    let mut paused = false;
 
     let width: u32 = 900;
     let height: u32 = 900;
@@ -913,7 +914,9 @@ fn main() {
         previous_time = current_time;
 
         // Update and render
-        rotation_counter += delta.as_secs_f64(); // Adjust rotation speed
+        if !paused {
+            rotation_counter += delta.as_secs_f64(); // Adjust rotation speed
+        }
         let translation = Matrix4f::init_translation(0.0, 0.0, 3.0 - 3.0 * rotation_counter.sin());
         let rotation = Matrix4f::init_rotation_euler(rotation_counter, 0.0, rotation_counter);
         let transform = translation.mul(rotation);
@@ -939,10 +942,19 @@ fn main() {
         // );
 
         draw_string(&mut bitmap, "THEBENNYBOX SOFTWARE RASTERIZER", 10, 10, 0, 255, 0); // Зелёный
-        draw_string(&mut bitmap, "W - TOGGLE WIREFRAME MODE ON/OFF", 10, 30, 200, 200, 255);
+        draw_string(
+            &mut bitmap,
+            "W - TOGGLE WIREFRAME MODE ON/OFF",
+            10,
+            30,
+            200,
+            200,
+            255,
+        );
+        draw_string(&mut bitmap, "SPACEBAR - TOGGLE PAUSE", 10, 50, 200, 200, 255);
 
         let fps_text = format!("FPS: {}", fps);
-        draw_string(&mut bitmap, &fps_text, 10, 50, 255, 255, 255); // Белый текст
+        draw_string(&mut bitmap, &fps_text, 10, 70, 255, 255, 255); // Белый текст
 
         screen_texture.update(None, &bitmap.buffer, bitmap.width * 3).unwrap();
         canvas.clear();
@@ -1020,6 +1032,10 @@ fn main() {
                 Event::KeyDown { keycode: Some(Keycode::W), .. } => {
                     wireframe_mode = !wireframe_mode;
                     println!("Wireframe mode: {}", wireframe_mode);
+                }
+                Event::KeyDown { keycode: Some(Keycode::Space), .. } => {
+                    paused = !paused; // Переключаем паузу
+                    println!("Paused: {}", paused);
                 }
                 _ => {}
             }
