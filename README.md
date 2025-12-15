@@ -2,6 +2,10 @@ Software Renderer written in Rust
 
 What's new:
 
+[16.12.2025] Some experiments with Constructive Solid Geometry in raytracer (not fully debugged yet)
+
+![Constructive solid geometry](https://i.imgur.com/MdJMLqy.png)
+
 [13.12.2025] Wireframe mode and pause
 
 ![Wireframe mode](https://i.imgur.com/54jcfhk.png)
