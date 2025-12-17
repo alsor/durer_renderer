@@ -31,7 +31,7 @@ pub enum CSGOperation {
     Difference,
 }
 
-#[derive(Clone)]
+#[derive(Copy, Clone)]
 pub struct Hit {
     pub t: f64,
     pub point: Vector3f,
@@ -39,6 +39,19 @@ pub struct Hit {
     pub color: Color,
     pub specular: i32,
     pub reflective: f64,
+}
+
+impl Hit {
+    fn negate_normal(&self) -> Hit {
+        Hit {
+            t: self.t,
+            point: self.point,
+            normal: vectors::negate(self.normal),
+            color: self.color,
+            specular: self.specular,
+            reflective: self.reflective,
+        }
+    }
 }
 
 pub fn render_scene_to_buffer(
@@ -121,11 +134,9 @@ fn trace_ray(
 ) -> Color {
     // let mut rng = rand::thread_rng();
 
-    let (closest_hit, closest_t) = closest_intersection(origin, direction, min_t, max_t, scene);
+    let closest_hit = closest_intersection(origin, direction, min_t, max_t, scene);
     match closest_hit {
         Some(hit) => {
-            let point = vectors::sum(origin, vectors::scale(closest_t, direction));
-
             // just for fun: randomize normal vectors to create "bumpiness"
             // let point_normal = vectors::difference(point, sphere.center);
             // let normal = vectors::normalize(Point3D {
@@ -136,7 +147,7 @@ fn trace_ray(
 
             let normal = hit.normal;
             let view = vectors::negate(direction);
-            let intensity = compute_lighting(point, normal, view, lights, hit.specular, scene);
+            let intensity = compute_lighting(hit.point, normal, view, lights, hit.specular, scene);
             let local_color = common::multiply_color(intensity, hit.color);
             let reflective = hit.reflective;
 
@@ -144,7 +155,7 @@ fn trace_ray(
                 let reflected_color = trace_ray(
                     scene,
                     lights,
-                    point,
+                    hit.point,
                     vectors::reflect(view, normal),
                     0.0001,
                     std::f64::INFINITY,
@@ -212,7 +223,7 @@ fn compute_light_from_direction(
     let mut result = 0.0;
 
     // shadow check
-    let (closest_hit, _) = closest_intersection(point, light_direction, 0.001, max_t, scene);
+    let closest_hit = closest_intersection(point, light_direction, 0.001, max_t, scene);
     if closest_hit.is_none() {
         // diffuse
         let dot = vectors::dot_product(normal, light_direction);
@@ -251,7 +262,7 @@ fn closest_intersection(
     min_t: f64,
     max_t: f64,
     scene: &Vec<Shape>,
-) -> (Option<Hit>, f64) {
+) -> Option<Hit> {
     let mut closest_t = std::f64::INFINITY;
     let mut closest_hit: Option<Hit> = None;
 
@@ -266,10 +277,10 @@ fn closest_intersection(
         }
     }
 
-    (closest_hit, closest_t)
+    closest_hit
 }
 
-fn intersect_ray_with_sphere(origin: Vector3f, direction: Vector3f, sphere: Sphere) -> (f64, f64) {
+fn intersect_ray_with_sphere(origin: Vector3f, direction: Vector3f, sphere: Sphere) -> Option<(f64, f64)> {
     let oc = vectors::difference(origin, sphere.center);
     let k1 = vectors::dot_product(direction, direction);
     let k2 = 2.0 * vectors::dot_product(oc, direction);
@@ -277,23 +288,22 @@ fn intersect_ray_with_sphere(origin: Vector3f, direction: Vector3f, sphere: Sphe
 
     let discriminant = k2 * k2 - 4.0 * k1 * k3;
     if discriminant < 0.0 {
-        return (std::f64::INFINITY, std::f64::INFINITY);
+        return None;
     }
 
     let t1 = (-k2 + discriminant.sqrt()) / (2.0 * k1);
     let t2 = (-k2 - discriminant.sqrt()) / (2.0 * k1);
-    (t1, t2)
+    Some((t1, t2))
 }
 
 fn intersect_ray_with_shape(origin: Vector3f, direction: Vector3f, shape: &Shape) -> Vec<Hit> {
     match shape {
         Shape::Sphere(sphere) => {
-            let (t1, t2) = intersect_ray_with_sphere(origin, direction, *sphere);
             let mut hits = Vec::new();
-            for t in [t1, t2] {
-                if (t > 0.001) && (t < std::f64::INFINITY) {
+            if let Some((t1, t2)) = intersect_ray_with_sphere(origin, direction, *sphere) {
+                for t in [t1, t2] {
                     let point = vectors::sum(origin, vectors::scale(t, direction));
-                    let mut normal = vectors::normalize(vectors::difference(point, sphere.center));
+                    let normal = vectors::normalize(vectors::difference(point, sphere.center));
                     hits.push(Hit {
                         t,
                         point,
@@ -315,21 +325,19 @@ fn intersect_ray_with_shape(origin: Vector3f, direction: Vector3f, shape: &Shape
 }
 
 fn merge_csg_hits(mut left_hits: Vec<Hit>, mut right_hits: Vec<Hit>, op: &CSGOperation) -> Vec<Hit> {
-    left_hits.sort_by(|a, b| a.t.partial_cmp(&b.t).unwrap());
-    right_hits.sort_by(|a, b| a.t.partial_cmp(&b.t).unwrap());
-    
-    // Сортируем по t
     let mut all_events = Vec::new();
-    all_events.extend(left_hits.iter().map(|h| (h.t, true)));
-    all_events.extend(right_hits.iter().map(|h| (h.t, false)));
-    all_events.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+    all_events.extend(left_hits.iter().map(|h| (h, true)));
+    all_events.extend(right_hits.iter().map(|h| (h, false)));
+
+    // Сортируем по t
+    all_events.sort_by(|a, b| a.0.t.partial_cmp(&b.0.t).unwrap());
 
     // Алгоритм: отслеживаем, внутри ли мы левого и правого объекта
     let mut in_left = false;
     let mut in_right = false;
     let mut result = Vec::new();
 
-    for (t, is_left) in all_events {
+    for (hit, is_left) in all_events {
         let prev_inside = is_inside_csg(in_left, in_right, op);
 
         if is_left {
@@ -345,29 +353,17 @@ fn merge_csg_hits(mut left_hits: Vec<Hit>, mut right_hits: Vec<Hit>, op: &CSGOpe
             (false, true) => {
                 // Вход в составной объект — добавляем hit
                 if is_left {
-                    if let Some(hit) = left_hits.iter().find(|h| (h.t - t).abs() < 1e-6) {
-                        result.push(hit.clone());
-                    }
+                    result.push(*hit);
                 } else {
-                    if let Some(hit) = right_hits.iter().find(|h| (h.t - t).abs() < 1e-6) {
-                        let mut hit = hit.clone();
-                        hit.normal = vectors::negate(hit.normal); // нормаль внутрь -> наружу
-                        result.push(hit);
-                    }
+                    result.push(hit.negate_normal());
                 }
             }
             (true, false) => {
                 // Выход — нормаль разворачивается
                 if is_left {
-                    if let Some(hit) = left_hits.iter().find(|h| (h.t - t).abs() < 1e-6) {
-                        let mut hit = hit.clone();
-                        hit.normal = vectors::negate(hit.normal);
-                        result.push(hit);
-                    }
+                    result.push(hit.negate_normal());
                 } else {
-                    if let Some(hit) = right_hits.iter().find(|h| (h.t - t).abs() < 1e-6) {
-                        result.push(hit.clone());
-                    }
+                    result.push(*hit);
                 }
             }
             _ => {}

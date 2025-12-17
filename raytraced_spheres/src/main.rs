@@ -116,6 +116,13 @@ fn main() {
         left: Box::new(cutoff_from_front),
         right: Box::new(back_cuttoff_sphere),
     };
+    // let light_position = Shape::Sphere(Sphere {
+    //     center: Vector3f { x: 0.0, y: 3.0, z: 3.0 },
+    //     radius: 0.1,
+    //     color: Color { r: 0, g: 255, b: 255 },
+    //     specular: 0,
+    //     reflective: 0.0,
+    // });
 
     let scene = vec![cutoff_from_back, ground_sphere];
 
