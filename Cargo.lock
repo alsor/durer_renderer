@@ -407,6 +407,7 @@ name = "gambetta_raytracer"
 version = "0.1.0"
 dependencies = [
  "common",
+ "smallvec",
  "test_utils",
 ]
 

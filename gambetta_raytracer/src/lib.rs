@@ -4,6 +4,9 @@
 
 use common::vectors;
 use common::{Color, Light, Pixel, Vector3f};
+use smallvec::SmallVec;
+
+type HitList = SmallVec<[Hit; 4]>;
 
 #[derive(Copy, Clone)]
 pub struct Sphere {
@@ -296,10 +299,10 @@ fn intersect_ray_with_sphere(origin: Vector3f, direction: Vector3f, sphere: Sphe
     Some((t1, t2))
 }
 
-fn intersect_ray_with_shape(origin: Vector3f, direction: Vector3f, shape: &Shape) -> Vec<Hit> {
+fn intersect_ray_with_shape(origin: Vector3f, direction: Vector3f, shape: &Shape) -> HitList {
     match shape {
         Shape::Sphere(sphere) => {
-            let mut hits = Vec::new();
+            let mut hits = HitList::new();
             if let Some((t1, t2)) = intersect_ray_with_sphere(origin, direction, *sphere) {
                 for t in [t1, t2] {
                     let point = vectors::sum(origin, vectors::scale(t, direction));
@@ -324,7 +327,7 @@ fn intersect_ray_with_shape(origin: Vector3f, direction: Vector3f, shape: &Shape
     }
 }
 
-fn merge_csg_hits(mut left_hits: Vec<Hit>, mut right_hits: Vec<Hit>, op: &CSGOperation) -> Vec<Hit> {
+fn merge_csg_hits(left_hits: HitList, right_hits: HitList, op: &CSGOperation) -> HitList {
     let mut all_events = Vec::new();
     all_events.extend(left_hits.iter().map(|h| (h, true)));
     all_events.extend(right_hits.iter().map(|h| (h, false)));
@@ -335,7 +338,7 @@ fn merge_csg_hits(mut left_hits: Vec<Hit>, mut right_hits: Vec<Hit>, op: &CSGOpe
     // Алгоритм: отслеживаем, внутри ли мы левого и правого объекта
     let mut in_left = false;
     let mut in_right = false;
-    let mut result = Vec::new();
+    let mut result = HitList::new();
 
     for (hit, is_left) in all_events {
         let prev_inside = is_inside_csg(in_left, in_right, op);
@@ -379,10 +382,6 @@ fn is_inside_csg(in_left: bool, in_right: bool, op: &CSGOperation) -> bool {
         CSGOperation::Intersection => in_left && in_right,
         CSGOperation::Difference => in_left && !in_right,
     }
-}
-
-fn contains(range: (f64, f64), n: f64) -> bool {
-    (range.0 <= n) && (n < range.1)
 }
 
 #[test]
