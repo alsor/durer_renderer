@@ -2,7 +2,8 @@
 
 use common::vectors;
 use common::{Color, Light, Vector3f};
-use gambetta_raytracer::{CSGOperation, Shape, Sphere};
+use gambetta_raytracer::{CSGOperation, Shape, Sphere, Transform};
+use image::RgbImage;
 use sdl3::{event::Event, keyboard::Keycode, pixels::PixelFormat};
 
 fn main() {
@@ -10,121 +11,33 @@ fn main() {
     let mut buffer = vec![0u8; size as usize * size as usize * 3];
 
     let mut x_position = 0.0;
-    let mut y_position = 1.0;
-    let mut z_position = -3.0;
+    let mut y_position = 0.5;
+    let mut z_position = -7.0;
 
     let mut angle = 0.0;
 
     let origin = Vector3f { x: x_position, y: y_position, z: z_position };
-    let rotation = vectors::rotation_around_y(angle);
+    let rotation = vectors::rotate_y_deg(angle);
 
     let ground_sphere = Shape::Sphere(Sphere {
-        center: Vector3f { x: 0.0, y: -5001.0, z: 0.0 },
+        center: Vector3f { x: 0.0, y: -5001.5, z: 0.0 },
         radius: 5000.0,
         color: Color { r: 100, g: 100, b: 0 },
-        specular: 0,
-        reflective: 0.0,
+        specular: 50,
+        reflective: 0.4,
     });
-    let red_sphere = Shape::Sphere(Sphere {
-        center: Vector3f { x: 0.0, y: 1.0, z: 3.0 },
-        radius: 1.0,
-        color: Color { r: 255, g: 0, b: 0 },
-        specular: 200,
-        reflective: 0.0,
-    });
-    let blue_inside_sphere = Shape::Sphere(Sphere {
-        center: Vector3f { x: 0.0, y: 1.0, z: 3.0 },
-        radius: 0.9,
-        color: Color { r: 0, g: 0, b: 255 },
-        specular: 200,
-        reflective: 0.0,
-    });
-    let thin_sphere = Shape::CSG {
-        op: CSGOperation::Difference,
-        left: Box::new(red_sphere),
-        right: Box::new(blue_inside_sphere),
-    };
-    let right_cutoff_sphere = Shape::Sphere(Sphere {
-        center: Vector3f { x: 1.0, y: 1.0, z: 3.0 },
-        radius: 0.6,
-        color: Color { r: 0, g: 255, b: 0 },
-        specular: 200,
-        reflective: 0.0,
-    });
-    let cutoff_from_right = Shape::CSG {
-        op: CSGOperation::Difference,
-        left: Box::new(thin_sphere),
-        right: Box::new(right_cutoff_sphere),
-    };
-    let left_cuttoff_sphere = Shape::Sphere(Sphere {
-        center: Vector3f { x: -1.0, y: 1.0, z: 3.0 },
-        radius: 0.6,
-        color: Color { r: 0, g: 255, b: 0 },
-        specular: 200,
-        reflective: 0.0,
-    });
-    let cutoff_from_left = Shape::CSG {
-        op: CSGOperation::Difference,
-        left: Box::new(cutoff_from_right),
-        right: Box::new(left_cuttoff_sphere),
-    };
-    let top_cuttoff_sphere = Shape::Sphere(Sphere {
-        center: Vector3f { x: 0.0, y: 2.0, z: 3.0 },
-        radius: 0.6,
-        color: Color { r: 0, g: 255, b: 0 },
-        specular: 200,
-        reflective: 0.0,
-    });
-    let cutoff_from_top = Shape::CSG {
-        op: CSGOperation::Difference,
-        left: Box::new(cutoff_from_left),
-        right: Box::new(top_cuttoff_sphere),
-    };
-    let bottom_cuttoff_sphere = Shape::Sphere(Sphere {
-        center: Vector3f { x: 0.0, y: 0.0, z: 3.0 },
-        radius: 0.6,
-        color: Color { r: 0, g: 255, b: 0 },
-        specular: 200,
-        reflective: 0.0,
-    });
-    let cutoff_from_bottom = Shape::CSG {
-        op: CSGOperation::Difference,
-        left: Box::new(cutoff_from_top),
-        right: Box::new(bottom_cuttoff_sphere),
-    };
-    let front_cuttoff_sphere = Shape::Sphere(Sphere {
-        center: Vector3f { x: 0.0, y: 1.0, z: 2.0 },
-        radius: 0.6,
-        color: Color { r: 0, g: 255, b: 0 },
-        specular: 200,
-        reflective: 0.0,
-    });
-    let cutoff_from_front = Shape::CSG {
-        op: CSGOperation::Difference,
-        left: Box::new(cutoff_from_bottom),
-        right: Box::new(front_cuttoff_sphere),
-    };
-    let back_cuttoff_sphere = Shape::Sphere(Sphere {
-        center: Vector3f { x: 0.0, y: 1.0, z: 4.0 },
-        radius: 0.6,
-        color: Color { r: 0, g: 255, b: 0 },
-        specular: 200,
-        reflective: 0.0,
-    });
-    let cutoff_from_back = Shape::CSG {
-        op: CSGOperation::Difference,
-        left: Box::new(cutoff_from_front),
-        right: Box::new(back_cuttoff_sphere),
-    };
-    // let light_position = Shape::Sphere(Sphere {
-    //     center: Vector3f { x: 0.0, y: 3.0, z: 3.0 },
-    //     radius: 0.1,
-    //     color: Color { r: 0, g: 255, b: 255 },
-    //     specular: 0,
-    //     reflective: 0.0,
-    // });
 
-    let scene = vec![cutoff_from_back, ground_sphere];
+    let complex_shape = create_complex_shape();
+    let complex_shape_with_transform = Shape::Transformed {
+        shape: Box::new(complex_shape),
+        transform: Transform {
+            translation: Vector3f::new(0.0, 0.0, 0.0),
+            rotation: vectors::multiply_mat_3x3(vectors::rotate_y_deg(45.0), vectors::rotate_z_deg(45.0)),
+        },
+    };
+    // let rotated_complex_shape = complex_shape.rotate_y_all_deg(45.0, Vector3f::new(0.0, 0.0, 0.0));
+
+    let scene = vec![complex_shape_with_transform, ground_sphere];
 
     // let scene = vec![
     //     Shape::Sphere(Sphere {
@@ -175,10 +88,10 @@ fn main() {
     // ];
 
     let lights = vec![
-        Light::Ambient { intensity: 0.2 },
+        Light::Ambient { intensity: 0.25 },
         Light::Point {
-            intensity: 0.8,
-            position: Vector3f { x: 0.0, y: 3.0, z: 3.0 },
+            intensity: 0.85,
+            position: Vector3f { x: 0.0, y: 2.0, z: 0.0 },
         }, // Light::Directional {
            //     intensity: 0.8,
            //     direction: Vector3f { x: -0.5, y: -0.2, z: 0.0 },
@@ -254,12 +167,24 @@ fn main() {
                 Event::KeyDown { keycode: Some(Keycode::F), .. } => {
                     y_position -= 0.5;
                 }
+                Event::KeyDown { keycode: Some(Keycode::F12), .. } => {
+                    // Сохраняем скриншот
+                    let img = RgbImage::from_raw(size as u32, size as u32, buffer.clone())
+                        .expect("Невозможно создать изображение из буфера");
+
+                    if let Err(e) = img.save("screenshot.png") {
+                        eprintln!("Ошибка при сохранении скриншота: {}", e);
+                    } else {
+                        println!("Скриншот сохранён как screenshot.png");
+                    }
+                }
+
                 _ => {}
             }
 
             let mut buffer = vec![0u8; size as usize * size as usize * 3];
             let origin = Vector3f { x: x_position, y: y_position, z: z_position };
-            let rotation = vectors::rotation_around_y(angle);
+            let rotation = vectors::rotate_y_deg(angle);
 
             // let lights = vec![
             //     Light::Ambient { intensity: 0.1 },
@@ -276,5 +201,117 @@ fn main() {
             canvas.copy(&texture, None, None).unwrap();
             canvas.present();
         }
+    }
+}
+
+fn create_complex_shape() -> Shape {
+    // // Внутренняя сфера — неоново-бирюзовая
+    // let blue_inside_sphere = Shape::Sphere(Sphere {
+    //     center: Vector3f { x: 0.0, y: 0.0, z: 0.0 },
+    //     radius: 0.9,
+    //     color: Color { r: 0, g: 255, b: 200 }, // ← Cyber Cyan
+    //     specular: 200,
+    //     reflective: 0.2,
+    // });
+
+    // // Или внешняя сфера — металлический фиолетовый
+    // let red_sphere = Shape::Sphere(Sphere {
+    //     center: Vector3f { x: 0.0, y: 0.0, z: 0.0 },
+    //     radius: 1.0,
+    //     color: Color { r: 80, g: 0, b: 150 }, // ← Metallic Violet
+    //     specular: 300,                        // Увеличим блики для "металлического" эффекта
+    //     reflective: 0.4,                      // Добавим отражений
+    // });
+
+    let red_sphere = Shape::Sphere(Sphere {
+        center: Vector3f { x: 0.0, y: 0.0, z: 0.0 },
+        radius: 1.0,
+        color: Color { r: 255, g: 0, b: 0 },
+        specular: 200,
+        reflective: 0.0,
+    });
+    let blue_inside_sphere = Shape::Sphere(Sphere {
+        center: Vector3f { x: 0.0, y: 0.0, z: 0.0 },
+        radius: 0.9,
+        color: Color { r: 0, g: 0, b: 255 },
+        specular: 200,
+        reflective: 0.0,
+    });
+    let thin_sphere = Shape::CSG {
+        op: CSGOperation::Difference,
+        left: Box::new(red_sphere),
+        right: Box::new(blue_inside_sphere),
+    };
+    let right_cutoff_sphere = Shape::Sphere(Sphere {
+        center: Vector3f { x: 1.0, y: 0.0, z: 0.0 },
+        radius: 0.6,
+        color: Color { r: 0, g: 255, b: 0 },
+        specular: 200,
+        reflective: 0.0,
+    });
+    let cutoff_from_right = Shape::CSG {
+        op: CSGOperation::Difference,
+        left: Box::new(thin_sphere),
+        right: Box::new(right_cutoff_sphere),
+    };
+    let left_cuttoff_sphere = Shape::Sphere(Sphere {
+        center: Vector3f { x: -1.0, y: 0.0, z: 0.0 },
+        radius: 0.6,
+        color: Color { r: 0, g: 255, b: 0 },
+        specular: 200,
+        reflective: 0.0,
+    });
+    let cutoff_from_left = Shape::CSG {
+        op: CSGOperation::Difference,
+        left: Box::new(cutoff_from_right),
+        right: Box::new(left_cuttoff_sphere),
+    };
+    let top_cuttoff_sphere = Shape::Sphere(Sphere {
+        center: Vector3f { x: 0.0, y: 1.0, z: 0.0 },
+        radius: 0.6,
+        color: Color { r: 0, g: 255, b: 0 },
+        specular: 200,
+        reflective: 0.0,
+    });
+    let cutoff_from_top = Shape::CSG {
+        op: CSGOperation::Difference,
+        left: Box::new(cutoff_from_left),
+        right: Box::new(top_cuttoff_sphere),
+    };
+    let bottom_cuttoff_sphere = Shape::Sphere(Sphere {
+        center: Vector3f { x: 0.0, y: -1.0, z: 0.0 },
+        radius: 0.6,
+        color: Color { r: 0, g: 255, b: 0 },
+        specular: 200,
+        reflective: 0.0,
+    });
+    let cutoff_from_bottom = Shape::CSG {
+        op: CSGOperation::Difference,
+        left: Box::new(cutoff_from_top),
+        right: Box::new(bottom_cuttoff_sphere),
+    };
+    let front_cuttoff_sphere = Shape::Sphere(Sphere {
+        center: Vector3f { x: 0.0, y: 0.0, z: -1.0 },
+        radius: 0.6,
+        color: Color { r: 0, g: 255, b: 0 },
+        specular: 200,
+        reflective: 0.0,
+    });
+    let cutoff_from_front = Shape::CSG {
+        op: CSGOperation::Difference,
+        left: Box::new(cutoff_from_bottom),
+        right: Box::new(front_cuttoff_sphere),
+    };
+    let back_cuttoff_sphere = Shape::Sphere(Sphere {
+        center: Vector3f { x: 0.0, y: 0.0, z: 1.0 },
+        radius: 0.6,
+        color: Color { r: 0, g: 255, b: 0 },
+        specular: 200,
+        reflective: 0.0,
+    });
+    Shape::CSG {
+        op: CSGOperation::Difference,
+        left: Box::new(cutoff_from_front),
+        right: Box::new(back_cuttoff_sphere),
     }
 }

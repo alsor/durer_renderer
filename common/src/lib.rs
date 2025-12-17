@@ -8,6 +8,14 @@ pub struct Vector3f {
 }
 
 impl Vector3f {
+    pub fn new(x: f64, y: f64, z: f64) -> Self {
+        Self {
+            x: x,
+            y: y,
+            z: z,
+        }
+    }
+
     pub fn zero_vector() -> Self {
         Self { x: 0.0, y: 0.0, z: 0.0 }
     }

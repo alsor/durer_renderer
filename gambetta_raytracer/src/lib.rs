@@ -25,6 +25,126 @@ pub enum Shape {
         left: Box<Shape>,
         right: Box<Shape>,
     },
+    Transformed {
+        shape: Box<Shape>,
+        transform: Transform,
+    },
+}
+
+impl Shape {
+    /// Рекурсивно транслирует всё дерево
+    pub fn translate_all(self, dx: f64, dy: f64, dz: f64) -> Self {
+        let translation = Vector3f::new(dx, dy, dz);
+        match self {
+            Shape::Sphere(mut sphere) => {
+                sphere.center = vectors::sum(sphere.center, translation);
+                Shape::Sphere(sphere)
+            }
+            Shape::CSG { op, left, right } => Shape::CSG {
+                op,
+                left: Box::new(left.translate_all(dx, dy, dz)),
+                right: Box::new(right.translate_all(dx, dy, dz)),
+            },
+            Shape::Transformed { shape, transform } => Shape::Transformed {
+                shape: Box::new(shape.translate_all(dx, dy, dz)),
+                transform,
+            },
+        }
+    }
+
+    /// Рекурсивно поворачивает все примитивы вокруг точки по оси X
+    pub fn rotate_x_all(self, angle: f64, point: Vector3f) -> Self {
+        let rotation_matrix = vectors::rotate_x(angle);
+    
+        match self {
+            Shape::Sphere(mut sphere) => {
+                let local_center = vectors::difference(sphere.center, point);
+                let rotated_vec = vectors::multiply_vec_and_mat(local_center.to_vec(), rotation_matrix);
+                let world_center = vectors::sum(Vector3f::from_vec(rotated_vec), point);
+                sphere.center = world_center;
+                Shape::Sphere(sphere)
+            }
+            Shape::CSG { op, left, right } => Shape::CSG {
+                op,
+                left: Box::new(left.rotate_x_all(angle, point)),
+                right: Box::new(right.rotate_x_all(angle, point)),
+            },
+            Shape::Transformed { shape, transform } => Shape::Transformed {
+                shape: Box::new(shape.rotate_x_all(angle, point)),
+                transform,
+            },
+        }
+    }
+
+    /// Рекурсивно поворачивает все примитивы вокруг точки по оси Y
+    pub fn rotate_y_all(self, angle: f64, point: Vector3f) -> Self {
+        let rotation_matrix = vectors::rotate_y(angle);
+
+        match self {
+            Shape::Sphere(mut sphere) => {
+                // Сдвигаем центр в локальные координаты, поворачиваем, возвращаем
+                let local_center = vectors::difference(sphere.center, point);
+                let rotated_vec = vectors::multiply_vec_and_mat(local_center.to_vec(), rotation_matrix);
+                let world_center = vectors::sum(Vector3f::from_vec(rotated_vec), point);
+                sphere.center = world_center;
+                Shape::Sphere(sphere)
+            }
+            Shape::CSG { op, left, right } => Shape::CSG {
+                op,
+                left: Box::new(left.rotate_y_all(angle, point)),
+                right: Box::new(right.rotate_y_all(angle, point)),
+            },
+            Shape::Transformed { shape, transform } => {
+                // Применяем к внутреннему объекту, трансформ не трогаем
+                Shape::Transformed {
+                    shape: Box::new(shape.rotate_y_all(angle, point)),
+                    transform,
+                }
+            }
+        }
+    }
+
+    /// Рекурсивно поворачивает все примитивы вокруг точки по оси Z
+    pub fn rotate_z_all(self, angle: f64, point: Vector3f) -> Self {
+        let rotation_matrix = vectors::rotate_z(angle);
+
+        match self {
+            Shape::Sphere(mut sphere) => {
+                let local_center = vectors::difference(sphere.center, point);
+                let rotated_vec = vectors::multiply_vec_and_mat(local_center.to_vec(), rotation_matrix);
+                let world_center = vectors::sum(Vector3f::from_vec(rotated_vec), point);
+                sphere.center = world_center;
+                Shape::Sphere(sphere)
+            }
+            Shape::CSG { op, left, right } => Shape::CSG {
+                op,
+                left: Box::new(left.rotate_z_all(angle, point)),
+                right: Box::new(right.rotate_z_all(angle, point)),
+            },
+            Shape::Transformed { shape, transform } => Shape::Transformed {
+                shape: Box::new(shape.rotate_z_all(angle, point)),
+                transform,
+            },
+        }
+    }
+
+    /// Поворачивает вокруг оси X на угол в градусах
+    pub fn rotate_x_all_deg(self, angle_deg: f64, point: Vector3f) -> Self {
+        let angle_rad = angle_deg.to_radians();
+        self.rotate_x_all(angle_rad, point)
+    }
+
+    /// Поворачивает вокруг оси Y на угол в градусах
+    pub fn rotate_y_all_deg(self, angle_deg: f64, point: Vector3f) -> Self {
+        let angle_rad = angle_deg.to_radians();
+        self.rotate_y_all(angle_rad, point)
+    }
+
+    /// Поворачивает вокруг оси Z на угол в градусах
+    pub fn rotate_z_all_deg(self, angle_deg: f64, point: Vector3f) -> Self {
+        let angle_rad = angle_deg.to_radians();
+        self.rotate_z_all(angle_rad, point)
+    }
 }
 
 #[derive(Clone)]
@@ -32,6 +152,42 @@ pub enum CSGOperation {
     Union,
     Intersection,
     Difference,
+}
+
+#[derive(Clone)]
+pub struct Transform {
+    pub translation: Vector3f,
+    pub rotation: [[f64; 3]; 3], // матрица поворота 3x3
+}
+
+impl Transform {
+    fn inverse(&self) -> Self {
+        // Обратная трансформация: сначала обратный поворот (транспонированная матрица), потом обратный перевод
+        let inv_rotation = crate::vectors::transpose_3x3(self.rotation);
+        let inv_translation = crate::vectors::multiply_vec_and_mat(
+            crate::vectors::negate(self.translation).to_vec(),
+            inv_rotation,
+        );
+        Transform {
+            translation: Vector3f::from_vec(inv_translation),
+            rotation: inv_rotation,
+        }
+    }
+
+    fn transform_point(&self, point: Vector3f) -> Vector3f {
+        let rotated = Vector3f::from_vec(crate::vectors::multiply_vec_and_mat(
+            point.to_vec(),
+            self.rotation,
+        ));
+        vectors::sum(rotated, self.translation)
+    }
+
+    fn transform_direction(&self, direction: Vector3f) -> Vector3f {
+        Vector3f::from_vec(crate::vectors::multiply_vec_and_mat(
+            direction.to_vec(),
+            self.rotation,
+        ))
+    }
 }
 
 #[derive(Copy, Clone)]
@@ -323,6 +479,32 @@ fn intersect_ray_with_shape(origin: Vector3f, direction: Vector3f, shape: &Shape
             let left_hits = intersect_ray_with_shape(origin, direction, left);
             let right_hits = intersect_ray_with_shape(origin, direction, right);
             merge_csg_hits(left_hits, right_hits, op)
+        }
+        Shape::Transformed { shape, transform } => {
+            let inv_transform = transform.inverse();
+
+            // Трансформируем луч в локальные координаты
+            let local_origin = vectors::difference(origin, inv_transform.translation);
+            let local_origin = Vector3f::from_vec(crate::vectors::multiply_vec_and_mat(
+                local_origin.to_vec(),
+                inv_transform.rotation,
+            ));
+            let local_direction = Vector3f::from_vec(crate::vectors::multiply_vec_and_mat(
+                direction.to_vec(),
+                inv_transform.rotation,
+            ));
+
+            // Пересекаем с исходной формой в локальных координатах
+            let local_hits = intersect_ray_with_shape(local_origin, local_direction, shape);
+
+            // Преобразуем точки и нормали обратно в мировые координаты
+            let mut world_hits = HitList::new();
+            for mut hit in local_hits {
+                hit.point = transform.transform_point(hit.point);
+                hit.normal = vectors::normalize(transform.transform_direction(hit.normal));
+                world_hits.push(hit);
+            }
+            world_hits
         }
     }
 }

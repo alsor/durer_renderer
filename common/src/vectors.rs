@@ -1,8 +1,33 @@
 use crate::Vector3f;
 
-pub fn rotation_around_y(d: f64) -> [[f64; 3]; 3] {
-    let a = d / 57.2958;
-    [[a.cos(), 0.0, a.sin()], [0.0, 1.0, 0.0], [-a.sin(), 0.0, a.cos()]]
+pub fn rotate_x(angle: f64) -> [[f64; 3]; 3] {
+    let cos = angle.cos();
+    let sin = angle.sin();
+    [[1.0, 0.0, 0.0], [0.0, cos, sin], [0.0, -sin, cos]]
+}
+
+pub fn rotate_y(angle: f64) -> [[f64; 3]; 3] {
+    let cos = angle.cos();
+    let sin = angle.sin();
+    [[cos, 0.0, sin], [0.0, 1.0, 0.0], [-sin, 0.0, cos]]
+}
+
+pub fn rotate_z(angle: f64) -> [[f64; 3]; 3] {
+    let cos = angle.cos();
+    let sin = angle.sin();
+    [[cos, sin, 0.0], [-sin, cos, 0.0], [0.0, 0.0, 1.0]]
+}
+
+pub fn rotate_x_deg(angle: f64) -> [[f64; 3]; 3] {
+    rotate_x(angle.to_radians())
+}
+
+pub fn rotate_y_deg(angle: f64) -> [[f64; 3]; 3] {
+    rotate_y(angle.to_radians())
+}
+
+pub fn rotate_z_deg(angle: f64) -> [[f64; 3]; 3] {
+    rotate_z(angle.to_radians())
 }
 
 pub fn multiply_vec_and_mat(vec: [f64; 3], mat: [[f64; 3]; 3]) -> [f64; 3] {
@@ -15,6 +40,99 @@ pub fn multiply_vec_and_mat(vec: [f64; 3], mat: [[f64; 3]; 3]) -> [f64; 3] {
     }
 
     result
+}
+
+/// Транспонирует матрицу 3x3.
+pub fn transpose_3x3(matrix: [[f64; 3]; 3]) -> [[f64; 3]; 3] {
+    [
+        [matrix[0][0], matrix[1][0], matrix[2][0]],
+        [matrix[0][1], matrix[1][1], matrix[2][1]],
+        [matrix[0][2], matrix[1][2], matrix[2][2]],
+    ]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_transpose_3x3() {
+        let matrix = [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]];
+
+        let expected = [[1.0, 4.0, 7.0], [2.0, 5.0, 8.0], [3.0, 6.0, 9.0]];
+
+        let result = transpose_3x3(matrix);
+
+        for i in 0..3 {
+            for j in 0..3 {
+                assert!(
+                    (result[i][j] - expected[i][j]).abs() < f64::EPSILON,
+                    "Mismatch at [{},{}]: {} != {}",
+                    i,
+                    j,
+                    result[i][j],
+                    expected[i][j]
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_transpose_identity() {
+        let identity = [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]];
+
+        let result = transpose_3x3(identity);
+
+        // Транспонирование единичной матрицы — это она сама
+        for i in 0..3 {
+            for j in 0..3 {
+                assert!((result[i][j] - identity[i][j]).abs() < 1e-10);
+            }
+        }
+    }
+
+    #[test]
+    fn test_transpose_symmetric() {
+        let symmetric = [[1.0, 2.0, 3.0], [2.0, 4.0, 5.0], [3.0, 5.0, 6.0]];
+
+        let result = transpose_3x3(symmetric);
+
+        // Симметричная матрица не меняется при транспонировании
+        for i in 0..3 {
+            for j in 0..3 {
+                assert!((result[i][j] - symmetric[i][j]).abs() < 1e-10);
+            }
+        }
+    }
+}
+
+/// Умножает две матрицы 3x3: result = mat1 * mat2
+pub fn multiply_mat_3x3(mat1: [[f64; 3]; 3], mat2: [[f64; 3]; 3]) -> [[f64; 3]; 3] {
+    let mut result = [[0.0; 3]; 3];
+
+    for i in 0..3 {
+        for j in 0..3 {
+            for k in 0..3 {
+                result[i][j] += mat1[i][k] * mat2[k][j];
+            }
+        }
+    }
+
+    result
+}
+
+#[test]
+fn test_multiply_mat_3x3() {
+    let mat1 = [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]];
+    let mat2 = [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]; // единичная
+
+    let result = multiply_mat_3x3(mat1, mat2);
+
+    for i in 0..3 {
+        for j in 0..3 {
+            assert!((result[i][j] - mat1[i][j]).abs() < f64::EPSILON);
+        }
+    }
 }
 
 #[test]

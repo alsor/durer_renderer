@@ -1095,6 +1095,7 @@ version = "0.1.0"
 dependencies = [
  "common",
  "gambetta_raytracer",
+ "image 0.25.9",
  "sdl3",
 ]
 

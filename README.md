@@ -2,6 +2,10 @@ Software Renderer written in Rust
 
 What's new:
 
+[18.12.2025] Transforms for Constructive Solid Geometry shapes
+
+![Transforms](https://i.imgur.com/OjKZWRM.png)
+
 [16.12.2025] Some experiments with Constructive Solid Geometry in raytracer (not fully debugged yet)
 
 ![Constructive solid geometry](https://i.imgur.com/MdJMLqy.png)
