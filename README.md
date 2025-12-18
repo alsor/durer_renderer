@@ -2,6 +2,10 @@ Software Renderer written in Rust
 
 What's new:
 
+[19.12.2025] Animation mode in raytracer (stores frames in folder)
+
+![CSG Animation](https://i.imgur.com/nwIsUyu.gif)
+
 [18.12.2025] Transforms for Constructive Solid Geometry shapes
 
 ![Transforms](https://i.imgur.com/OjKZWRM.png)

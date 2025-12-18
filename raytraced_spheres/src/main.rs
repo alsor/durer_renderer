@@ -1,12 +1,111 @@
-//! A scene with few spheres. Scene itself configured in the main function.
-
 use common::vectors;
 use common::{Color, Light, Vector3f};
 use gambetta_raytracer::{CSGOperation, Shape, Sphere, Transform};
 use image::RgbImage;
 use sdl3::{event::Event, keyboard::Keycode, pixels::PixelFormat};
+use std::env;
+use std::fs;
+use std::path::Path;
 
 fn main() {
+    let args: Vec<String> = env::args().collect();
+
+    // Проверка на наличие флага --animate-to
+    if let Some(dir_index) = args.iter().position(|a| a == "--animate-to") {
+        if dir_index + 3 < args.len()
+            && args.get(dir_index + 2) == Some(&"--frames-limit".to_string())
+            && args.get(dir_index + 4) == Some(&"--delta".to_string())
+        {
+            let output_dir = &args[dir_index + 1];
+            let frames_limit: usize = args[dir_index + 3].parse().expect("Frames limit must be a number");
+            let delta: f64 = args[dir_index + 5].parse().expect("Delta must be a float");
+
+            println!(
+                "Запуск анимации: сохранение {} кадров в '{}', шаг поворота = {}",
+                frames_limit, output_dir, delta
+            );
+
+            // Создаём директорию
+            fs::create_dir_all(output_dir).expect("Не удалось создать директорию");
+
+            let size = 900;
+            let mut buffer = vec![0u8; size as usize * size as usize * 3];
+
+            let complex_shape = create_complex_shape();
+            let ground_sphere = Shape::Sphere(Sphere {
+                center: Vector3f { x: 0.0, y: -5001.5, z: 0.0 },
+                radius: 5000.0,
+                color: Color { r: 100, g: 100, b: 0 },
+                specular: 50,
+                reflective: 0.4,
+            });
+
+            let rotation = vectors::rotate_y_deg(0.0);
+            // Анимация вращения
+            for frame in 0..frames_limit {
+                let angle = frame as f64 * delta; // Меняем угол
+                let x_position = 0.0;
+                let y_position = 0.5;
+                let z_position = -7.0;
+
+                let origin = Vector3f { x: x_position, y: y_position, z: z_position };
+
+                // === АНИМАЦИЯ СВЕТА: движение по оси X от -1 до +1 ===
+                let light_x = (frame as f64 * delta * 0.02).sin(); // Медленное колебание
+                let lights = vec![
+                    Light::Ambient { intensity: 0.25 },
+                    Light::Point {
+                        intensity: 0.85,
+                        position: Vector3f { x: light_x, y: 2.0, z: 0.0 },
+                    },
+                ];
+
+                let complex_shape_with_transform = Shape::Transformed {
+                    shape: Box::new(complex_shape.clone()),
+                    transform: Transform {
+                        translation: Vector3f::new(0.0, 0.0, 0.0),
+                        rotation: vectors::multiply_mat_3x3(
+                            vectors::rotate_y_deg(angle),
+                            vectors::rotate_x_deg(angle / 2.0),
+                        ),
+                    },
+                };
+
+                let scene = vec![complex_shape_with_transform, ground_sphere.clone()];
+
+                // Рендерим кадр
+                gambetta_raytracer::render_scene_to_buffer(
+                    &scene,
+                    &lights,
+                    &mut buffer,
+                    size,
+                    origin,
+                    rotation,
+                );
+
+                // Конвертируем буфер в изображение
+                let img = RgbImage::from_raw(size as u32, size as u32, buffer.clone())
+                    .expect("Не удалось создать изображение");
+
+                // Имя файла: frame_000001.png, frame_000002.png и т.д.
+                let filename = format!("{}/frame_{:06}.png", output_dir, frame + 1);
+                img.save(&filename).unwrap_or_else(|e| {
+                    eprintln!("Ошибка при сохранении {}: {}", filename, e);
+                });
+
+                println!("Сохранён кадр {}/{}: {}", frame + 1, frames_limit, filename);
+            }
+
+            println!("Анимация завершена. Кадры сохранены в '{}'.", output_dir);
+            return;
+        } else {
+            eprintln!("Использование: --animate-to <dir> --frames-limit <число> --delta <значение>");
+            std::process::exit(1);
+        }
+    }
+
+    // === Основной интерактивный режим (GUI) ===
+
     let size = 900;
     let mut buffer = vec![0u8; size as usize * size as usize * 3];
 
@@ -178,7 +277,6 @@ fn main() {
                         println!("Скриншот сохранён как screenshot.png");
                     }
                 }
-
                 _ => {}
             }
 
