@@ -452,7 +452,17 @@ fn draw_scan_line(
             let src_x = (((tex_coord_x * z) * (texture.width - 1) as f64) + 0.5) as usize;
             let src_y = (((tex_coord_y * z) * (texture.height - 1) as f64) + 0.5) as usize;
 
-            bitmap.copy_pixels(i, j, src_x, src_y, texture, light_amount);
+            if tex_coord_x_x_step == 0.0 && tex_coord_y_x_step == 0.0 {
+                bitmap.draw_pixel(
+                    i,
+                    j,
+                    (200.0 * light_amount) as u8,
+                    (200.0 * light_amount) as u8,
+                    (200.0 * light_amount) as u8,
+                );
+            } else {
+                bitmap.copy_pixels(i, j, src_x, src_y, texture, light_amount);
+            }
         }
 
         tex_coord_x += tex_coord_x_x_step;
@@ -849,7 +859,9 @@ fn main() {
     let texture = load_texture_from_file("resources/bricks2.jpg");
     // let mesh = Mesh::new("resources/icosphere.obj");
     // let mesh = Mesh::new("resources/monkey2.obj");
-    let mesh = Mesh::new("resources/smoothMonkey2.obj");
+    // let mesh = Mesh::new("resources/smoothMonkey2.obj");
+    let mesh = Mesh::new("resources/teapot.obj");
+    println!("{}", mesh.vertices[0].tex_coords);
     println!(
         "Vertices: {}, polygons: {}",
         mesh.vertices.len(),
@@ -917,8 +929,9 @@ fn main() {
         if !paused {
             rotation_counter += delta.as_secs_f64(); // Adjust rotation speed
         }
-        let translation = Matrix4f::init_translation(0.0, 0.0, 3.0 - 3.0 * rotation_counter.sin());
-        let rotation = Matrix4f::init_rotation_euler(rotation_counter, 0.0, rotation_counter);
+        // let translation = Matrix4f::init_translation(0.0, 0.0, 3.0 - 3.0 * rotation_counter.sin());
+        let translation = Matrix4f::init_translation(0.0, -2.5, 8.0);
+        let rotation = Matrix4f::init_rotation_euler(0.0, rotation_counter * 0.2, 0.0);
         let transform = translation.mul(rotation);
 
         bitmap.clear(0);
