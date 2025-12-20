@@ -28,73 +28,7 @@ fn main() {
             // Создаём директорию
             fs::create_dir_all(output_dir).expect("Не удалось создать директорию");
 
-            let size = 900;
-            let mut buffer = vec![0u8; size as usize * size as usize * 3];
-
-            let complex_shape = create_complex_shape();
-            let ground_sphere = Shape::Sphere(Sphere {
-                center: Vector3f { x: 0.0, y: -5001.5, z: 0.0 },
-                radius: 5000.0,
-                color: Color { r: 100, g: 100, b: 0 },
-                specular: 50,
-                reflective: 0.4,
-            });
-
-            let rotation = vectors::rotate_y_deg(0.0);
-            // Анимация вращения
-            for frame in 0..frames_limit {
-                let angle = frame as f64 * delta; // Меняем угол
-                let x_position = 0.0;
-                let y_position = 0.5;
-                let z_position = -7.0;
-
-                let origin = Vector3f { x: x_position, y: y_position, z: z_position };
-
-                // === АНИМАЦИЯ СВЕТА: движение по оси X от -1 до +1 ===
-                let light_x = (frame as f64 * delta * 0.02).sin(); // Медленное колебание
-                let lights = vec![
-                    Light::Ambient { intensity: 0.25 },
-                    Light::Point {
-                        intensity: 0.85,
-                        position: Vector3f { x: light_x, y: 2.0, z: 0.0 },
-                    },
-                ];
-
-                let complex_shape_with_transform = Shape::Transformed {
-                    shape: Box::new(complex_shape.clone()),
-                    transform: Transform {
-                        translation: Vector3f::new(0.0, 0.0, 0.0),
-                        rotation: vectors::multiply_mat_3x3(
-                            vectors::rotate_y_deg(angle),
-                            vectors::rotate_x_deg(angle / 2.0),
-                        ),
-                    },
-                };
-
-                let scene = vec![complex_shape_with_transform, ground_sphere.clone()];
-
-                // Рендерим кадр
-                gambetta_raytracer::render_scene_to_buffer(
-                    &scene,
-                    &lights,
-                    &mut buffer,
-                    size,
-                    origin,
-                    rotation,
-                );
-
-                // Конвертируем буфер в изображение
-                let img = RgbImage::from_raw(size as u32, size as u32, buffer.clone())
-                    .expect("Не удалось создать изображение");
-
-                // Имя файла: frame_000001.png, frame_000002.png и т.д.
-                let filename = format!("{}/frame_{:06}.png", output_dir, frame + 1);
-                img.save(&filename).unwrap_or_else(|e| {
-                    eprintln!("Ошибка при сохранении {}: {}", filename, e);
-                });
-
-                println!("Сохранён кадр {}/{}: {}", frame + 1, frames_limit, filename);
-            }
+            start_animation_mode(output_dir, frames_limit, delta);
 
             println!("Анимация завершена. Кадры сохранены в '{}'.", output_dir);
             return;
@@ -105,7 +39,73 @@ fn main() {
     }
 
     // === Основной интерактивный режим (GUI) ===
+    open_interactive_window();
+}
 
+fn start_animation_mode(output_dir: &String, frames_limit: usize, delta: f64) {
+    let size = 900;
+    let mut buffer = vec![0u8; size as usize * size as usize * 3];
+
+    let complex_shape = create_complex_shape();
+    let ground_sphere = Shape::Sphere(Sphere {
+        center: Vector3f { x: 0.0, y: -5001.5, z: 0.0 },
+        radius: 5000.0,
+        color: Color { r: 100, g: 100, b: 0 },
+        specular: 50,
+        reflective: 0.4,
+    });
+
+    let rotation = vectors::rotate_y_deg(0.0);
+    // Анимация вращения
+    for frame in 0..frames_limit {
+        let angle = frame as f64 * delta; // Меняем угол
+        let x_position = 0.0;
+        let y_position = 0.5;
+        let z_position = -7.0;
+
+        let origin = Vector3f { x: x_position, y: y_position, z: z_position };
+
+        // === АНИМАЦИЯ СВЕТА: движение по оси X от -1 до +1 ===
+        let light_x = (frame as f64 * delta * 0.02).sin(); // Медленное колебание
+        let lights = vec![
+            Light::Ambient { intensity: 0.25 },
+            Light::Point {
+                intensity: 0.85,
+                position: Vector3f { x: light_x, y: 2.0, z: 0.0 },
+            },
+        ];
+
+        let complex_shape_with_transform = Shape::Transformed {
+            shape: Box::new(complex_shape.clone()),
+            transform: Transform {
+                translation: Vector3f::new(0.0, 0.0, 0.0),
+                rotation: vectors::multiply_mat_3x3(
+                    vectors::rotate_y_deg(angle),
+                    vectors::rotate_x_deg(angle / 2.0),
+                ),
+            },
+        };
+
+        let scene = vec![complex_shape_with_transform, ground_sphere.clone()];
+
+        // Рендерим кадр
+        gambetta_raytracer::render_scene_to_buffer(&scene, &lights, &mut buffer, size, origin, rotation);
+
+        // Конвертируем буфер в изображение
+        let img = RgbImage::from_raw(size as u32, size as u32, buffer.clone())
+            .expect("Не удалось создать изображение");
+
+        // Имя файла: frame_000001.png, frame_000002.png и т.д.
+        let filename = format!("{}/frame_{:06}.png", output_dir, frame + 1);
+        img.save(&filename).unwrap_or_else(|e| {
+            eprintln!("Ошибка при сохранении {}: {}", filename, e);
+        });
+
+        println!("Сохранён кадр {}/{}: {}", frame + 1, frames_limit, filename);
+    }
+}
+
+fn open_interactive_window() {
     let size = 900;
     let mut buffer = vec![0u8; size as usize * size as usize * 3];
 
