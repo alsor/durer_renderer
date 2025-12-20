@@ -163,6 +163,10 @@ fn open_interactive_window() {
         transformed_triangle,
         transformed_cube,
     ];
+    println!("Scene prepared. When frame will render and window will show uo you can:");
+    println!(" - use W, A, S, D to move camera");
+    println!(" - use Q, E to rotate camera left/right");
+    println!(" - use R, F to raise/lower camera");
 
     // let scene = vec![
     //     Shape::Sphere(Sphere {
@@ -217,80 +221,74 @@ fn open_interactive_window() {
         Light::Point {
             intensity: 0.85,
             position: Vector3f { x: 0.0, y: 2.0, z: 0.0 },
-        }, // Light::Directional {
-           //     intensity: 0.8,
-           //     direction: Vector3f { x: -0.5, y: -0.2, z: 0.0 },
-           // },
+        },
+        // Light::Directional {
+        //     intensity: 0.8,
+        //     direction: Vector3f { x: -0.5, y: -0.2, z: 0.0 },
+        // },
     ];
-
-    gambetta_raytracer::render_scene_to_buffer(&scene, &lights, &mut buffer, size, origin, rotation);
 
     let sdl_context = sdl3::init().unwrap();
     let video_subsystem = sdl_context.video().unwrap();
-
     let window = video_subsystem
         .window("Durer", size as u32, size as u32)
         .position_centered()
         .build()
         .unwrap();
-
     let mut canvas = window.into_canvas();
     let texture_creator = canvas.texture_creator();
-
-    //    let mut texture = texture_creator.create_texture_streaming(
-    //        PixelFormatEnum::RGB24, 256, 256
-    //    ).unwrap();
-
-    //    texture.with_lock(None, |buffer: &mut [u8], pitch: usize| {
-    //        for y in 0..256 {
-    //            for x in 0..256 {
-    //                let offset = y * pitch + x * 3;
-    //                buffer[offset] = x as u8;
-    //                buffer[offset + 1] = y as u8;
-    //                buffer[offset + 2] = 0;
-    //            }
-    //        }
-    //    }).unwrap();
-
     let mut texture = texture_creator
         .create_texture_static(PixelFormat::RGB24, size as u32, size as u32)
         .unwrap();
 
-    texture.update(None, &buffer, size * 3).unwrap();
-
-    canvas.clear();
-    canvas.copy(&texture, None, None).unwrap();
-    //    canvas.copy_ex(&texture, None, Some(Rect::new(450, 100, 256, 256)), 30.0, None, false, false).unwrap();
-    canvas.present();
-
     let mut event_pump = sdl_context.event_pump().unwrap();
     'running: loop {
-        for event in event_pump.wait_iter() {
-            match event {
+        let origin = Vector3f { x: x_position, y: y_position, z: z_position };
+        let rotation = vectors::rotate_y_deg(angle);
+
+        println!("Start rendering frame...");
+        gambetta_raytracer::render_scene_to_buffer(&scene, &lights, &mut buffer, size, origin, rotation);
+        println!("Frame rendered.");
+
+        texture.update(None, &buffer, size * 3).unwrap();
+        canvas.clear();
+        canvas.copy(&texture, None, None).unwrap();
+        canvas.present();
+
+        'event_loop: loop {
+            match event_pump.wait_event() {
                 Event::Quit { .. } | Event::KeyDown { keycode: Some(Keycode::Escape), .. } => break 'running,
                 Event::KeyDown { keycode: Some(Keycode::E), .. } => {
                     angle += 10.0;
+                    break 'event_loop;
                 }
                 Event::KeyDown { keycode: Some(Keycode::Q), .. } => {
                     angle -= 10.5;
+                    break 'event_loop;
                 }
                 Event::KeyDown { keycode: Some(Keycode::D), .. } => {
                     x_position += 0.5;
+                    break 'event_loop;
                 }
                 Event::KeyDown { keycode: Some(Keycode::A), .. } => {
                     x_position -= 0.5;
+                    break 'event_loop;
                 }
                 Event::KeyDown { keycode: Some(Keycode::W), .. } => {
                     z_position += 0.5;
+                    break 'event_loop;
                 }
                 Event::KeyDown { keycode: Some(Keycode::S), .. } => {
                     z_position -= 0.5;
+                    break 'event_loop;
                 }
                 Event::KeyDown { keycode: Some(Keycode::R), .. } => {
                     y_position += 0.5;
+                    break 'event_loop;
                 }
                 Event::KeyDown { keycode: Some(Keycode::F), .. } => {
                     y_position -= 0.5;
+                    break 'event_loop;
                 }
                 Event::KeyDown { keycode: Some(Keycode::F12), .. } => {
                     // Сохраняем скриншот
@@ -302,28 +300,10 @@ fn open_interactive_window() {
                     } else {
                         println!("Скриншот сохранён как screenshot.png");
                     }
+                    break 'event_loop;
                 }
                 _ => {}
             }
-
-            let mut buffer = vec![0u8; size as usize * size as usize * 3];
-            let origin = Vector3f { x: x_position, y: y_position, z: z_position };
-            let rotation = vectors::rotate_y_deg(angle);
-
-            // let lights = vec![
-            //     Light::Ambient { intensity: 0.1 },
-            //     Light::Point {
-            //         intensity: 0.8,
-            //         position: Vector3f { x: x_position, y: y_position, z: z_position }
-            //     },
-            // ];
-
-            gambetta_raytracer::render_scene_to_buffer(&scene, &lights, &mut buffer, size, origin, rotation);
-
-            texture.update(None, &buffer, size * 3).unwrap();
-            canvas.clear();
-            canvas.copy(&texture, None, None).unwrap();
-            canvas.present();
         }
     }
 }
