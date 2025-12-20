@@ -17,9 +17,55 @@ pub struct Sphere {
     pub reflective: f64,
 }
 
+#[derive(Copy, Clone)]
+pub struct Triangle {
+    pub v0: Vector3f,
+    pub v1: Vector3f,
+    pub v2: Vector3f,
+    pub color: Color,
+    pub specular: i32,
+    pub reflective: f64,
+    pub normal: Vector3f,
+}
+
+impl Triangle {
+    pub fn new(
+        v0: Vector3f,
+        v1: Vector3f,
+        v2: Vector3f,
+        color: Color,
+        specular: i32,
+        reflective: f64,
+    ) -> Self {
+        let edge1 = vectors::difference(v1, v0);
+        let edge2 = vectors::difference(v2, v0);
+        let normal = vectors::normalize(vectors::cross_product(edge1, edge2));
+        Triangle { v0, v1, v2, color, specular, reflective, normal }
+    }
+}
+
+#[derive(Clone)]
+pub struct Mesh {
+    pub triangles: Vec<Triangle>,
+    pub transform: Option<Transform>,
+}
+
+impl Mesh {
+    pub fn new(triangles: Vec<Triangle>) -> Self {
+        Mesh { triangles, transform: None }
+    }
+
+    pub fn with_transform(mut self, transform: Transform) -> Self {
+        self.transform = Some(transform);
+        self
+    }
+}
+
 #[derive(Clone)]
 pub enum Shape {
     Sphere(Sphere),
+    Triangle(Triangle),
+    Mesh(Mesh),
     CSG {
         op: CSGOperation,
         left: Box<Shape>,
@@ -40,6 +86,34 @@ impl Shape {
                 sphere.center = vectors::sum(sphere.center, translation);
                 Shape::Sphere(sphere)
             }
+            Shape::Triangle(triangle) => {
+                let t = triangle;
+                Shape::Triangle(Triangle::new(
+                    vectors::sum(t.v0, translation),
+                    vectors::sum(t.v1, translation),
+                    vectors::sum(t.v2, translation),
+                    t.color,
+                    t.specular,
+                    t.reflective,
+                ))
+            }
+            Shape::Mesh(mesh) => {
+                let translated_triangles = mesh
+                    .triangles
+                    .into_iter()
+                    .map(|tri| {
+                        Triangle::new(
+                            vectors::sum(tri.v0, translation),
+                            vectors::sum(tri.v1, translation),
+                            vectors::sum(tri.v2, translation),
+                            tri.color,
+                            tri.specular,
+                            tri.reflective,
+                        )
+                    })
+                    .collect();
+                Shape::Mesh(Mesh::new(translated_triangles))
+            }
             Shape::CSG { op, left, right } => Shape::CSG {
                 op,
                 left: Box::new(left.translate_all(dx, dy, dz)),
@@ -55,14 +129,44 @@ impl Shape {
     /// Рекурсивно поворачивает все примитивы вокруг точки по оси X
     pub fn rotate_x_all(self, angle: f64, point: Vector3f) -> Self {
         let rotation_matrix = vectors::rotate_x(angle);
-    
+        let rotate_point = |p: Vector3f| {
+            let local = vectors::difference(p, point);
+            let rotated = vectors::multiply_vec_and_mat(local.to_vec(), rotation_matrix);
+            vectors::sum(Vector3f::from_vec(rotated), point)
+        };
+
         match self {
             Shape::Sphere(mut sphere) => {
-                let local_center = vectors::difference(sphere.center, point);
-                let rotated_vec = vectors::multiply_vec_and_mat(local_center.to_vec(), rotation_matrix);
-                let world_center = vectors::sum(Vector3f::from_vec(rotated_vec), point);
-                sphere.center = world_center;
+                sphere.center = rotate_point(sphere.center);
                 Shape::Sphere(sphere)
+            }
+            Shape::Triangle(triangle) => {
+                let t = triangle;
+                Shape::Triangle(Triangle::new(
+                    rotate_point(t.v0),
+                    rotate_point(t.v1),
+                    rotate_point(t.v2),
+                    t.color,
+                    t.specular,
+                    t.reflective,
+                ))
+            }
+            Shape::Mesh(mesh) => {
+                let rotated_triangles = mesh
+                    .triangles
+                    .into_iter()
+                    .map(|tri| {
+                        Triangle::new(
+                            rotate_point(tri.v0),
+                            rotate_point(tri.v1),
+                            rotate_point(tri.v2),
+                            tri.color,
+                            tri.specular,
+                            tri.reflective,
+                        )
+                    })
+                    .collect();
+                Shape::Mesh(Mesh::new(rotated_triangles))
             }
             Shape::CSG { op, left, right } => Shape::CSG {
                 op,
@@ -79,42 +183,98 @@ impl Shape {
     /// Рекурсивно поворачивает все примитивы вокруг точки по оси Y
     pub fn rotate_y_all(self, angle: f64, point: Vector3f) -> Self {
         let rotation_matrix = vectors::rotate_y(angle);
+        let rotate_point = |p: Vector3f| {
+            let local = vectors::difference(p, point);
+            let rotated = vectors::multiply_vec_and_mat(local.to_vec(), rotation_matrix);
+            vectors::sum(Vector3f::from_vec(rotated), point)
+        };
 
         match self {
             Shape::Sphere(mut sphere) => {
-                // Сдвигаем центр в локальные координаты, поворачиваем, возвращаем
-                let local_center = vectors::difference(sphere.center, point);
-                let rotated_vec = vectors::multiply_vec_and_mat(local_center.to_vec(), rotation_matrix);
-                let world_center = vectors::sum(Vector3f::from_vec(rotated_vec), point);
-                sphere.center = world_center;
+                sphere.center = rotate_point(sphere.center);
                 Shape::Sphere(sphere)
+            }
+            Shape::Triangle(triangle) => {
+                let t = triangle;
+                Shape::Triangle(Triangle::new(
+                    rotate_point(t.v0),
+                    rotate_point(t.v1),
+                    rotate_point(t.v2),
+                    t.color,
+                    t.specular,
+                    t.reflective,
+                ))
+            }
+            Shape::Mesh(mesh) => {
+                let rotated_triangles = mesh
+                    .triangles
+                    .into_iter()
+                    .map(|tri| {
+                        Triangle::new(
+                            rotate_point(tri.v0),
+                            rotate_point(tri.v1),
+                            rotate_point(tri.v2),
+                            tri.color,
+                            tri.specular,
+                            tri.reflective,
+                        )
+                    })
+                    .collect();
+                Shape::Mesh(Mesh::new(rotated_triangles))
             }
             Shape::CSG { op, left, right } => Shape::CSG {
                 op,
                 left: Box::new(left.rotate_y_all(angle, point)),
                 right: Box::new(right.rotate_y_all(angle, point)),
             },
-            Shape::Transformed { shape, transform } => {
-                // Применяем к внутреннему объекту, трансформ не трогаем
-                Shape::Transformed {
-                    shape: Box::new(shape.rotate_y_all(angle, point)),
-                    transform,
-                }
-            }
+            Shape::Transformed { shape, transform } => Shape::Transformed {
+                shape: Box::new(shape.rotate_y_all(angle, point)),
+                transform,
+            },
         }
     }
 
     /// Рекурсивно поворачивает все примитивы вокруг точки по оси Z
     pub fn rotate_z_all(self, angle: f64, point: Vector3f) -> Self {
         let rotation_matrix = vectors::rotate_z(angle);
+        let rotate_point = |p: Vector3f| {
+            let local = vectors::difference(p, point);
+            let rotated = vectors::multiply_vec_and_mat(local.to_vec(), rotation_matrix);
+            vectors::sum(Vector3f::from_vec(rotated), point)
+        };
 
         match self {
             Shape::Sphere(mut sphere) => {
-                let local_center = vectors::difference(sphere.center, point);
-                let rotated_vec = vectors::multiply_vec_and_mat(local_center.to_vec(), rotation_matrix);
-                let world_center = vectors::sum(Vector3f::from_vec(rotated_vec), point);
-                sphere.center = world_center;
+                sphere.center = rotate_point(sphere.center);
                 Shape::Sphere(sphere)
+            }
+            Shape::Triangle(triangle) => {
+                let t = triangle;
+                Shape::Triangle(Triangle::new(
+                    rotate_point(t.v0),
+                    rotate_point(t.v1),
+                    rotate_point(t.v2),
+                    t.color,
+                    t.specular,
+                    t.reflective,
+                ))
+            }
+            Shape::Mesh(mesh) => {
+                let rotated_triangles = mesh
+                    .triangles
+                    .into_iter()
+                    .map(|tri| {
+                        Triangle::new(
+                            rotate_point(tri.v0),
+                            rotate_point(tri.v1),
+                            rotate_point(tri.v2),
+                            tri.color,
+                            tri.specular,
+                            tri.reflective,
+                        )
+                    })
+                    .collect();
+                Shape::Mesh(Mesh::new(rotated_triangles))
             }
             Shape::CSG { op, left, right } => Shape::CSG {
                 op,
@@ -475,6 +635,22 @@ fn intersect_ray_with_shape(origin: Vector3f, direction: Vector3f, shape: &Shape
             }
             hits
         }
+        Shape::Triangle(triangle) => {
+            let mut hits = HitList::new();
+            if let Some(hit) = intersect_ray_with_triangle(origin, direction, *triangle) {
+                hits.push(hit);
+            }
+            hits
+        }
+        Shape::Mesh(mesh) => {
+            let mut hits = HitList::new();
+            for triangle in &mesh.triangles {
+                if let Some(hit) = intersect_ray_with_triangle(origin, direction, *triangle) {
+                    hits.push(hit);
+                }
+            }
+            hits
+        }
         Shape::CSG { op, left, right } => {
             let left_hits = intersect_ray_with_shape(origin, direction, left);
             let right_hits = intersect_ray_with_shape(origin, direction, right);
@@ -563,6 +739,40 @@ fn is_inside_csg(in_left: bool, in_right: bool, op: &CSGOperation) -> bool {
         CSGOperation::Union => in_left || in_right,
         CSGOperation::Intersection => in_left && in_right,
         CSGOperation::Difference => in_left && !in_right,
+    }
+}
+
+fn intersect_ray_with_triangle(origin: Vector3f, direction: Vector3f, triangle: Triangle) -> Option<Hit> {
+    let edge1 = vectors::difference(triangle.v1, triangle.v0);
+    let edge2 = vectors::difference(triangle.v2, triangle.v0);
+    let h = vectors::cross_product(direction, edge2);
+    let a = vectors::dot_product(edge1, h);
+    if a > -1e-8 && a < 1e-8 {
+        return None; // параллель
+    }
+    let f = 1.0 / a;
+    let s = vectors::difference(origin, triangle.v0);
+    let u = f * vectors::dot_product(s, h);
+    if u < 0.0 || u > 1.0 {
+        return None;
+    }
+    let q = vectors::cross_product(s, edge1);
+    let v = f * vectors::dot_product(direction, q);
+    if v < 0.0 || u + v > 1.0 {
+        return None;
+    }
+    let t = f * vectors::dot_product(edge2, q);
+    if t > 1e-8 {
+        Some(Hit {
+            t,
+            point: vectors::sum(origin, vectors::scale(t, direction)),
+            normal: triangle.normal,
+            color: triangle.color,
+            specular: triangle.specular,
+            reflective: triangle.reflective,
+        })
+    } else {
+        None
     }
 }
 

@@ -1,6 +1,6 @@
 use common::vectors;
 use common::{Color, Light, Vector3f};
-use gambetta_raytracer::{CSGOperation, Shape, Sphere, Transform};
+use gambetta_raytracer::{CSGOperation, Mesh, Shape, Sphere, Transform, Triangle};
 use image::RgbImage;
 use sdl3::{event::Event, keyboard::Keycode, pixels::PixelFormat};
 use std::env;
@@ -123,7 +123,7 @@ fn open_interactive_window() {
         radius: 5000.0,
         color: Color { r: 100, g: 100, b: 0 },
         specular: 50,
-        reflective: 0.4,
+        reflective: 0.0,
     });
 
     let complex_shape = create_complex_shape();
@@ -136,7 +136,33 @@ fn open_interactive_window() {
     };
     // let rotated_complex_shape = complex_shape.rotate_y_all_deg(45.0, Vector3f::new(0.0, 0.0, 0.0));
 
-    let scene = vec![complex_shape_with_transform, ground_sphere];
+    let triangle = Triangle::new(
+        Vector3f::new(-3.0, -3.0, 0.0),
+        Vector3f::new(3.0, -3.0, 0.0),
+        Vector3f::new(0.0, 3.0, 0.0),
+        Color { r: 255, g: 255, b: 255 },
+        50,
+        0.7,
+    );
+    let triangle_shape = Shape::Triangle(triangle);
+    let transformed_triangle = triangle_shape
+        .rotate_y_all_deg(35.0, Vector3f { x: 0.0, y: 0.0, z: 0.0 })
+        .rotate_x_all_deg(10.0, Vector3f { x: 0.0, y: 0.0, z: 0.0 })
+        .translate_all(2.0, 2.0, 3.0);
+
+    let cube = create_cube_mesh(2.0, Color { r: 80, g: 0, b: 150 }, 300, 0.4);
+    let cube_shape = Shape::Mesh(cube);
+    let transformed_cube = cube_shape
+        .rotate_x_all_deg(45.0, Vector3f { x: 0.0, y: 0.0, z: 0.0 })
+        .rotate_y_all_deg(55.0, Vector3f { x: 0.0, y: 0.0, z: 0.0 })
+        .translate_all(-2.0, 1.0, 3.0);
+
+    let scene = vec![
+        complex_shape_with_transform,
+        ground_sphere,
+        transformed_triangle,
+        transformed_cube,
+    ];
 
     // let scene = vec![
     //     Shape::Sphere(Sphere {
@@ -412,4 +438,36 @@ fn create_complex_shape() -> Shape {
         left: Box::new(cutoff_from_front),
         right: Box::new(back_cuttoff_sphere),
     }
+}
+
+pub fn create_cube_mesh(size: f64, color: Color, specular: i32, reflective: f64) -> Mesh {
+    let half_size = size / 2.0;
+
+    let vertices = vec![
+        Vector3f { x: half_size, y: half_size, z: half_size },
+        Vector3f { x: -half_size, y: half_size, z: half_size },
+        Vector3f { x: -half_size, y: -half_size, z: half_size },
+        Vector3f { x: half_size, y: -half_size, z: half_size },
+        Vector3f { x: half_size, y: half_size, z: -half_size },
+        Vector3f { x: -half_size, y: half_size, z: -half_size },
+        Vector3f { x: -half_size, y: -half_size, z: -half_size },
+        Vector3f { x: half_size, y: -half_size, z: -half_size },
+    ];
+
+    let triangles = vec![
+        Triangle::new(vertices[0], vertices[1], vertices[2], color, specular, reflective),
+        Triangle::new(vertices[0], vertices[2], vertices[3], color, specular, reflective),
+        Triangle::new(vertices[4], vertices[0], vertices[3], color, specular, reflective),
+        Triangle::new(vertices[4], vertices[3], vertices[7], color, specular, reflective),
+        Triangle::new(vertices[5], vertices[4], vertices[7], color, specular, reflective),
+        Triangle::new(vertices[5], vertices[7], vertices[6], color, specular, reflective),
+        Triangle::new(vertices[1], vertices[5], vertices[6], color, specular, reflective),
+        Triangle::new(vertices[1], vertices[6], vertices[2], color, specular, reflective),
+        Triangle::new(vertices[4], vertices[5], vertices[1], color, specular, reflective),
+        Triangle::new(vertices[4], vertices[1], vertices[0], color, specular, reflective),
+        Triangle::new(vertices[2], vertices[6], vertices[7], color, specular, reflective),
+        Triangle::new(vertices[2], vertices[7], vertices[3], color, specular, reflective),
+    ];
+
+    Mesh { triangles, transform: None }
 }
