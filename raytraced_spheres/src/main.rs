@@ -46,15 +46,6 @@ fn start_animation_mode(output_dir: &String, frames_limit: usize, delta: f64) {
     let size = 900;
     let mut buffer = vec![0u8; size as usize * size as usize * 3];
 
-    let complex_shape = create_complex_shape();
-    let ground_sphere = Shape::Sphere(Sphere {
-        center: Vector3f { x: 0.0, y: -5001.5, z: 0.0 },
-        radius: 5000.0,
-        color: Color { r: 100, g: 100, b: 0 },
-        specular: 50,
-        reflective: 0.4,
-    });
-
     let rotation = vectors::rotate_y_deg(0.0);
     // Анимация вращения
     for frame in 0..frames_limit {
@@ -65,28 +56,57 @@ fn start_animation_mode(output_dir: &String, frames_limit: usize, delta: f64) {
 
         let origin = Vector3f { x: x_position, y: y_position, z: z_position };
 
-        // === АНИМАЦИЯ СВЕТА: движение по оси X от -1 до +1 ===
-        let light_x = (frame as f64 * delta * 0.02).sin(); // Медленное колебание
         let lights = vec![
             Light::Ambient { intensity: 0.25 },
             Light::Point {
                 intensity: 0.85,
-                position: Vector3f { x: light_x, y: 2.0, z: 0.0 },
+                position: Vector3f { x: 0.0, y: 2.0, z: 0.0 },
             },
         ];
 
+        let ground_sphere = Shape::Sphere(Sphere {
+            center: Vector3f { x: 0.0, y: -5001.5, z: 0.0 },
+            radius: 5000.0,
+            color: Color { r: 100, g: 100, b: 0 },
+            specular: 50,
+            reflective: 0.0,
+        });
+        let complex_shape = create_complex_shape();
         let complex_shape_with_transform = Shape::Transformed {
-            shape: Box::new(complex_shape.clone()),
+            shape: Box::new(complex_shape),
             transform: Transform {
                 translation: Vector3f::new(0.0, 0.0, 0.0),
-                rotation: vectors::multiply_mat_3x3(
-                    vectors::rotate_y_deg(angle),
-                    vectors::rotate_x_deg(angle / 2.0),
-                ),
+                rotation: vectors::multiply_mat_3x3(vectors::rotate_y_deg(45.0), vectors::rotate_z_deg(45.0)),
             },
         };
 
-        let scene = vec![complex_shape_with_transform, ground_sphere.clone()];
+        let triangle = Triangle::new(
+            Vector3f::new(-3.0, -3.0, 0.0),
+            Vector3f::new(3.0, -3.0, 0.0),
+            Vector3f::new(0.0, 3.0, 0.0),
+            Color { r: 255, g: 255, b: 255 },
+            50,
+            0.7,
+        );
+        let triangle_shape = Shape::Triangle(triangle);
+        let transformed_triangle = triangle_shape
+            .rotate_x_all_deg(10.0, Vector3f { x: 0.0, y: 0.0, z: 0.0 })
+            .rotate_y_all_deg(angle, Vector3f { x: 0.0, y: 0.0, z: 0.0 })
+            .translate_all(2.0, 2.0, 3.0);
+
+        let cube = create_cube_mesh(2.0, Color { r: 80, g: 0, b: 150 }, 300, 0.4);
+        let cube_shape = Shape::Mesh(cube);
+        let transformed_cube = cube_shape
+            .rotate_x_all_deg(angle, Vector3f { x: 0.0, y: 0.0, z: 0.0 })
+            .rotate_y_all_deg(55.0, Vector3f { x: 0.0, y: 0.0, z: 0.0 })
+            .translate_all(-2.0, 1.0, 3.0);
+
+        let scene = vec![
+            complex_shape_with_transform,
+            ground_sphere,
+            transformed_triangle,
+            transformed_cube,
+        ];
 
         // Рендерим кадр
         gambetta_raytracer::render_scene_to_buffer(&scene, &lights, &mut buffer, size, origin, rotation);
