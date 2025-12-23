@@ -5,6 +5,9 @@ use image::RgbImage;
 use sdl3::{event::Event, keyboard::Keycode, pixels::PixelFormat};
 use std::env;
 use std::fs;
+use std::fs::File;
+use std::io::{BufRead, BufReader};
+use std::path::Path;
 use std::time::Instant;
 
 fn main() {
@@ -139,8 +142,8 @@ fn open_interactive_window() {
     let mut buffer = vec![0u8; size as usize * size as usize * 3];
 
     let mut x_position = 0.0;
-    let mut y_position = 0.5;
-    let mut z_position = -7.0;
+    let mut y_position = 2.0;
+    let mut z_position = -10.0;
 
     let mut angle = 0.0;
 
@@ -166,29 +169,35 @@ fn open_interactive_window() {
     // let rotated_complex_shape = complex_shape.rotate_y_all_deg(45.0, Vector3f::new(0.0, 0.0, 0.0));
 
     let triangle = Triangle::new(
-        Vector3f::new(-3.0, -3.0, 0.0),
-        Vector3f::new(3.0, -3.0, 0.0),
-        Vector3f::new(0.0, 3.0, 0.0),
+        Vector3f::new(-5.0, -5.0, 0.0),
+        Vector3f::new(3.0, -5.0, 0.0),
+        Vector3f::new(0.0, 5.0, 0.0),
         Color { r: 255, g: 255, b: 255 },
         50,
         0.7,
     );
     let triangle_shape = Shape::Triangle(triangle);
     let transformed_triangle = triangle_shape
-        .rotate_y_all_deg(35.0, Vector3f { x: 0.0, y: 0.0, z: 0.0 })
-        .rotate_x_all_deg(10.0, Vector3f { x: 0.0, y: 0.0, z: 0.0 })
-        .translate_all(2.0, 2.0, 3.0);
+        .rotate_y_all_deg(20.0, Vector3f { x: 0.0, y: 0.0, z: 0.0 })
+        .rotate_x_all_deg(20.0, Vector3f { x: 0.0, y: 0.0, z: 0.0 })
+        .translate_all(3.0, 5.0, 3.5);
 
     let cube = create_cube_mesh(2.0, Color { r: 80, g: 0, b: 150 }, 300, 0.4);
     let cube_shape = Shape::Mesh(cube);
     let transformed_cube = cube_shape
         .rotate_x_all_deg(45.0, Vector3f { x: 0.0, y: 0.0, z: 0.0 })
         .rotate_y_all_deg(55.0, Vector3f { x: 0.0, y: 0.0, z: 0.0 })
-        .translate_all(-2.0, 1.0, 3.0);
+        .translate_all(-3.0, 2.0, -2.0);
 
+    let teapot = load_obj("resources/teapot.obj", Color { r: 0, g: 255, b: 200 }, 200, 0.7).unwrap();
+    println!("Loaded model with {} triangles", teapot.triangles.len());
+    let teapot_shape = Shape::Mesh(teapot);
+
+    // Scene
     let scene = vec![
-        complex_shape_with_transform,
         ground_sphere,
+        teapot_shape,
+        // complex_shape_with_transform,
         transformed_triangle,
         transformed_cube,
     ];
@@ -249,7 +258,7 @@ fn open_interactive_window() {
         Light::Ambient { intensity: 0.25 },
         Light::Point {
             intensity: 0.85,
-            position: Vector3f { x: 0.0, y: 2.0, z: 0.0 },
+            position: Vector3f { x: 0.0, y: 5.0, z: 0.0 },
         },
         // Light::Directional {
         //     intensity: 0.8,
@@ -276,8 +285,13 @@ fn open_interactive_window() {
         let rotation = vectors::rotate_y_deg(angle);
 
         println!("Start rendering frame...");
+        let start_time = Instant::now();
+
+        // Render frame
         gambetta_raytracer::render_scene_to_buffer(&scene, &lights, &mut buffer, size, origin, rotation);
-        println!("Frame rendered.");
+
+        let render_time = start_time.elapsed();
+        println!("Rendering took: {:?}", render_time);
 
         texture.update(None, &buffer, size * 3).unwrap();
         canvas.clear();
@@ -479,4 +493,60 @@ pub fn create_cube_mesh(size: f64, color: Color, specular: i32, reflective: f64)
     ];
 
     Mesh { triangles, transform: None }
+}
+
+pub fn load_obj<P: AsRef<Path>>(
+    path: P,
+    color: Color,
+    specular: i32,
+    reflective: f64,
+) -> Result<Mesh, Box<dyn std::error::Error>> {
+    let file = File::open(path)?;
+    let reader = BufReader::new(file);
+
+    let mut vertices = Vec::new();
+    let mut triangles = Vec::new();
+
+    for line in reader.lines() {
+        let line = line?;
+        let mut parts = line.split_whitespace();
+        match parts.next() {
+            Some("v") => {
+                let x: f64 = parts.next().unwrap_or("0").parse()?;
+                let y: f64 = parts.next().unwrap_or("0").parse()?;
+                let z: f64 = parts.next().unwrap_or("0").parse()?;
+                vertices.push(Vector3f::new(x, y, z));
+            }
+            Some("f") => {
+                let mut indices = Vec::new();
+                for part in parts {
+                    // Берём только первую часть индекса (позиция), игнорируя текстуры/нормали
+                    let index_str = part.split('/').next().unwrap();
+                    if let Ok(index) = index_str.parse::<usize>() {
+                        // OBJ использует 1-based индексацию
+                        indices.push(index - 1);
+                    }
+                }
+
+                // Поддерживаем только треугольные полигоны
+                if indices.len() == 3 {
+                    let v0 = vertices[indices[0]];
+                    let v1 = vertices[indices[1]];
+                    let v2 = vertices[indices[2]];
+                    triangles.push(Triangle::new(v0, v1, v2, color, specular, reflective));
+                } else if indices.len() > 3 {
+                    // Простая триангуляция: fan triangulation (для выпуклых полигонов)
+                    let v0 = vertices[indices[0]];
+                    for i in 1..(indices.len() - 1) {
+                        let v1 = vertices[indices[i]];
+                        let v2 = vertices[indices[i + 1]];
+                        triangles.push(Triangle::new(v0, v1, v2, color, specular, reflective));
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    Ok(Mesh::new(triangles))
 }
