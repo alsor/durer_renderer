@@ -5,7 +5,7 @@ use image::RgbImage;
 use sdl3::{event::Event, keyboard::Keycode, pixels::PixelFormat};
 use std::env;
 use std::fs;
-use std::path::Path;
+use std::time::Instant;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -47,9 +47,9 @@ fn start_animation_mode(output_dir: &String, frames_limit: usize, delta: f64) {
     let mut buffer = vec![0u8; size as usize * size as usize * 3];
 
     let rotation = vectors::rotate_y_deg(0.0);
-    // Анимация вращения
+
     for frame in 0..frames_limit {
-        let angle = frame as f64 * delta; // Меняем угол
+        let angle = frame as f64 * delta;
         let x_position = 0.0;
         let y_position = 0.5;
         let z_position = -7.0;
@@ -108,8 +108,19 @@ fn start_animation_mode(output_dir: &String, frames_limit: usize, delta: f64) {
             transformed_cube,
         ];
 
+        // === Замер времени рендеринга кадра ===
+        let start_time = Instant::now();
+
         // Рендерим кадр
         gambetta_raytracer::render_scene_to_buffer(&scene, &lights, &mut buffer, size, origin, rotation);
+
+        let render_time = start_time.elapsed();
+        println!(
+            "Кадр {}/{}: рендеринг занял {:?}",
+            frame + 1,
+            frames_limit,
+            render_time
+        );
 
         // Конвертируем буфер в изображение
         let img = RgbImage::from_raw(size as u32, size as u32, buffer.clone())
@@ -120,8 +131,6 @@ fn start_animation_mode(output_dir: &String, frames_limit: usize, delta: f64) {
         img.save(&filename).unwrap_or_else(|e| {
             eprintln!("Ошибка при сохранении {}: {}", filename, e);
         });
-
-        println!("Сохранён кадр {}/{}: {}", frame + 1, frames_limit, filename);
     }
 }
 
