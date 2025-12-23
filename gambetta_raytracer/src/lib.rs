@@ -4,6 +4,7 @@
 
 use common::vectors;
 use common::{Color, Light, Pixel, Vector3f};
+use rayon::prelude::*;
 use smallvec::SmallVec;
 
 type HitList = SmallVec<[Hit; 4]>;
@@ -385,14 +386,20 @@ pub fn render_scene_to_buffer(
     let canvas_height = size as i32;
     let recursion_depth = 4;
 
-    for x in -canvas_width / 2..canvas_width / 2 {
-        for y in -canvas_height / 2..canvas_height / 2 {
-            // let direction = canvas_to_viewport(x, y, canvas_width, canvas_height);
+    // Создадим вектор координат пикселей
+    let pixels: Vec<(i32, i32)> = (-canvas_width / 2..canvas_width / 2)
+        .flat_map(|x| (-canvas_height / 2..canvas_height / 2).map(move |y| (x, y)))
+        .collect();
+
+    // Параллельная обработка всех пикселей
+    let colors: Vec<Color> = pixels
+        .par_iter()
+        .map(|&(x, y)| {
             let direction = Vector3f::from_vec(crate::vectors::multiply_vec_and_mat(
                 canvas_to_viewport(x, y, canvas_width, canvas_height).to_vec(),
                 rotation,
             ));
-            let color = trace_ray(
+            trace_ray(
                 scene,
                 lights,
                 origin,
@@ -400,17 +407,24 @@ pub fn render_scene_to_buffer(
                 1.0,
                 std::f64::INFINITY,
                 recursion_depth,
-            );
+            )
+        })
+        .collect();
 
-            let screen_x = screen_x(x, canvas_width);
-            let screen_y = screen_y(y, canvas_height);
-            if screen_x >= size {
-                println!("x is outside: {} -> {}", x, screen_x);
-            } else if screen_y >= size {
-                println!("y is outside: {} -> {}", y, screen_y);
-            } else {
-                put_pixel(Pixel { x: screen_x, y: screen_y, color }, buffer, size);
-            }
+    // Последовательная запись в буфер (чтобы избежать гонок)
+    for ((x, y), color) in pixels.iter().zip(colors.iter()) {
+        let screen_x = screen_x(*x, canvas_width);
+        let screen_y = screen_y(*y, canvas_height);
+        if screen_x < size && screen_y < size {
+            let offset = screen_y * size * 3 + screen_x * 3;
+            buffer[offset] = color.r;
+            buffer[offset + 1] = color.g;
+            buffer[offset + 2] = color.b;
+        } else {
+            println!(
+                "Warning: Pixel ({}, {}) is out of bounds for size {}",
+                screen_x, screen_y, size
+            );
         }
     }
 }
