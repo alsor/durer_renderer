@@ -8,4 +8,5 @@ common = { path = "../common" }
 gambetta_raytracer = { path = "../gambetta_raytracer" }
 sdl3 = "0.16.2"
 image = "0.25"
+sysinfo = "0.37.2"
 

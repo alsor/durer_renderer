@@ -8,7 +8,10 @@ use std::fs;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
+use std::thread;
+use std::time::Duration;
 use std::time::Instant;
+use sysinfo::Components;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -51,11 +54,27 @@ fn start_animation_mode(output_dir: &String, frames_limit: usize, delta: f64) {
 
     let rotation = vectors::rotate_y_deg(0.0);
 
+    let teapot = load_obj("resources/teapot.obj", Color { r: 0, g: 255, b: 200 }, 200, 0.7).unwrap();
+    let teapot_shape = Shape::Mesh(teapot);
+
     for frame in 0..frames_limit {
+        loop {
+            let temp = check_temperature();
+            println!("Max component temperature detected: {temp}");
+            if temp > 60.0 {
+                println!("Sleeping...");
+                thread::sleep(Duration::from_secs(1)); // Сильная пауза при перегреве
+            } else {
+                println!("Continue");
+                break;
+            }
+        }
+
         let angle = frame as f64 * delta;
+
         let x_position = 0.0;
-        let y_position = 0.5;
-        let z_position = -7.0;
+        let y_position = 2.0;
+        let z_position = -10.0;
 
         let origin = Vector3f { x: x_position, y: y_position, z: z_position };
 
@@ -63,7 +82,7 @@ fn start_animation_mode(output_dir: &String, frames_limit: usize, delta: f64) {
             Light::Ambient { intensity: 0.25 },
             Light::Point {
                 intensity: 0.85,
-                position: Vector3f { x: 0.0, y: 2.0, z: 0.0 },
+                position: Vector3f { x: 0.0, y: 5.0, z: 0.0 },
             },
         ];
 
@@ -74,41 +93,45 @@ fn start_animation_mode(output_dir: &String, frames_limit: usize, delta: f64) {
             specular: 50,
             reflective: 0.0,
         });
-        let complex_shape = create_complex_shape();
-        let complex_shape_with_transform = Shape::Transformed {
-            shape: Box::new(complex_shape),
-            transform: Transform {
-                translation: Vector3f::new(0.0, 0.0, 0.0),
-                rotation: vectors::multiply_mat_3x3(vectors::rotate_y_deg(45.0), vectors::rotate_z_deg(45.0)),
-            },
-        };
+        // let complex_shape = create_complex_shape();
+        // let complex_shape_with_transform = Shape::Transformed {
+        //     shape: Box::new(complex_shape),
+        //     transform: Transform {
+        //         translation: Vector3f::new(0.0, 0.0, 0.0),
+        //         rotation: vectors::multiply_mat_3x3(vectors::rotate_y_deg(45.0), vectors::rotate_z_deg(45.0)),
+        //     },
+        // };
 
         let triangle = Triangle::new(
-            Vector3f::new(-3.0, -3.0, 0.0),
-            Vector3f::new(3.0, -3.0, 0.0),
-            Vector3f::new(0.0, 3.0, 0.0),
+            Vector3f::new(-5.0, -5.0, 0.0),
+            Vector3f::new(3.0, -5.0, 0.0),
+            Vector3f::new(0.0, 5.0, 0.0),
             Color { r: 255, g: 255, b: 255 },
             50,
             0.7,
         );
         let triangle_shape = Shape::Triangle(triangle);
         let transformed_triangle = triangle_shape
-            .rotate_x_all_deg(10.0, Vector3f { x: 0.0, y: 0.0, z: 0.0 })
-            .rotate_y_all_deg(angle, Vector3f { x: 0.0, y: 0.0, z: 0.0 })
-            .translate_all(2.0, 2.0, 3.0);
+            .rotate_y_all_deg(20.0, Vector3f { x: 0.0, y: 0.0, z: 0.0 })
+            .rotate_x_all_deg(20.0, Vector3f { x: 0.0, y: 0.0, z: 0.0 })
+            .translate_all(3.0, 5.0, 3.5);
 
         let cube = create_cube_mesh(2.0, Color { r: 80, g: 0, b: 150 }, 300, 0.4);
         let cube_shape = Shape::Mesh(cube);
         let transformed_cube = cube_shape
             .rotate_x_all_deg(angle, Vector3f { x: 0.0, y: 0.0, z: 0.0 })
             .rotate_y_all_deg(55.0, Vector3f { x: 0.0, y: 0.0, z: 0.0 })
-            .translate_all(-2.0, 1.0, 3.0);
+            .translate_all(-3.0, 2.0, -2.0);
+
+        let transformed_teapot =
+            teapot_shape.clone().rotate_y_all_deg(angle, Vector3f { x: 0.0, y: 0.0, z: 0.0 });
 
         let scene = vec![
-            complex_shape_with_transform,
+            // complex_shape_with_transform,
             ground_sphere,
             transformed_triangle,
             transformed_cube,
+            transformed_teapot,
         ];
 
         // === Замер времени рендеринга кадра ===
@@ -149,6 +172,18 @@ fn open_interactive_window() {
 
     let origin = Vector3f { x: x_position, y: y_position, z: z_position };
     let rotation = vectors::rotate_y_deg(angle);
+
+    let lights = vec![
+        Light::Ambient { intensity: 0.25 },
+        Light::Point {
+            intensity: 0.85,
+            position: Vector3f { x: 0.0, y: 5.0, z: 0.0 },
+        },
+        // Light::Directional {
+        //     intensity: 0.8,
+        //     direction: Vector3f { x: -0.5, y: -0.2, z: 0.0 },
+        // },
+    ];
 
     let ground_sphere = Shape::Sphere(Sphere {
         center: Vector3f { x: 0.0, y: -5001.5, z: 0.0 },
@@ -253,18 +288,6 @@ fn open_interactive_window() {
     //         reflective: 0.0,
     //     }),
     // ];
-
-    let lights = vec![
-        Light::Ambient { intensity: 0.25 },
-        Light::Point {
-            intensity: 0.85,
-            position: Vector3f { x: 0.0, y: 5.0, z: 0.0 },
-        },
-        // Light::Directional {
-        //     intensity: 0.8,
-        //     direction: Vector3f { x: -0.5, y: -0.2, z: 0.0 },
-        // },
-    ];
 
     let sdl_context = sdl3::init().unwrap();
     let video_subsystem = sdl_context.video().unwrap();
@@ -549,4 +572,12 @@ pub fn load_obj<P: AsRef<Path>>(
     }
 
     Ok(Mesh::new(triangles))
+}
+
+fn check_temperature() -> f32 {
+    Components::new_with_refreshed_list()
+        .iter()
+        .filter_map(|c| c.temperature())
+        .max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+        .unwrap_or(0.0)
 }
