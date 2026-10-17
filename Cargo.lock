@@ -1433,6 +1433,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "weekend_raytracer"
+version = "0.1.0"
+
+[[package]]
 name = "weezl"
 version = "0.1.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
