@@ -10,12 +10,12 @@ pub struct Vec3 {
 pub type Point3 = Vec3;
 
 impl Vec3 {
-    pub fn zero() -> Self {
-        Self { x: 0.0, y: 0.0, z: 0.0 }
-    }
-
     pub fn new(x: f64, y: f64, z: f64) -> Self {
         Self { x, y, z }
+    }
+
+    pub fn zero() -> Self {
+        Self { x: 0.0, y: 0.0, z: 0.0 }
     }
 
     pub fn dot(self, other: Self) -> f64 {
@@ -106,14 +106,7 @@ impl Mul<Vec3> for f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    fn approx_eq(a: f64, b: f64) -> bool {
-        (a - b).abs() < 1e-12
-    }
-
-    fn vec3_approx_eq(a: Vec3, b: Vec3) -> bool {
-        approx_eq(a.x, b.x) && approx_eq(a.y, b.y) && approx_eq(a.z, b.z)
-    }
+    use crate::test_utils::*;
 
     #[test]
     fn test_neg() {
